@@ -1006,6 +1006,26 @@ class ReaderApp {
     }
 
     /**
+     * 🚪 Close all active modals
+     * Called before navigation to prevent modals from hanging over new pages
+     */
+    closeActiveModals() {
+        console.log('🚪 Closing all active modals');
+        
+        // Close ProfileModal if it exists and is open
+        if (window.communityPage?.profileModal?.isOpen) {
+            window.communityPage.profileModal.close({ force: true });
+            console.log('✅ ProfileModal closed');
+        }
+        
+        // Close any other global modals from state/ui if they exist
+        // This is extensible for future modals
+        if (this.state?.get('ui.activeModal')) {
+            this.state.set('ui.activeModal', null);
+        }
+    }
+
+    /**
      * 🖼️ PATCH: Resolve avatar URL with fallback priority
      * Returns custom avatarUrl -> Telegram photo_url -> null
      */

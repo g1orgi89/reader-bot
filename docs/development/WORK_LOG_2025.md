@@ -56,6 +56,313 @@
 
 ## 📝 ЗАПИСИ
 
+## 2025-12-25 - ProfileModal Stability Fixes: Close Behavior, Stats Loading, Image Error Handling
+
+**Задача:** Стабилизировать модалку профиля, устранить глобальный onerror крэш, правильная загрузка счётчиков для «своего» профиля, автозакрытие модалок при навигации  
+**Фактически затрачено:** 2 часа
+
+### Проблема
+
+**Симптомы в Telegram/Web версии:**
+1. **Модалка не закрывается с первого клика**: Иногда требуется 3–10 попыток закрыть модалку профиля
+   - При переходе «Открыть профиль» модалка остаётся висеть поверх страницы профиля
+   - BackButton в Telegram иногда не срабатывает
+
+2. **Счётчики показывают 0 для собственного профиля**: В модалке собственного профиля (открытой из Community) 
+   - Цитаты: 0
+   - Подписчики: 0  
+   - Подписки: 0
+   - При открытии профиля через меню всё корректно
+
+3. **Глобальная ошибка от inline onerror**: Периодически всплывает оверлей «Произошла ошибка, попробуйте обновить страницу»
+   - Ошибка: `Uncaught TypeError: Cannot read properties of null (reading 'style')`
+   - Причина: inline `onerror="this.style.display='none'"` на `<img>` аватара
+   - Приводит к лишним ререндерам и миганию UI
+
+### Корневые причины
+
+**1. Небезопасный inline onerror в ProfileModal:**
+```javascript
+onerror="this.style.display='none'; this.parentElement.classList.add('fallback')"
+```
+- При race conditions или DOM mutations `this` может быть `null`
+- Inline код не обернут в try/catch → ошибка всплывает в `window.onerror`
+- `App.handleError` перехватывает и показывает глобальный оверлей ошибки
+
+**2. Модалка живёт вне роутера:**
+- ProfileModal монтируется в `document.body`, не управляется роутером
+- При навигации Router не знает о модалке и не закрывает её
+- Модалка остаётся висеть поверх новой страницы
+
+**3. Неправильное определение "собственный профиль":**
+```javascript
+const isOwnProfile = currentUserId === this.userId; // number vs string
+```
+- Строгое сравнение `===` не работает при несовпадении типов
+- `currentUserId` может быть number, `this.userId` — string или наоборот
+- Из-за этого isOwnProfile === false даже для своего профиля
+- Не подгружаются stats и follow counts
+
+**4. Неправильный маппинг stats из API:**
+```javascript
+const stats = await this.api.getStats(this.userId);
+this.profileData.stats = { ...this.profileData.stats, ...stats };
+```
+- Ответ API: `{ stats: { totalQuotes: 10 } }`
+- Но код ожидает плоский объект: `{ totalQuotes: 10 }`
+- В результате `this.profileData.stats` не содержит данных
+
+**5. Множественная подписка на Telegram BackButton:**
+- При каждом open() вызывается `BackButton.onClick(handler)`
+- Но не проверяется, был ли handler уже подписан
+- Накапливаются дубликаты обработчиков
+
+### Решение
+
+**1. mini-app/js/components/ProfileModal.js:**
+
+**a) Замена inline onerror на безопасный глобальный обработчик:**
+```javascript
+// Было:
+onerror="this.style.display='none'; this.parentElement.classList.add('fallback')"
+
+// Стало:
+onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)"
+```
+
+**b) Идемпотентное закрытие с force опцией:**
+```javascript
+close(options = {}) {
+    const { force = false } = options;
+    
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    
+    // Remove event listeners
+    if (this.backdrop) {
+        this.backdrop.removeEventListener('click', this.boundHandleBackdropClick);
+    }
+    document.removeEventListener('keydown', this.boundHandleEscape);
+    
+    // Remove BackButton handler with guard
+    if (this.telegram?.BackButton) {
+        if (this.backButtonAttached) {
+            this.telegram.BackButton.offClick(this.boundHandleBackButton);
+            this.backButtonAttached = false;
+        }
+        this.telegram.BackButton.hide();
+    }
+    
+    if (force) {
+        // Immediate close without animation
+        if (this.modal) {
+            this.modal.classList.remove('active');
+            this.modal.style.display = 'none';
+        }
+        if (this.backdrop) {
+            this.backdrop.classList.remove('active');
+            this.backdrop.style.display = 'none';
+        }
+        document.body.classList.remove('modal-open');
+    } else {
+        // Animated close (existing behavior)
+        // ...
+    }
+}
+```
+
+**c) Guard для Telegram BackButton против дублей:**
+```javascript
+// В конструкторе:
+this.backButtonAttached = false;
+
+// В open():
+if (this.telegram?.BackButton) {
+    if (!this.backButtonAttached) {
+        this.telegram.BackButton.onClick(this.boundHandleBackButton);
+        this.backButtonAttached = true;
+    }
+    this.telegram.BackButton.show();
+}
+```
+
+**d) Правильное определение "свой профиль" с нормализацией типов:**
+```javascript
+// Было:
+const isOwnProfile = currentUserId === this.userId;
+
+// Стало:
+const isOwnProfile = String(currentUserId) === String(this.userId);
+```
+
+**e) Нормализация ответа getStats:**
+```javascript
+const statsResponse = await this.api.getStats(this.userId);
+
+// Normalize stats response - handle both flat and nested structures
+let normalizedStats = {};
+if (statsResponse) {
+    // If stats are nested in a stats property, extract them
+    const stats = statsResponse.stats || statsResponse;
+    
+    // Map to flat structure
+    normalizedStats = {
+        totalQuotes: stats.totalQuotes || 0,
+        currentStreak: stats.currentStreak || 0,
+        longestStreak: stats.longestStreak || 0,
+        weeklyQuotes: stats.weeklyQuotes || stats.thisWeek || 0,
+        thisWeek: stats.thisWeek || stats.weeklyQuotes || 0
+    };
+}
+
+// Merge with existing stats
+this.profileData.stats = {
+    ...this.profileData.stats,
+    ...normalizedStats
+};
+
+// Load follow counts
+const counts = await this.api.getFollowCounts();
+if (counts) {
+    this.profileData.stats = {
+        ...this.profileData.stats,
+        followers: counts.followers || 0,
+        following: counts.following || 0
+    };
+}
+```
+
+**f) Force close при "Открыть профиль" с задержкой навигации:**
+```javascript
+handleOpenFullProfile() {
+    const profileUrl = `/profile?user=${this.userId}`;
+    
+    // Close modal first with force option for immediate effect
+    this.close({ force: true });
+    
+    // Small delay to ensure modal closes before navigation
+    setTimeout(() => {
+        if (this.router && typeof this.router.navigate === 'function') {
+            this.router.navigate(profileUrl);
+        } else {
+            window.location.hash = profileUrl;
+        }
+        
+        if (this.telegram?.hapticFeedback) {
+            this.telegram.hapticFeedback('light');
+        }
+    }, this.MODAL_CLOSE_DELAY); // 100ms
+}
+```
+
+**2. mini-app/js/core/App.js:**
+
+**a) Глобальный безопасный обработчик изображений (уже был, проверен):**
+```javascript
+window.RBImageErrorHandler = function(img) {
+    try {
+        if (!img || !(img instanceof HTMLImageElement)) {
+            console.warn('⚠️ RBImageErrorHandler: Invalid image element', img);
+            return;
+        }
+        
+        img.style.display = 'none';
+        
+        if (img.parentElement) {
+            img.parentElement.classList.add('fallback');
+        }
+        
+        console.log('🖼️ Image load failed, fallback applied:', img.src);
+    } catch (e) {
+        console.warn('⚠️ RBImageErrorHandler: Error handling image failure:', e);
+    }
+};
+```
+
+**b) Метод closeActiveModals для закрытия всех модалок:**
+```javascript
+closeActiveModals() {
+    console.log('🚪 Closing all active modals');
+    
+    // Close ProfileModal if it exists and is open
+    if (window.communityPage?.profileModal?.isOpen) {
+        window.communityPage.profileModal.close({ force: true });
+        console.log('✅ ProfileModal closed');
+    }
+    
+    // Close any other global modals from state/ui if they exist
+    if (this.state?.get('ui.activeModal')) {
+        this.state.set('ui.activeModal', null);
+    }
+}
+```
+
+**3. mini-app/js/core/Router.js:**
+
+**Автозакрытие модалок перед навигацией:**
+```javascript
+async navigate(path, options = {}) {
+    // ... guards ...
+    
+    try {
+        this.isNavigating = true;
+        
+        // Close all active modals before navigation to prevent them from hanging
+        if (this.app && typeof this.app.closeActiveModals === 'function') {
+            this.app.closeActiveModals();
+        }
+        
+        // ... rest of navigation ...
+    }
+}
+```
+
+### Тесты на dev.unibotz.com:3003
+
+**1. Закрытие модалки:**
+- ✅ Открыть модалку профиля через Community → карточка пользователя
+- ✅ Закрыть крестиком → модалка закрывается с первого клика
+- ✅ Открыть снова, закрыть кликом по backdrop → работает с первого раза
+- ✅ Открыть снова, нажать Escape → закрывается
+- ✅ Открыть снова, нажать Telegram BackButton → закрывается
+
+**2. "Открыть профиль" без зависания:**
+- ✅ Открыть модалку → нажать "Открыть профиль"
+- ✅ Модалка исчезает мгновенно (force: true)
+- ✅ Через 100ms открывается страница профиля
+- ✅ Модалка не остаётся висеть поверх
+
+**3. Счётчики в собственном профиле:**
+- ✅ Открыть модалку собственного профиля из Community
+- ✅ Проверить счётчики: followers, following, totalQuotes
+- ✅ Сравнить с ProfilePage → должны совпадать
+
+**4. Консоль без ошибок:**
+- ✅ Открыть/закрыть модалку несколько раз
+- ✅ Проверить консоль: нет `Uncaught TypeError` от onerror
+- ✅ App.js не показывает оверлей «Произошла ошибка…»
+
+**5. Telegram BackButton без дублей:**
+- ✅ Открыть модалку → BackButton появляется
+- ✅ Нажать BackButton → модалка закрывается, BackButton скрывается
+- ✅ Открыть модалку снова → BackButton работает (нет дублей обработчиков)
+
+### Файлы изменены
+
+- `mini-app/js/components/ProfileModal.js`: Основные фиксы модалки
+- `mini-app/js/core/App.js`: Добавлен метод closeActiveModals
+- `mini-app/js/core/Router.js`: Вызов closeActiveModals перед навигацией
+- `docs/development/WORK_LOG_2025.md`: Документация изменений
+
+### Ограничения соблюдены
+
+- ✅ Vanilla JS + JSDoc, без React/Vue/TypeScript
+- ✅ Не менялись CSS переменные (mini-app/css/variables.css)
+- ✅ Минимально инвазивные правки
+- ✅ Обратная совместимость сохранена
+
+---
+
 ## 2025-12-25 - Image Error Handling Fix: Global Safe Error Handler and Username Display
 
 **Задача:** Устранить глобальное исключение от inline onerror <img> и добавить отображение @username в карточках подписчиков/подписок  
