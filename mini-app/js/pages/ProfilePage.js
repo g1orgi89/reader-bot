@@ -255,6 +255,9 @@ class ProfilePage {
      * UPDATED: Защита от гонок через requestId, не перезаписывает кэш пустыми ответами
      */
     async loadFollowers() {
+        // Track previous data length to detect changes (outside try-catch for finally block access)
+        const previousLength = this.followersData?.length || 0;
+        
         try {
             // Increment request ID to invalidate previous requests
             this._followersRequestId++;
@@ -263,9 +266,9 @@ class ProfilePage {
             // Set loading flag but DON'T clear current data - show spinner over cached data
             this.loadingFollowers = true;
             
-            // Force render to show spinner immediately (with cached data if available)
+            // Use CSS loading state instead of full re-render
             if (this.activeTab === 'followers') {
-                this.refreshTabContent();
+                this._setTabLoading(true);
             }
             
             // ВАЖНО: Передаём userId профиля, который сейчас открыт
@@ -321,12 +324,20 @@ class ProfilePage {
             // Keep cached data if available, otherwise empty array
             this.followersData = this._followersByUserId[this.userId] || [];
         } finally {
+            // Track new data length to detect changes
+            const newLength = this.followersData?.length || 0;
+            
             // Always reset loading flag
             this.loadingFollowers = false;
             
-            // Force render to show data or empty state ONLY if still on followers tab
+            // Remove CSS loading state
             if (this.activeTab === 'followers') {
-                this.refreshTabContent();
+                this._setTabLoading(false);
+                
+                // Only refresh if data length changed
+                if (newLength !== previousLength) {
+                    this._scheduleTabRefresh();
+                }
             }
         }
     }
@@ -336,6 +347,9 @@ class ProfilePage {
      * UPDATED: Защита от гонок через requestId, не перезаписывает кэш пустыми ответами
      */
     async loadFollowing() {
+        // Track previous data length to detect changes (outside try-catch for finally block access)
+        const previousLength = this.followingData?.length || 0;
+        
         try {
             // Increment request ID to invalidate previous requests
             this._followingRequestId++;
@@ -344,9 +358,9 @@ class ProfilePage {
             // Set loading flag but DON'T clear current data - show spinner over cached data
             this.loadingFollowing = true;
             
-            // Force render to show spinner immediately (with cached data if available)
+            // Use CSS loading state instead of full re-render
             if (this.activeTab === 'following') {
-                this.refreshTabContent();
+                this._setTabLoading(true);
             }
             
             // ВАЖНО: Передаём userId профиля, который сейчас открыт
@@ -402,12 +416,20 @@ class ProfilePage {
             // Keep cached data if available, otherwise empty array
             this.followingData = this._followingByUserId[this.userId] || [];
         } finally {
+            // Track new data length to detect changes
+            const newLength = this.followingData?.length || 0;
+            
             // Always reset loading flag
             this.loadingFollowing = false;
             
-            // Force render to show data or empty state ONLY if still on following tab
+            // Remove CSS loading state
             if (this.activeTab === 'following') {
-                this.refreshTabContent();
+                this._setTabLoading(false);
+                
+                // Only refresh if data length changed
+                if (newLength !== previousLength) {
+                    this._scheduleTabRefresh();
+                }
             }
         }
     }
@@ -575,10 +597,29 @@ class ProfilePage {
     }
     
     /**
+     * 🔄 Schedule tab content refresh with debouncing
+     * Only refreshes when data length changes to prevent unnecessary re-renders
+     * @private
+     */
+    _scheduleTabRefresh() {
+        // Clear any existing debounce timer
+        if (this._refreshTimer) {
+            clearTimeout(this._refreshTimer);
+        }
+        
+        // Debounce refresh by 50ms to prevent multiple rapid updates
+        this._refreshTimer = setTimeout(() => {
+            this._refreshTabContentNow();
+            this._refreshTimer = null;
+        }, 50);
+    }
+    
+    /**
      * 🔄 Refresh tab content safely without full page re-render
      * Updates only the tab content area to prevent flickering
+     * @private
      */
-    refreshTabContent() {
+    _refreshTabContentNow() {
         // Diagnostic logging to track unnecessary re-renders
         console.log('🔄 [REFRESH] refreshTabContent called:', {
             activeTab: this.activeTab,
@@ -606,6 +647,75 @@ class ProfilePage {
             
             // Re-attach event listeners for new elements
             this.attachTabContentEventListeners(newContent);
+        }
+    }
+    
+    /**
+     * 🔄 Refresh tab content safely without full page re-render (legacy method)
+     * Updates only the tab content area to prevent flickering
+     */
+    refreshTabContent() {
+        this._scheduleTabRefresh();
+    }
+    
+    /**
+     * 🔄 Set tab loading state with CSS class instead of rebuilding content
+     * Shows/hides overlay spinner without full DOM rebuild
+     * @param {boolean} isLoading - Whether the tab is loading
+     * @private
+     */
+    _setTabLoading(isLoading) {
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        const tabContent = root.querySelector('.profile-tab-content');
+        if (!tabContent) return;
+        
+        if (isLoading) {
+            tabContent.classList.add('loading');
+        } else {
+            tabContent.classList.remove('loading');
+        }
+    }
+    
+    /**
+     * 🔄 Update displayed username without full card rebuild
+     * Only updates the username element to prevent flicker
+     * @param {string} newUsername - The new username to display
+     * @private
+     */
+    _updateDisplayedUsername(newUsername) {
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        const profileCard = root.querySelector('.profile-card');
+        if (!profileCard) return;
+        
+        // Find or create username element
+        let usernameElement = profileCard.querySelector('.profile-username');
+        const formattedUsername = newUsername ? `@${newUsername}` : '';
+        
+        if (formattedUsername) {
+            if (!usernameElement) {
+                // Create username element if it doesn't exist
+                usernameElement = document.createElement('p');
+                usernameElement.className = 'profile-username';
+                
+                // Insert after profile-name
+                const nameElement = profileCard.querySelector('.profile-name');
+                if (nameElement && nameElement.nextSibling) {
+                    nameElement.parentNode.insertBefore(usernameElement, nameElement.nextSibling);
+                } else if (nameElement) {
+                    nameElement.parentNode.appendChild(usernameElement);
+                }
+            }
+            
+            // Update text content
+            usernameElement.textContent = formattedUsername;
+            usernameElement.style.display = '';
+        } else if (usernameElement) {
+            // Hide username element if no username
+            usernameElement.style.display = 'none';
         }
     }
     
@@ -1266,15 +1376,56 @@ class ProfilePage {
                     this.state.set('user.profile.username', this.cachedUsername);
                 }
                 
-                // Re-render profile card to show the username
-                const root = document.getElementById('profilePageRoot');
-                if (root) {
-                    const profileCard = root.querySelector('.profile-card');
-                    if (profileCard) {
-                        profileCard.outerHTML = this.renderProfileCard();
+                // Use targeted update instead of outerHTML replacement
+                this._updateDisplayedUsername(this.cachedUsername);
+            }
+        }
+        
+        // Add delegated click handler for user cards
+        const root = document.getElementById('profilePageRoot');
+        if (root) {
+            // Remove any existing handler to prevent duplicates
+            if (this._userCardClickHandler) {
+                root.removeEventListener('click', this._userCardClickHandler);
+            }
+            
+            // Create and store handler
+            this._userCardClickHandler = (e) => {
+                // Find closest user-card element
+                const card = e.target.closest('.user-card[data-user-id]');
+                if (card) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Extract userId with comprehensive fallback chain
+                    const userId = card.dataset.userId || 
+                                  card.getAttribute('data-user-id') ||
+                                  card.dataset.followingId ||
+                                  card.dataset.followerId;
+                    
+                    if (!userId) {
+                        console.warn('⚠️ [USER-CARD] No userId found on card', card);
+                        return;
+                    }
+                    
+                    console.log(`🔗 [USER-CARD] Navigating to profile: ${userId}`);
+                    
+                    // Haptic feedback
+                    if (this.telegram?.hapticFeedback) {
+                        this.telegram.hapticFeedback('light');
+                    }
+                    
+                    // Navigate to user's profile
+                    if (this.router && typeof this.router.navigate === 'function') {
+                        this.router.navigate(`/profile?user=${userId}`);
+                    } else {
+                        window.location.hash = `/profile?user=${userId}`;
                     }
                 }
-            }
+            };
+            
+            // Attach delegated handler
+            root.addEventListener('click', this._userCardClickHandler);
         }
         
         // Update Telegram BackButton visibility
@@ -1298,6 +1449,13 @@ class ProfilePage {
      */
     onHide() {
         console.log('👋 ProfilePage: onHide');
+        
+        // Remove delegated click handler for user cards
+        const root = document.getElementById('profilePageRoot');
+        if (root && this._userCardClickHandler) {
+            root.removeEventListener('click', this._userCardClickHandler);
+            this._userCardClickHandler = null;
+        }
         
         // Hide Telegram BackButton
         if (this.telegram?.BackButton) {
