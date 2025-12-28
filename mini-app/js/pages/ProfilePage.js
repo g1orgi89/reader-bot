@@ -1415,6 +1415,12 @@ class ProfilePage {
     onHide() {
         console.log('👋 ProfilePage: onHide');
         
+        // Clear debounce timer to prevent memory leaks
+        if (this._refreshTimer) {
+            clearTimeout(this._refreshTimer);
+            this._refreshTimer = null;
+        }
+        
         // Remove delegated click handler for user cards
         const root = document.getElementById('profilePageRoot');
         if (root && this._userCardClickHandler) {
@@ -1453,6 +1459,19 @@ class ProfilePage {
      * 🧹 Cleanup
      */
     destroy() {
+        // Clear debounce timer
+        if (this._refreshTimer) {
+            clearTimeout(this._refreshTimer);
+            this._refreshTimer = null;
+        }
+        
+        // Remove click handler if still attached
+        const root = document.getElementById('profilePageRoot');
+        if (root && this._userCardClickHandler) {
+            root.removeEventListener('click', this._userCardClickHandler);
+            this._userCardClickHandler = null;
+        }
+        
         // Unsubscribe from state changes
         this.subscriptions.forEach(unsub => {
             if (typeof unsub === 'function') unsub();
