@@ -651,7 +651,9 @@ class ProfilePage {
     }
     
     /**
-     * 🔄 Refresh tab content safely without full page re-render (legacy method)
+     * 🔄 Refresh tab content safely without full page re-render (legacy wrapper)
+     * Kept for backward compatibility with existing code that may call this method directly
+     * New code should use _scheduleTabRefresh() for debounced updates
      * Updates only the tab content area to prevent flickering
      */
     refreshTabContent() {
@@ -870,8 +872,7 @@ class ProfilePage {
                  data-user-id="${userId || ''}" 
                  data-following-id="${followingId}"
                  data-follower-id="${followerId}"
-                 data-is-following="${isFollowing}"
-                 data-action="navigate-to-profile">
+                 data-is-following="${isFollowing}">
                 <div class="user-avatar-container">
                     ${avatarUrl ? `
                         <img class="user-avatar-img" src="${avatarUrl}" alt="${name}" 
