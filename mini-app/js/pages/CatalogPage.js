@@ -842,9 +842,9 @@ class CatalogPage {
               <img class="book-cover-img"
                    src="${coverSrc}"
                    alt="${escapeHtml(book.title || '')}"
-                   onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
+                   onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
               <span class="package-label">ПАКЕТ</span>
-              <div class="cover-fallback-text">${escapeHtml(book.title || '')}</div>
+              <div class="cover-fallback-text fallback">${escapeHtml(book.title || '')}</div>
             </div>
             <div class="book-info">
               <div class="book-title package-title">${escapeHtml(book.title || '')}</div>
@@ -890,8 +890,8 @@ class CatalogPage {
                     <img class="book-cover-img" 
                          src="/mini-app/assets/book-covers/${book.bookSlug}.png" 
                          alt="${safeTitle}"
-                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
-                    <div class="cover-fallback-text">${safeTitle}</div>
+                         onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+                    <div class="cover-fallback-text fallback">${safeTitle}</div>
                 </div>
                 <div class="book-info">
                     <div class="book-header">

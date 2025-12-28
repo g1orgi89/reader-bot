@@ -271,8 +271,8 @@ class TopMenu {
             return `
                 <div class="user-avatar">
                     <img class="menu-user-avatar-img" src="${imageUrl}" alt="Аватар"
-                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
-                    <div class="user-avatar-fallback">${userInfo.initials}</div>
+                         onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
+                    <div class="user-avatar-fallback fallback">${userInfo.initials}</div>
                 </div>
             `;
         }

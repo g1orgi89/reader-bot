@@ -229,8 +229,8 @@ class SettingsPage {
             return `
                 <div class="profile-avatar-large">
                     <img src="${avatarUrl}" alt="Аватар" class="profile-avatar-img" 
-                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback')">
-                    <div class="profile-avatar-fallback">${initials}</div>
+                         onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+                    <div class="profile-avatar-fallback fallback">${initials}</div>
                 </div>
             `;
         }

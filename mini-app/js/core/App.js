@@ -1006,16 +1006,66 @@ class ReaderApp {
     }
 
     /**
+     * 🎭 Get or create ProfileModal singleton instance
+     * Ensures only one ProfileModal exists across the app
+     * @returns {ProfileModal} Singleton ProfileModal instance
+     */
+    getProfileModal() {
+        try {
+            if (this.profileModal && this.profileModal instanceof ProfileModal) {
+                return this.profileModal;
+            }
+            const PMClass = window.ProfileModal || ProfileModal;
+            this.profileModal = new PMClass(this);
+            console.log('✅ ProfileModal singleton created');
+            return this.profileModal;
+        } catch (e) {
+            console.warn('⚠️ getProfileModal failed:', e);
+            return null;
+        }
+    }
+
+    /**
+     * 🧹 Cleanup all Telegram BackButton handlers
+     * Removes all registered BackButton handlers from global registry
+     */
+    _cleanupBackButtonHandlers() {
+        try {
+            const tgBack = (this.telegram && this.telegram.BackButton) || (window.Telegram?.WebApp?.BackButton);
+            const handlers = window.__PM_BACKBTN_HANDLERS;
+            if (tgBack && handlers && handlers.size) {
+                handlers.forEach(fn => {
+                    try {
+                        tgBack.offClick(fn);
+                    } catch (_) {
+                        // Ignore errors
+                    }
+                });
+                handlers.clear();
+                console.log('🧹 Telegram BackButton handlers cleared');
+            }
+        } catch (e) {
+            console.warn('⚠️ BackButton cleanup failed:', e);
+        }
+    }
+
+    /**
      * 🚪 Close all active modals
      * Called before navigation to prevent modals from hanging over new pages
      */
     closeActiveModals() {
         console.log('🚪 Closing all active modals');
         
-        // Close ProfileModal if it exists and is open
+        // Close ProfileModal singleton if it exists and is open
+        if (this.profileModal?.isOpen) {
+            this.profileModal.close({ force: true });
+            console.log('✅ ProfileModal closed');
+        }
+        
+        // Fallback: Close ProfileModal from CommunityPage if it exists
         if (window.communityPage?.profileModal?.isOpen) {
             window.communityPage.profileModal.close({ force: true });
-            console.log('✅ ProfileModal closed');
+            console.log('✅ CommunityPage ProfileModal closed');
         }
         
         // Close any other global modals from state/ui if they exist
@@ -1023,6 +1073,9 @@ class ReaderApp {
         if (this.state?.get('ui.activeModal')) {
             this.state.set('ui.activeModal', null);
         }
+        
+        // Cleanup all BackButton handlers
+        this._cleanupBackButtonHandlers();
     }
 
     /**

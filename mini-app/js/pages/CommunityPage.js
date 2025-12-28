@@ -38,8 +38,13 @@ class CommunityPage {
         this.statisticsService = app.statistics || window.statisticsService;
         window.communityPage = this;
         
-        // Initialize ProfileModal
-        this.profileModal = new ProfileModal(app);
+        // Initialize ProfileModal - use singleton from app or fallback
+        this.profileModal = (typeof app.getProfileModal === 'function')
+            ? app.getProfileModal()
+            : (window.profileModal || (window.profileModal = new ProfileModal(app)));
+        
+        // Store bound delegated handler reference for cleanup
+        this._delegatedHandlerBound = null;
         
         // Стейт
         this.activeTab = 'feed';
@@ -2199,8 +2204,8 @@ async refreshSpotlight() {
                 <img src="${this.escapeHtml(user.avatarUrl)}" 
                      alt="${this.escapeHtml(name)}" 
                      class="avatar-image"
-                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                <div class="avatar-initials" style="display:none;">${initials}</div>
+                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+                <div class="avatar-initials fallback" style="display:none;">${initials}</div>
             </div>`;
         } else {
             // Нет аватара - показываем инициалы
@@ -2559,8 +2564,8 @@ async refreshSpotlight() {
             return `
                 <div class="leader-avatar">
                     <img class="leader-avatar-img" src="${avatarUrl}" alt="Аватар" 
-                         onerror="this.style.display='none'; this.parentElement.classList.add('fallback')" />
-                    <div class="leader-avatar-fallback">${initials || 'А'}</div>
+                         onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
+                    <div class="leader-avatar-fallback fallback">${initials || 'А'}</div>
                 </div>
             `;
         } else {
@@ -3306,8 +3311,8 @@ renderAchievementsSection() {
             return;
         }
         
-        // Use delegated event listener for better performance and dynamic content
-        pageContent.addEventListener('click', (event) => {
+        // Define handler function
+        const handler = (event) => {
             // Check if clicked element or its parent has data-user-id
             const clickedElement = event.target.closest('[data-user-id]');
             
@@ -3341,7 +3346,13 @@ renderAchievementsSection() {
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('light');
             }
-        });
+        };
+        
+        // Store bound handler reference for cleanup
+        this._delegatedHandlerBound = handler;
+        
+        // Use delegated event listener for better performance and dynamic content
+        pageContent.addEventListener('click', handler);
         
         console.log('✅ Attached delegated profile modal handler on #page-content');
     }
@@ -4432,6 +4443,19 @@ renderAchievementsSection() {
      */
     destroy() {
         console.log('🧹 CommunityPage: Очистка ресурсов');
+        
+        // Remove delegated profile modal handler
+        try {
+            const pageContent = document.getElementById('page-content');
+            if (pageContent && this._delegatedHandlerBound) {
+                pageContent.removeEventListener('click', this._delegatedHandlerBound);
+                console.log('🧹 Removed delegated profile modal handler');
+            }
+            this._delegatedHandlerBound = null;
+        } catch (e) {
+            console.warn('⚠️ CommunityPage destroy failed:', e);
+        }
+        
         // Remove event listeners
         if (this._quoteChangeHandler) {
             document.removeEventListener('quotes:changed', this._quoteChangeHandler);

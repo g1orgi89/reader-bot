@@ -617,8 +617,8 @@ class HomePage {
         if (imageUrl) {
             return `
                 <img src="${imageUrl}" alt="Аватар" 
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
-                <div class="home-header-avatar-fallback" style="display:none">${initials || 'А'}</div>
+                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
+                <div class="home-header-avatar-fallback fallback" style="display:none">${initials || 'А'}</div>
             `;
         } else {
             return `<div class="home-header-avatar-fallback">${initials || 'А'}</div>`;
