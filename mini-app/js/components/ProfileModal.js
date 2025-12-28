@@ -44,7 +44,15 @@ class ProfileModal {
         // Track if BackButton handler is attached to prevent duplicates
         this.backButtonAttached = false;
         
-        console.log('✅ ProfileModal: Initialized');
+        // Instance ID for lifecycle tracking
+        this.instanceId = (window.__PM_INSTANCE_SEQ = (window.__PM_INSTANCE_SEQ || 0) + 1);
+        
+        // Initialize global BackButton handler registry
+        if (!window.__PM_BACKBTN_HANDLERS) {
+            window.__PM_BACKBTN_HANDLERS = new Set();
+        }
+        
+        console.log(`✅ ProfileModal: Initialized instance=${this.instanceId}`);
     }
     
     /**
@@ -70,7 +78,40 @@ class ProfileModal {
         document.body.appendChild(this.backdrop);
         document.body.appendChild(this.modal);
         
-        console.log('✅ ProfileModal: DOM elements created');
+        console.log(`✅ ProfileModal: DOM elements created for instance=${this.instanceId}`);
+    }
+    
+    /**
+     * 🧹 Ensure singleton DOM - remove duplicate modal/backdrop nodes
+     * Guards against multiple modal instances in the DOM
+     */
+    _ensureSingletonDom() {
+        try {
+            const modals = document.querySelectorAll('.profile-modal');
+            const backdrops = document.querySelectorAll('.profile-modal-backdrop');
+            
+            if (modals.length > 1) {
+                modals.forEach(m => {
+                    if (m !== this.modal) {
+                        m.remove();
+                    }
+                });
+                console.warn(`🧹 Removed ${modals.length - 1} duplicate .profile-modal`);
+            }
+            
+            if (backdrops.length > 1) {
+                backdrops.forEach(b => {
+                    if (b !== this.backdrop) {
+                        b.remove();
+                    }
+                });
+                console.warn(`🧹 Removed ${backdrops.length - 1} duplicate .profile-modal-backdrop`);
+            }
+            
+            console.log(`🔎 Modal DOM counts: modal=${document.querySelectorAll('.profile-modal').length}, backdrop=${document.querySelectorAll('.profile-modal-backdrop').length}`);
+        } catch (e) {
+            console.warn('⚠️ ensureSingletonDom failed:', e);
+        }
     }
     
     /**
@@ -93,6 +134,9 @@ class ProfileModal {
         // Create modal if not exists
         this.createModal();
         
+        // Ensure singleton DOM - remove any duplicate nodes
+        this._ensureSingletonDom();
+        
         // Show modal with loading state
         this.renderLoading();
         this.modal.style.display = 'flex';
@@ -107,6 +151,8 @@ class ProfileModal {
             if (!this.backButtonAttached) {
                 this.telegram.BackButton.onClick(this.boundHandleBackButton);
                 this.backButtonAttached = true;
+                // Register in global handler set
+                window.__PM_BACKBTN_HANDLERS.add(this.boundHandleBackButton);
             }
             this.telegram.BackButton.show();
         }
@@ -123,7 +169,7 @@ class ProfileModal {
         // Load profile data
         await this.loadProfile();
         
-        console.log('✅ ProfileModal: Opened for user', userId);
+        console.log(`👤 ProfileModal.open instance=${this.instanceId} user=${userId}`);
     }
     
     /**
@@ -144,10 +190,16 @@ class ProfileModal {
         }
         document.removeEventListener('keydown', this.boundHandleEscape);
         
-        // Hide Telegram BackButton and remove handler
+        // Hide Telegram BackButton and remove handler from global registry
         if (this.telegram?.BackButton) {
             if (this.backButtonAttached) {
-                this.telegram.BackButton.offClick(this.boundHandleBackButton);
+                try {
+                    this.telegram.BackButton.offClick(this.boundHandleBackButton);
+                    // Remove from global handler set
+                    window.__PM_BACKBTN_HANDLERS?.delete(this.boundHandleBackButton);
+                } catch (_) {
+                    // Ignore errors
+                }
                 this.backButtonAttached = false;
             }
             this.telegram.BackButton.hide();
@@ -183,7 +235,7 @@ class ProfileModal {
             document.body.classList.remove('modal-open');
         }
         
-        console.log('✅ ProfileModal: Closed', force ? '(force)' : '');
+        console.log(`✅ ProfileModal: Closed ${force ? '(force)' : ''} instance=${this.instanceId}`);
     }
     
     /**

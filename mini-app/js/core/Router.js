@@ -638,6 +638,7 @@ class AppRouter {
         // Вызываем метод очистки если он есть
         if (this.currentComponent && typeof this.currentComponent.destroy === 'function') {
             await this.currentComponent.destroy();
+            console.log('🧹 Router: destroy() вызван для текущего компонента');
         }
         
         // Очищаем контейнер и убираем все анимационные классы
