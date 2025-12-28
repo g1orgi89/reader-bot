@@ -113,8 +113,6 @@ class ProfileModal {
             console.warn('⚠️ ensureSingletonDom failed:', e);
         }
     }
-        console.log('✅ ProfileModal: DOM elements created');
-    }
     
     /**
      * 🚀 Open modal for specific user
