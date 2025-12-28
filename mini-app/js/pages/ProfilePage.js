@@ -1203,45 +1203,10 @@ class ProfilePage {
     
     /**
      * 🔗 Attach event listeners for tab content
-     * UPDATED: Implements delegated click handler for reliable user card navigation
+     * UPDATED: Simplified to only attach load more button listener
+     * User card navigation is handled by delegated handler in onShow()
      */
     attachTabContentEventListeners(container) {
-        // Delegated click handler for user cards - handles dynamic DOM updates
-        // This ensures clicks work even after tab re-renders
-        container.addEventListener('click', (e) => {
-            // Find closest user-card element
-            const card = e.target.closest('[data-action="navigate-to-profile"]');
-            if (card) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Extract userId with comprehensive fallback chain
-                const userId = card.dataset.userId || 
-                              card.getAttribute('data-user-id') ||
-                              card.dataset.followingId ||
-                              card.dataset.followerId;
-                
-                if (!userId) {
-                    console.warn('⚠️ [USER-CARD] No userId found on card', card);
-                    return;
-                }
-                
-                console.log(`🔗 [USER-CARD] Navigating to profile: ${userId}`);
-                
-                // Haptic feedback
-                if (this.telegram?.hapticFeedback) {
-                    this.telegram.hapticFeedback('light');
-                }
-                
-                // Navigate to user's profile
-                if (this.router && typeof this.router.navigate === 'function') {
-                    this.router.navigate(`/profile?user=${userId}`);
-                } else {
-                    window.location.hash = `/profile?user=${userId}`;
-                }
-            }
-        });
-        
         // Re-attach load more button
         const loadMoreBtn = container.querySelector('[data-action="load-more-quotes"]');
         if (loadMoreBtn) {
@@ -1397,9 +1362,8 @@ class ProfilePage {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    // Extract userId with comprehensive fallback chain
+                    // Extract userId with fallback chain
                     const userId = card.dataset.userId || 
-                                  card.getAttribute('data-user-id') ||
                                   card.dataset.followingId ||
                                   card.dataset.followerId;
                     
