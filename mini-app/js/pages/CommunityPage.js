@@ -227,14 +227,21 @@ class CommunityPage {
     }
     
     setupSubscriptions() {
-        // Listen for follow state changes from ProfileModal and ProfilePage
+        // Listen for follow state changes from ProfileModal and ProfilePage (legacy event)
         window.addEventListener('followStateChanged', (event) => {
             const { userId, following } = event.detail;
             console.log(`🔄 CommunityPage: Received followStateChanged event for user ${userId}: ${following}`);
             this.refreshFollowStatus(userId, following);
         });
         
-        console.log('✅ CommunityPage: Subscriptions set up');
+        // ✅ Subscribe to unified follow:changed event for real-time sync
+        window.addEventListener('follow:changed', (event) => {
+            const { userId, following } = event.detail;
+            console.log(`🔄 CommunityPage: Received follow:changed event for user ${userId}: ${following}`);
+            this.refreshFollowStatus(userId, following);
+        });
+        
+        console.log('✅ CommunityPage: Subscriptions set up (followStateChanged + follow:changed)');
     }
     
     async loadCommunityData() {
