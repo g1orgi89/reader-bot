@@ -849,7 +849,7 @@ class ProfilePage {
     
     /**
      * 👤 Render user card for followers/following lists
-     * UPDATED: Includes fallback data attributes for reliable userId extraction
+     * UPDATED: Includes data-action="navigate-to-profile" and fallback data attributes
      */
     renderUserCard(user) {
         const name = user.name || user.firstName || 'Пользователь';
@@ -872,7 +872,8 @@ class ProfilePage {
                  data-user-id="${userId || ''}" 
                  data-following-id="${followingId}"
                  data-follower-id="${followerId}"
-                 data-is-following="${isFollowing}">
+                 data-is-following="${isFollowing}"
+                 data-action="navigate-to-profile">
                 <div class="user-avatar-container">
                     ${avatarUrl ? `
                         <img class="user-avatar-img" src="${avatarUrl}" alt="${name}" 
@@ -1127,7 +1128,7 @@ class ProfilePage {
     
     /**
      * 🔄 Handle tab switch
-     * UPDATED: Использует refreshTabContent для безопасной перерисовки, выставляет loading-флаг перед загрузкой
+     * UPDATED: Uses _setTabLoading() for CSS overlay instead of full re-render at start
      */
     async handleTabSwitch(event) {
         const button = event.currentTarget;
@@ -1155,11 +1156,11 @@ class ProfilePage {
         if (newTab === 'followers') {
             // Check cache first, only load if not cached
             if (!this._followersByUserId[this.userId] || this._followersByUserId[this.userId].length === 0) {
-                // Set loading flag and refresh to show spinner
+                // Set loading flag with CSS overlay instead of full re-render
                 this.loadingFollowers = true;
-                this.refreshTabContent();
+                this._setTabLoading(true);
                 
-                // Load data
+                // Load data (will call _setTabLoading(false) and conditionally refresh in loadFollowers)
                 await this.loadFollowers();
             } else {
                 // Use cached data
@@ -1169,11 +1170,11 @@ class ProfilePage {
         } else if (newTab === 'following') {
             // Check cache first, only load if not cached
             if (!this._followingByUserId[this.userId] || this._followingByUserId[this.userId].length === 0) {
-                // Set loading flag and refresh to show spinner
+                // Set loading flag with CSS overlay instead of full re-render
                 this.loadingFollowing = true;
-                this.refreshTabContent();
+                this._setTabLoading(true);
                 
-                // Load data
+                // Load data (will call _setTabLoading(false) and conditionally refresh in loadFollowing)
                 await this.loadFollowing();
             } else {
                 // Use cached data
@@ -1357,9 +1358,14 @@ class ProfilePage {
             
             // Create and store handler
             this._userCardClickHandler = (e) => {
-                // Find closest user-card element
-                const card = e.target.closest('.user-card[data-user-id]');
+                // Find closest user-card or follow-list-item element
+                const card = e.target.closest('.user-card[data-user-id], .follow-list-item[data-user-id]');
                 if (card) {
+                    // Ignore clicks on buttons inside the card
+                    if (e.target.closest('button')) {
+                        return;
+                    }
+                    
                     e.preventDefault();
                     e.stopPropagation();
                     
