@@ -616,6 +616,7 @@ class ProfilePage {
     
     /**
      * 🔄 Refresh tab content safely without full page re-render
+     * UPDATED: Performs targeted DOM updates instead of replacing entire container
      * Updates only the tab content area to prevent flickering
      * @private
      */
@@ -637,16 +638,125 @@ class ProfilePage {
         const tabContent = root.querySelector('.profile-tab-content');
         if (!tabContent) return;
         
-        // Update content
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = this.renderTabContent();
-        const newContent = tempDiv.firstElementChild;
-        
-        if (newContent && tabContent.parentNode) {
-            tabContent.parentNode.replaceChild(newContent, tabContent);
+        // ✅ TARGETED UPDATE: Update only inner content, keep stable container
+        if (this.activeTab === 'followers' || this.activeTab === 'following') {
+            // Update users list for followers/following tabs
+            const usersList = tabContent.querySelector('.users-list');
+            const emptyState = tabContent.querySelector('.empty-state');
             
-            // Re-attach event listeners for new elements
-            this.attachTabContentEventListeners(newContent);
+            const data = this.activeTab === 'followers' ? this.followersData : this.followingData;
+            
+            if (data && data.length > 0) {
+                // Update users list HTML
+                const usersHTML = data.map(user => this.renderUserCard(user)).join('');
+                
+                if (usersList) {
+                    usersList.innerHTML = usersHTML;
+                } else {
+                    // Create users list if it doesn't exist
+                    const newUsersList = document.createElement('div');
+                    newUsersList.className = 'users-list';
+                    newUsersList.innerHTML = usersHTML;
+                    tabContent.innerHTML = '';
+                    tabContent.appendChild(newUsersList);
+                }
+                
+                // Hide empty state if present
+                if (emptyState) {
+                    emptyState.style.display = 'none';
+                }
+            } else {
+                // Show empty state
+                const emptyStateHTML = `<div class="empty-state"><p>Пока нет ${this.activeTab === 'followers' ? 'подписчиков' : 'подписок'}</p></div>`;
+                
+                if (emptyState) {
+                    emptyState.style.display = 'block';
+                } else {
+                    tabContent.innerHTML = emptyStateHTML;
+                }
+                
+                // Hide users list if present
+                if (usersList) {
+                    usersList.style.display = 'none';
+                }
+            }
+            
+        } else if (this.activeTab === 'quotes') {
+            // Update quotes list for quotes tab
+            const quotesList = tabContent.querySelector('.quotes-list');
+            const loadMoreContainer = tabContent.querySelector('.load-more-container');
+            const emptyState = tabContent.querySelector('.empty-state');
+            
+            if (this.userQuotes && this.userQuotes.length > 0) {
+                // Update quotes list HTML
+                const quotesHTML = this.userQuotes.map(quote => this.renderQuoteCard(quote)).join('');
+                
+                if (quotesList) {
+                    quotesList.innerHTML = quotesHTML;
+                } else {
+                    // Create quotes list if it doesn't exist
+                    const newQuotesList = document.createElement('div');
+                    newQuotesList.className = 'quotes-list';
+                    newQuotesList.innerHTML = quotesHTML;
+                    
+                    // Insert at beginning of tabContent
+                    if (tabContent.firstChild) {
+                        tabContent.insertBefore(newQuotesList, tabContent.firstChild);
+                    } else {
+                        tabContent.appendChild(newQuotesList);
+                    }
+                }
+                
+                // Update or create load-more button
+                if (this.hasMoreQuotes) {
+                    const loadMoreHTML = `
+                        <div class="load-more-container">
+                            <button class="btn-secondary load-more-btn" data-action="load-more-quotes">
+                                Загрузить ещё
+                            </button>
+                        </div>
+                    `;
+                    
+                    if (loadMoreContainer) {
+                        loadMoreContainer.outerHTML = loadMoreHTML;
+                    } else {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = loadMoreHTML;
+                        tabContent.appendChild(tempDiv.firstElementChild);
+                    }
+                    
+                    // Re-attach event listener for load-more button
+                    const newLoadMoreBtn = tabContent.querySelector('[data-action="load-more-quotes"]');
+                    if (newLoadMoreBtn) {
+                        newLoadMoreBtn.addEventListener('click', (e) => this.handleLoadMoreQuotes(e));
+                    }
+                } else if (loadMoreContainer) {
+                    // Remove load-more button if no more quotes
+                    loadMoreContainer.remove();
+                }
+                
+                // Hide empty state if present
+                if (emptyState) {
+                    emptyState.style.display = 'none';
+                }
+            } else {
+                // Show empty state
+                const emptyStateHTML = `<div class="empty-state"><p>Пока нет цитат</p></div>`;
+                
+                if (emptyState) {
+                    emptyState.style.display = 'block';
+                } else {
+                    tabContent.innerHTML = emptyStateHTML;
+                }
+                
+                // Hide quotes list and load-more if present
+                if (quotesList) {
+                    quotesList.style.display = 'none';
+                }
+                if (loadMoreContainer) {
+                    loadMoreContainer.style.display = 'none';
+                }
+            }
         }
     }
     
@@ -1084,13 +1194,25 @@ class ProfilePage {
     
     /**
      * 📢 Broadcast follow state change to other components
+     * UPDATED: Also updates centralized appState and dispatches follow:changed event
      */
     broadcastFollowStateChange(userId, following) {
-        // Dispatch custom event for follow state change
+        // ✅ Update centralized follow state
+        if (window.appState?.setFollowStatus) {
+            window.appState.setFollowStatus(userId, following);
+        }
+        
+        // Dispatch custom event for follow state change (legacy)
         const event = new CustomEvent('followStateChanged', {
             detail: { userId, following }
         });
         window.dispatchEvent(event);
+        
+        // ✅ Dispatch new canonical follow:changed event
+        const followChangedEvent = new CustomEvent('follow:changed', {
+            detail: { userId, following }
+        });
+        window.dispatchEvent(followChangedEvent);
         
         // Also update ProfileModal if available
         if (this.app?.profileModal) {
@@ -1399,12 +1521,22 @@ class ProfilePage {
             root.addEventListener('click', this._userCardClickHandler);
         }
         
+        // ✅ Initialize follow status from centralized state
+        if (!this.isOwnProfile && window.appState?.getFollowStatus) {
+            const cachedStatus = window.appState.getFollowStatus(this.userId);
+            if (cachedStatus !== null) {
+                this.followStatus = cachedStatus;
+                console.log(`✅ ProfilePage: Initialized follow status from appState: ${cachedStatus}`);
+            }
+        }
+        
         // Update Telegram BackButton visibility
         if (this.telegram?.BackButton) {
             this.telegram.BackButton.show();
         }
         
-        // Listen for follow state changes from other components
+        // ✅ Listen for follow state changes from other components
+        // Subscribe to both legacy and new events for maximum compatibility
         this.followStateChangeHandler = (event) => {
             const { userId, following } = event.detail;
             if (userId === this.userId) {
@@ -1413,6 +1545,16 @@ class ProfilePage {
             }
         };
         window.addEventListener('followStateChanged', this.followStateChangeHandler);
+        
+        // ✅ Subscribe to new canonical follow:changed event
+        this.followChangedHandler = (event) => {
+            const { userId, following } = event.detail;
+            if (userId === this.userId) {
+                this.followStatus = following;
+                this.updateFollowButton(following);
+            }
+        };
+        window.addEventListener('follow:changed', this.followChangedHandler);
     }
     
     /**
@@ -1439,10 +1581,16 @@ class ProfilePage {
             this.telegram.BackButton.hide();
         }
         
-        // Remove follow state change listener
+        // Remove follow state change listeners
         if (this.followStateChangeHandler) {
             window.removeEventListener('followStateChanged', this.followStateChangeHandler);
             this.followStateChangeHandler = null;
+        }
+        
+        // ✅ Remove new follow:changed event listener
+        if (this.followChangedHandler) {
+            window.removeEventListener('follow:changed', this.followChangedHandler);
+            this.followChangedHandler = null;
         }
     }
     
