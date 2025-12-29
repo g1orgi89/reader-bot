@@ -227,21 +227,26 @@ class CommunityPage {
     }
     
     setupSubscriptions() {
-        // Listen for follow state changes from ProfileModal and ProfilePage (legacy event)
-        window.addEventListener('followStateChanged', (event) => {
+        // ✅ Bridge legacy followStateChanged to canonical follow:changed
+        this._followStateChangedBridge = (event) => {
             const { userId, following } = event.detail;
-            console.log(`[FOLLOW_SYNC] CommunityPage: Received followStateChanged event for userId=${userId}, following=${following}`);
-            this.refreshFollowStatus(userId, following);
-        });
+            console.log(`[FOLLOW_SYNC] CommunityPage: Bridging followStateChanged to follow:changed for userId=${userId}`);
+            // Re-dispatch as canonical event
+            window.dispatchEvent(new CustomEvent('follow:changed', {
+                detail: { userId, following }
+            }));
+        };
+        window.addEventListener('followStateChanged', this._followStateChangedBridge);
         
         // ✅ Subscribe to unified follow:changed event for real-time sync
-        window.addEventListener('follow:changed', (event) => {
+        this._followChangedHandler = (event) => {
             const { userId, following } = event.detail;
             console.log(`[FOLLOW_SYNC] CommunityPage: Received follow:changed event for userId=${userId}, following=${following}`);
             this.refreshFollowStatus(userId, following);
-        });
+        };
+        window.addEventListener('follow:changed', this._followChangedHandler);
         
-        console.log('✅ CommunityPage: Subscriptions set up (followStateChanged + follow:changed)');
+        console.log('✅ CommunityPage: Subscriptions set up (bridged followStateChanged + follow:changed)');
     }
     
     async loadCommunityData() {
@@ -4397,9 +4402,22 @@ renderAchievementsSection() {
     
     onHide() {
         console.log('👥 CommunityPage: onHide');
+        
         // Cleanup event listeners
         if (this._quoteChangeHandler) {
             document.removeEventListener('quotes:changed', this._quoteChangeHandler);
+        }
+        
+        // ✅ Unsubscribe from follow:changed event
+        if (this._followChangedHandler) {
+            window.removeEventListener('follow:changed', this._followChangedHandler);
+            this._followChangedHandler = null;
+        }
+        
+        // ✅ Unsubscribe from legacy bridge
+        if (this._followStateChangedBridge) {
+            window.removeEventListener('followStateChanged', this._followStateChangedBridge);
+            this._followStateChangedBridge = null;
         }
     }
 

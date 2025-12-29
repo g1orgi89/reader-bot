@@ -1641,13 +1641,14 @@ class ApiService {
     
     /**
      * 🗑️ Инвалидация всех связанных кэшей подписок для userId
-     * Invalidates: /follow/counts, /followers, /following, /users/:id, /profile
+     * Invalidates: /follow/counts, /followers?userId=, /following, /users/:id, /profile
      * @private
      */
     _invalidateFollowRelatedCaches(userId) {
         const cachePatterns = [
             '/follow/counts',
             '/followers',
+            `/followers?userId=${userId}`,
             '/following',
             `/users/${userId}`,
             '/profile',

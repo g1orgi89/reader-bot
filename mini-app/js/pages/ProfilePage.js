@@ -1199,7 +1199,7 @@ class ProfilePage {
     
     /**
      * 📢 Broadcast follow state change to other components
-     * UPDATED: Also updates centralized appState and dispatches follow:changed event
+     * UPDATED: Only dispatches canonical follow:changed event (legacy bridge handled by receivers)
      */
     broadcastFollowStateChange(userId, following) {
         // ✅ Update centralized follow state
@@ -1207,13 +1207,7 @@ class ProfilePage {
             window.appState.setFollowStatus(userId, following);
         }
         
-        // Dispatch custom event for follow state change (legacy)
-        const event = new CustomEvent('followStateChanged', {
-            detail: { userId, following }
-        });
-        window.dispatchEvent(event);
-        
-        // ✅ Dispatch new canonical follow:changed event
+        // ✅ Dispatch only canonical follow:changed event
         const followChangedEvent = new CustomEvent('follow:changed', {
             detail: { userId, following }
         });
@@ -1543,32 +1537,18 @@ class ProfilePage {
             this.telegram.BackButton.show();
         }
         
-        // ✅ Listen for follow state changes from other components
-        // Subscribe to both legacy and new events for maximum compatibility
-        this.followStateChangeHandler = (event) => {
+        // ✅ Bridge legacy followStateChanged to canonical follow:changed
+        this.followStateChangedBridge = (event) => {
             const { userId, following } = event.detail;
-            console.log(`[FOLLOW_SYNC] ProfilePage: Received followStateChanged event for userId=${userId}, following=${following}`);
-            if (String(userId) === String(this.userId)) {
-                console.log(`[FOLLOW_SYNC] ProfilePage: Updating follow status to ${following} for current profile userId=${this.userId}`);
-                this.followStatus = following;
-                this.updateFollowButton(following);
-                
-                // Optimistically update followers count if not own profile
-                if (!this.isOwnProfile && this.profileData?.stats) {
-                    const delta = following ? 1 : -1;
-                    const currentCount = this.profileData.stats.followers || 0;
-                    const newCount = Math.max(0, currentCount + delta);
-                    this.profileData.stats.followers = newCount;
-                    
-                    // Update count in DOM
-                    this._updateFollowersCount(newCount);
-                    console.log(`[FOLLOW_SYNC] ProfilePage: Optimistically updated followers count to ${newCount} (delta=${delta})`);
-                }
-            }
+            console.log(`[FOLLOW_SYNC] ProfilePage: Bridging followStateChanged to follow:changed for userId=${userId}`);
+            // Re-dispatch as canonical event
+            window.dispatchEvent(new CustomEvent('follow:changed', {
+                detail: { userId, following }
+            }));
         };
-        window.addEventListener('followStateChanged', this.followStateChangeHandler);
+        window.addEventListener('followStateChanged', this.followStateChangedBridge);
         
-        // ✅ Subscribe to new canonical follow:changed event
+        // ✅ Subscribe to canonical follow:changed event for real-time sync
         this.followChangedHandler = (event) => {
             const { userId, following } = event.detail;
             console.log(`[FOLLOW_SYNC] ProfilePage: Received follow:changed event for userId=${userId}, following=${following}, isActive=${this.isActive}`);
@@ -1628,9 +1608,9 @@ class ProfilePage {
         }
         
         // Remove follow state change listeners
-        if (this.followStateChangeHandler) {
-            window.removeEventListener('followStateChanged', this.followStateChangeHandler);
-            this.followStateChangeHandler = null;
+        if (this.followStateChangedBridge) {
+            window.removeEventListener('followStateChanged', this.followStateChangedBridge);
+            this.followStateChangedBridge = null;
         }
         
         // ✅ Remove new follow:changed event listener
