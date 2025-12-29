@@ -190,6 +190,9 @@ class ProfilePage {
                 await this.loadFollowCounts();
             }
             
+            // Sync follow button UI after profile data loads
+            this.syncFollowButtonUiFromState();
+            
         } catch (error) {
             console.error('❌ ProfilePage: Error loading profile data:', error);
             throw error;
@@ -485,15 +488,73 @@ class ProfilePage {
     }
     
     /**
+     * 🔍 Get effective follow status - prefer AppState over local state
+     * @returns {boolean} Current follow status
+     */
+    getEffectiveFollowStatus() {
+        if (window.appState?.getFollowStatus) {
+            const appStateStatus = window.appState.getFollowStatus(this.userId);
+            if (appStateStatus !== null) {
+                return appStateStatus;
+            }
+        }
+        return this.followStatus;
+    }
+    
+    /**
+     * 🔄 Sync follow button UI from centralized state
+     * Forces UI to reflect AppState after any render/DOM update
+     */
+    syncFollowButtonUiFromState() {
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        // Query with specific selector, fallback to class only
+        let followBtn = root.querySelector('.follow-btn-large[data-action="toggle-follow"]');
+        if (!followBtn) {
+            followBtn = root.querySelector('.follow-btn-large');
+        }
+        
+        if (followBtn) {
+            const following = this.getEffectiveFollowStatus();
+            followBtn.textContent = following ? 'Отписаться' : 'Подписаться';
+            if (following) {
+                followBtn.classList.add('following');
+            } else {
+                followBtn.classList.remove('following');
+            }
+            console.log(`[FOLLOW_SYNC] ProfilePage.syncFollowButtonUiFromState: Updated button UI to ${following} for userId=${this.userId}`);
+        }
+    }
+    
+    /**
      * 👥 Load follow status for other user's profile
+     * UPDATED: Prefer AppState over API to prevent overwriting synchronized state
      */
     async loadFollowStatus() {
         try {
+            // First check AppState - if available, use it without API call
+            if (window.appState?.getFollowStatus) {
+                const cachedStatus = window.appState.getFollowStatus(this.userId);
+                if (cachedStatus !== null) {
+                    this.followStatus = cachedStatus;
+                    console.log(`[FOLLOW_SYNC] ProfilePage.loadFollowStatus: Using AppState status=${cachedStatus} for userId=${this.userId}`);
+                    // Sync button UI immediately
+                    this.syncFollowButtonUiFromState();
+                    return;
+                }
+            }
+            
+            // If AppState unknown, fetch from API
             const status = await this.api.getFollowStatus(this.userId);
             this.followStatus = status?.following || false;
+            
+            // Sync button UI after API load
+            this.syncFollowButtonUiFromState();
         } catch (error) {
             console.warn('⚠️ Could not load follow status:', error);
             this.followStatus = false;
+            this.syncFollowButtonUiFromState();
         }
     }
     
@@ -772,6 +833,9 @@ class ProfilePage {
                 }
             }
         }
+        
+        // Sync follow button UI after tab content updates
+        this.syncFollowButtonUiFromState();
     }
     
     /**
@@ -1323,6 +1387,9 @@ class ProfilePage {
             // Use refreshTabContent for safe re-render
             this.refreshTabContent();
         }
+        
+        // Sync follow button UI after tab switch
+        this.syncFollowButtonUiFromState();
     }
     
     /**
@@ -1579,6 +1646,14 @@ class ProfilePage {
             }
         };
         window.addEventListener('follow:changed', this.followChangedHandler);
+        
+        // Sync follow button UI immediately
+        this.syncFollowButtonUiFromState();
+        
+        // Also sync after next frame to catch late DOM inserts
+        requestAnimationFrame(() => {
+            this.syncFollowButtonUiFromState();
+        });
     }
     
     /**
@@ -1623,11 +1698,22 @@ class ProfilePage {
     
     /**
      * 🔄 Update follow button UI
-     * UPDATED: Specifically targets .follow-btn-large for ProfilePage
+     * UPDATED: Scoped to #profilePageRoot, syncs with AppState
      */
     updateFollowButton(following) {
-        // Target the large follow button in profile card
-        const followBtn = document.querySelector('.follow-btn-large[data-action="toggle-follow"]');
+        // Update local state
+        this.followStatus = following;
+        
+        // Update centralized AppState
+        if (window.appState?.setFollowStatus) {
+            window.appState.setFollowStatus(this.userId, following);
+        }
+        
+        // Target the large follow button in profile card, scoped to profilePageRoot
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        const followBtn = root.querySelector('.follow-btn-large[data-action="toggle-follow"]');
         if (followBtn) {
             followBtn.textContent = following ? 'Отписаться' : 'Подписаться';
             if (following) {
@@ -1635,6 +1721,7 @@ class ProfilePage {
             } else {
                 followBtn.classList.remove('following');
             }
+            console.log(`[FOLLOW_SYNC] ProfilePage.updateFollowButton: Updated button UI to ${following} for userId=${this.userId}`);
         }
     }
     
