@@ -321,25 +321,36 @@ class ProfileModal {
                 }
             } else {
                 // Load follow status for other users
-                try {
-                    const status = await this.api.getFollowStatus(this.userId);
-                    // Support both .isFollowing and .following response formats
-                    const apiFollowStatus = status?.isFollowing ?? status?.following ?? false;
-                    
-                    // Reconcile with preset status - only if preset was actually provided (not null/undefined)
-                    if (this.followStatus !== null && this.followStatus !== undefined) {
-                        if (this.followStatus !== apiFollowStatus) {
-                            console.log(`🔄 ProfileModal: Reconciling follow status - preset: ${this.followStatus}, API: ${apiFollowStatus}`);
+                // ✅ UPDATED: Check appState first to avoid flicker
+                const cachedStatus = window.appState?.getFollowStatus(this.userId);
+                if (cachedStatus !== null && cachedStatus !== undefined) {
+                    this.followStatus = cachedStatus;
+                    console.log(`[FOLLOW_SYNC] ProfileModal: Using cached follow status from appState: ${cachedStatus} for user ${this.userId}`);
+                } else {
+                    // Fallback to API if not in appState
+                    try {
+                        const status = await this.api.getFollowStatus(this.userId);
+                        // Support both .isFollowing and .following response formats
+                        const apiFollowStatus = status?.isFollowing ?? status?.following ?? false;
+                        
+                        // Reconcile with preset status - only if preset was actually provided (not null/undefined)
+                        if (this.followStatus !== null && this.followStatus !== undefined) {
+                            if (this.followStatus !== apiFollowStatus) {
+                                console.log(`🔄 ProfileModal: Reconciling follow status - preset: ${this.followStatus}, API: ${apiFollowStatus}`);
+                            }
                         }
-                    }
-                    
-                    // Always use API status for accuracy after reconciliation
-                    this.followStatus = apiFollowStatus;
-                } catch (error) {
-                    console.warn('⚠️ Could not load follow status:', error);
-                    // Keep preset status on error, or default to false
-                    if (this.followStatus === null || this.followStatus === undefined) {
-                        this.followStatus = false;
+                        
+                        // Use API status and update appState
+                        this.followStatus = apiFollowStatus;
+                        if (window.appState?.setFollowStatus) {
+                            window.appState.setFollowStatus(this.userId, apiFollowStatus);
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Could not load follow status:', error);
+                        // Keep preset status on error, or default to false
+                        if (this.followStatus === null || this.followStatus === undefined) {
+                            this.followStatus = false;
+                        }
                     }
                 }
             }
