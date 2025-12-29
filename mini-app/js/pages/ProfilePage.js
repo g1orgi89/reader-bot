@@ -574,6 +574,7 @@ class ProfilePage {
     
     /**
      * 📊 Render statistics section
+     * UPDATED: Added data-stat attributes for targeted DOM updates
      */
     renderStatistics() {
         const stats = this.profileData?.stats || {};
@@ -583,15 +584,15 @@ class ProfilePage {
         
         return `
             <div class="profile-statistics">
-                <div class="stat-item ${this.activeTab === 'quotes' ? 'active' : ''}" data-action="switch-tab" data-tab="quotes">
+                <div class="stat-item ${this.activeTab === 'quotes' ? 'active' : ''}" data-action="switch-tab" data-tab="quotes" data-stat="quotes">
                     <div class="stat-value">${totalQuotes}</div>
                     <div class="stat-label">Цитат</div>
                 </div>
-                <div class="stat-item ${this.activeTab === 'followers' ? 'active' : ''}" data-action="switch-tab" data-tab="followers">
+                <div class="stat-item ${this.activeTab === 'followers' ? 'active' : ''}" data-action="switch-tab" data-tab="followers" data-stat="followers">
                     <div class="stat-value">${followers}</div>
                     <div class="stat-label">Подписчиков</div>
                 </div>
-                <div class="stat-item ${this.activeTab === 'following' ? 'active' : ''}" data-action="switch-tab" data-tab="following">
+                <div class="stat-item ${this.activeTab === 'following' ? 'active' : ''}" data-action="switch-tab" data-tab="following" data-stat="following">
                     <div class="stat-value">${following}</div>
                     <div class="stat-label">Подписок</div>
                 </div>
@@ -1157,6 +1158,7 @@ class ProfilePage {
     
     /**
      * 👥 Handle follow/unfollow toggle
+     * UPDATED: Relies solely on ApiService events for state sync, no manual button updates
      */
     async handleToggleFollow(event) {
         const button = event.currentTarget;
@@ -1165,18 +1167,16 @@ class ProfilePage {
         button.disabled = true;
         
         try {
+            console.log(`[FOLLOW_SYNC] ProfilePage.handleToggleFollow: current followStatus=${this.followStatus}, userId=${this.userId}`);
+            
             if (this.followStatus) {
-                // Unfollow
+                // Unfollow - ApiService will handle state update and event dispatch
                 await this.api.unfollowUser(this.userId);
-                this.followStatus = false;
-                button.textContent = 'Подписаться';
-                button.classList.remove('following');
+                console.log(`[FOLLOW_SYNC] ProfilePage.handleToggleFollow: unfollowed user ${this.userId}`);
             } else {
-                // Follow
+                // Follow - ApiService will handle state update and event dispatch
                 await this.api.followUser(this.userId);
-                this.followStatus = true;
-                button.textContent = 'Отписаться';
-                button.classList.add('following');
+                console.log(`[FOLLOW_SYNC] ProfilePage.handleToggleFollow: followed user ${this.userId}`);
             }
             
             // Haptic feedback
@@ -1184,8 +1184,9 @@ class ProfilePage {
                 this.telegram.hapticFeedback('light');
             }
             
-            // Broadcast follow state change to other components
-            this.broadcastFollowStateChange(this.userId, this.followStatus);
+            // Note: No need to manually update button or call broadcastFollowStateChange
+            // ApiService already updates appState and dispatches follow:changed event
+            // which will trigger our followChangedHandler to update the UI
             
         } catch (error) {
             console.error('❌ ProfilePage: Error toggling follow status:', error);
@@ -1622,9 +1623,11 @@ class ProfilePage {
     
     /**
      * 🔄 Update follow button UI
+     * UPDATED: Specifically targets .follow-btn-large for ProfilePage
      */
     updateFollowButton(following) {
-        const followBtn = document.querySelector('[data-action="toggle-follow"]');
+        // Target the large follow button in profile card
+        const followBtn = document.querySelector('.follow-btn-large[data-action="toggle-follow"]');
         if (followBtn) {
             followBtn.textContent = following ? 'Отписаться' : 'Подписаться';
             if (following) {
