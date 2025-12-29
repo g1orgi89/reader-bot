@@ -90,6 +90,9 @@ class ProfilePage {
         // Follow status cache for user cards (userId -> boolean)
         this.followStatusCache = {};
         
+        // isActive flag to guard against refresh during destroy
+        this.isActive = false;
+        
         console.log('✅ ProfilePage: Initialized');
     }
     
@@ -621,8 +624,8 @@ class ProfilePage {
      * @private
      */
     _refreshTabContentNow() {
-        // Diagnostic logging to track unnecessary re-renders
-        console.log('🔄 [REFRESH] refreshTabContent called:', {
+        // Diagnostic logging to track updates
+        console.log('[PROFILE_REFRESH] _refreshTabContentNow called:', {
             activeTab: this.activeTab,
             followersLength: this.followersData?.length || 0,
             followingLength: this.followingData?.length || 0,
@@ -640,6 +643,8 @@ class ProfilePage {
         
         // ✅ TARGETED UPDATE: Update only inner content, keep stable container
         if (this.activeTab === 'followers' || this.activeTab === 'following') {
+            console.log(`[PROFILE_REFRESH] Updating ${this.activeTab} tab - targeted update to .users-list innerHTML only`);
+            
             // Update users list for followers/following tabs
             const usersList = tabContent.querySelector('.users-list');
             const emptyState = tabContent.querySelector('.empty-state');
@@ -652,6 +657,7 @@ class ProfilePage {
                 
                 if (usersList) {
                     usersList.innerHTML = usersHTML;
+                    console.log(`[PROFILE_REFRESH] Updated .users-list innerHTML with ${data.length} users - NO container rebuild`);
                 } else {
                     // Create users list if it doesn't exist
                     const newUsersList = document.createElement('div');
@@ -659,6 +665,7 @@ class ProfilePage {
                     newUsersList.innerHTML = usersHTML;
                     tabContent.innerHTML = '';
                     tabContent.appendChild(newUsersList);
+                    console.log(`[PROFILE_REFRESH] Created new .users-list with ${data.length} users`);
                 }
                 
                 // Hide empty state if present
@@ -666,6 +673,7 @@ class ProfilePage {
                     emptyState.style.display = 'none';
                 }
             } else {
+                console.log(`[PROFILE_REFRESH] Showing empty state for ${this.activeTab}`);
                 // Show empty state
                 const emptyStateHTML = `<div class="empty-state"><p>Пока нет ${this.activeTab === 'followers' ? 'подписчиков' : 'подписок'}</p></div>`;
                 
@@ -682,6 +690,8 @@ class ProfilePage {
             }
             
         } else if (this.activeTab === 'quotes') {
+            console.log(`[PROFILE_REFRESH] Updating quotes tab - targeted update to .quotes-list innerHTML only`);
+            
             // Update quotes list for quotes tab
             const quotesList = tabContent.querySelector('.quotes-list');
             const loadMoreContainer = tabContent.querySelector('.load-more-container');
@@ -693,6 +703,7 @@ class ProfilePage {
                 
                 if (quotesList) {
                     quotesList.innerHTML = quotesHTML;
+                    console.log(`[PROFILE_REFRESH] Updated .quotes-list innerHTML with ${this.userQuotes.length} quotes - NO container rebuild`);
                 } else {
                     // Create quotes list if it doesn't exist
                     const newQuotesList = document.createElement('div');
@@ -705,6 +716,7 @@ class ProfilePage {
                     } else {
                         tabContent.appendChild(newQuotesList);
                     }
+                    console.log(`[PROFILE_REFRESH] Created new .quotes-list with ${this.userQuotes.length} quotes`);
                 }
                 
                 // Update or create load-more button
@@ -740,6 +752,7 @@ class ProfilePage {
                     emptyState.style.display = 'none';
                 }
             } else {
+                console.log(`[PROFILE_REFRESH] Showing empty state for quotes`);
                 // Show empty state
                 const emptyStateHTML = `<div class="empty-state"><p>Пока нет цитат</p></div>`;
                 
@@ -828,6 +841,26 @@ class ProfilePage {
         } else if (usernameElement) {
             // Hide username element if no username
             usernameElement.style.display = 'none';
+        }
+    }
+    
+    /**
+     * 🔢 Update followers count in DOM without full rebuild
+     * Optimistic update for real-time follow sync
+     * @param {number} newCount - The new followers count
+     * @private
+     */
+    _updateFollowersCount(newCount) {
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        // Find followers stat element by data-stat attribute or class
+        const followersStatValue = root.querySelector('[data-stat="followers"] .stat-value, .stat-followers .stat-value');
+        if (followersStatValue) {
+            followersStatValue.textContent = newCount;
+            console.log(`[FOLLOW_SYNC] ProfilePage._updateFollowersCount: Updated DOM to ${newCount}`);
+        } else {
+            console.warn(`[FOLLOW_SYNC] ProfilePage._updateFollowersCount: Could not find followers stat element`);
         }
     }
     
@@ -1498,9 +1531,12 @@ class ProfilePage {
             const cachedStatus = window.appState.getFollowStatus(this.userId);
             if (cachedStatus !== null) {
                 this.followStatus = cachedStatus;
-                console.log(`✅ ProfilePage: Initialized follow status from appState: ${cachedStatus}`);
+                console.log(`[FOLLOW_SYNC] ProfilePage.onShow: Initialized follow status from appState: ${cachedStatus} for userId=${this.userId}`);
             }
         }
+        
+        // Mark component as active
+        this.isActive = true;
         
         // Update Telegram BackButton visibility
         if (this.telegram?.BackButton) {
@@ -1511,9 +1547,23 @@ class ProfilePage {
         // Subscribe to both legacy and new events for maximum compatibility
         this.followStateChangeHandler = (event) => {
             const { userId, following } = event.detail;
-            if (userId === this.userId) {
+            console.log(`[FOLLOW_SYNC] ProfilePage: Received followStateChanged event for userId=${userId}, following=${following}`);
+            if (String(userId) === String(this.userId)) {
+                console.log(`[FOLLOW_SYNC] ProfilePage: Updating follow status to ${following} for current profile userId=${this.userId}`);
                 this.followStatus = following;
                 this.updateFollowButton(following);
+                
+                // Optimistically update followers count if not own profile
+                if (!this.isOwnProfile && this.profileData?.stats) {
+                    const delta = following ? 1 : -1;
+                    const currentCount = this.profileData.stats.followers || 0;
+                    const newCount = Math.max(0, currentCount + delta);
+                    this.profileData.stats.followers = newCount;
+                    
+                    // Update count in DOM
+                    this._updateFollowersCount(newCount);
+                    console.log(`[FOLLOW_SYNC] ProfilePage: Optimistically updated followers count to ${newCount} (delta=${delta})`);
+                }
             }
         };
         window.addEventListener('followStateChanged', this.followStateChangeHandler);
@@ -1521,9 +1571,30 @@ class ProfilePage {
         // ✅ Subscribe to new canonical follow:changed event
         this.followChangedHandler = (event) => {
             const { userId, following } = event.detail;
-            if (userId === this.userId) {
+            console.log(`[FOLLOW_SYNC] ProfilePage: Received follow:changed event for userId=${userId}, following=${following}, isActive=${this.isActive}`);
+            
+            // Guard against updates during destroy
+            if (!this.isActive) {
+                console.log(`[FOLLOW_SYNC] ProfilePage: Ignoring follow:changed - component not active`);
+                return;
+            }
+            
+            if (String(userId) === String(this.userId)) {
+                console.log(`[FOLLOW_SYNC] ProfilePage: Updating follow status to ${following} for current profile userId=${this.userId}`);
                 this.followStatus = following;
                 this.updateFollowButton(following);
+                
+                // Optimistically update followers count if not own profile
+                if (!this.isOwnProfile && this.profileData?.stats) {
+                    const delta = following ? 1 : -1;
+                    const currentCount = this.profileData.stats.followers || 0;
+                    const newCount = Math.max(0, currentCount + delta);
+                    this.profileData.stats.followers = newCount;
+                    
+                    // Update count in DOM
+                    this._updateFollowersCount(newCount);
+                    console.log(`[FOLLOW_SYNC] ProfilePage: Optimistically updated followers count to ${newCount} (delta=${delta})`);
+                }
             }
         };
         window.addEventListener('follow:changed', this.followChangedHandler);
@@ -1534,6 +1605,9 @@ class ProfilePage {
      */
     onHide() {
         console.log('👋 ProfilePage: onHide');
+        
+        // Mark component as inactive to guard against stale updates
+        this.isActive = false;
         
         // Clear debounce timer to prevent memory leaks
         if (this._refreshTimer) {

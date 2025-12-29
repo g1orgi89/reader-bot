@@ -149,9 +149,10 @@ class ProfileModal {
         // ✅ Subscribe to follow:changed event for real-time sync
         this._followChangedHandler = (event) => {
             const { userId: changedUserId, following } = event.detail;
+            console.log(`[FOLLOW_SYNC] ProfileModal: Received follow:changed event for userId=${changedUserId}, following=${following}, this.isOpen=${this.isOpen}, this.userId=${this.userId}`);
             // Only update if this modal is open and matches the changed user
-            if (this.isOpen && changedUserId === this.userId) {
-                console.log(`✅ ProfileModal: Received follow:changed for user ${changedUserId}, updating to ${following}`);
+            if (this.isOpen && String(changedUserId) === String(this.userId)) {
+                console.log(`[FOLLOW_SYNC] ProfileModal: Updating button for user ${changedUserId} to ${following}`);
                 this.followStatus = following;
                 this.updateFollowButton(following);
             }
@@ -522,27 +523,24 @@ class ProfileModal {
         followBtn.disabled = true;
         
         try {
+            console.log(`[FOLLOW_SYNC] ProfileModal.handleToggleFollow: current followStatus=${this.followStatus}`);
+            
             if (this.followStatus) {
                 // Unfollow
                 await this.api.unfollowUser(this.userId);
-                this.followStatus = false;
-                followBtn.textContent = 'Подписаться';
-                followBtn.classList.remove('following');
+                // No need to update local state - api will dispatch follow:changed which updates via handler
+                console.log(`[FOLLOW_SYNC] ProfileModal.handleToggleFollow: unfollowed user ${this.userId}`);
             } else {
                 // Follow
                 await this.api.followUser(this.userId);
-                this.followStatus = true;
-                followBtn.textContent = 'Отписаться';
-                followBtn.classList.add('following');
+                // No need to update local state - api will dispatch follow:changed which updates via handler
+                console.log(`[FOLLOW_SYNC] ProfileModal.handleToggleFollow: followed user ${this.userId}`);
             }
             
             // Haptic feedback
             if (this.telegram?.hapticFeedback) {
                 this.telegram.hapticFeedback('light');
             }
-            
-            // Broadcast follow state change
-            this.broadcastFollowStateChange(this.userId, this.followStatus);
             
         } catch (error) {
             console.error('❌ ProfileModal: Error toggling follow:', error);
