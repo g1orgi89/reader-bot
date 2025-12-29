@@ -1570,6 +1570,18 @@ class ApiService {
         // ✅ Инвалидация кэша ленты подписок после успешной подписки
         if (result && result.success) {
             this._invalidateFollowingFeedCache();
+            
+            // ✅ Update centralized follow state
+            if (typeof window !== 'undefined' && window.appState?.setFollowStatus) {
+                window.appState.setFollowStatus(userId, true);
+            }
+            
+            // ✅ Dispatch global follow:changed event
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('follow:changed', {
+                    detail: { userId, following: true }
+                }));
+            }
         }
         
         return result;
@@ -1585,6 +1597,18 @@ class ApiService {
         // ✅ Инвалидация кэша ленты подписок после успешной отписки
         if (result && result.success) {
             this._invalidateFollowingFeedCache();
+            
+            // ✅ Update centralized follow state
+            if (typeof window !== 'undefined' && window.appState?.setFollowStatus) {
+                window.appState.setFollowStatus(userId, false);
+            }
+            
+            // ✅ Dispatch global follow:changed event
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('follow:changed', {
+                    detail: { userId, following: false }
+                }));
+            }
         }
         
         return result;

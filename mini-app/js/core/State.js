@@ -109,6 +109,11 @@ class AppState {
                 isOnline: navigator.onLine,
                 lastSync: null,
                 pendingRequests: []
+            },
+
+            // 👥 Подписки (Follow State)
+            follow: {
+                statusByUserId: {} // userId -> boolean (following status)
             }
         };
 
@@ -770,6 +775,47 @@ class AppState {
      */
     updateLastSync() {
         this.set('network.lastSync', Date.now());
+    }
+
+    // ===========================================
+    // 👥 УПРАВЛЕНИЕ ПОДПИСКАМИ (FOLLOW STATE)
+    // ===========================================
+
+    /**
+     * 👥 Установить статус подписки на пользователя
+     * @param {string|number} userId - ID пользователя
+     * @param {boolean} following - Статус подписки (true = подписан)
+     */
+    setFollowStatus(userId, following) {
+        if (!userId) {
+            console.warn('⚠️ State.setFollowStatus: userId is required');
+            return;
+        }
+        
+        const statusByUserId = this.get('follow.statusByUserId') || {};
+        statusByUserId[String(userId)] = Boolean(following);
+        this.set('follow.statusByUserId', statusByUserId);
+        
+        // Notify subscribers
+        this.notify('follow.statusByUserId', statusByUserId);
+        
+        console.log(`✅ State: Follow status updated for userId ${userId}: ${following}`);
+    }
+
+    /**
+     * 👥 Получить статус подписки на пользователя
+     * @param {string|number} userId - ID пользователя
+     * @returns {boolean|null} Статус подписки или null если не известен
+     */
+    getFollowStatus(userId) {
+        if (!userId) {
+            return null;
+        }
+        
+        const statusByUserId = this.get('follow.statusByUserId') || {};
+        const status = statusByUserId[String(userId)];
+        
+        return status !== undefined ? status : null;
     }
 
     // ===========================================

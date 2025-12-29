@@ -433,6 +433,12 @@ class AppRouter {
                 if (html && this.container) {
                     this.container.innerHTML = html;
                     
+                    // ✅ SCROLL TO TOP: Reset scroll position after rendering new page
+                    // Ensures profile page opens from the top even when navigating from modals
+                    if (this.container && typeof this.container.scrollTo === 'function') {
+                        this.container.scrollTo({ top: 0, behavior: 'auto' });
+                    }
+                    
                     // Убираем все анимационные классы перед добавлением обработчиков
                     this.container.classList.remove(
                         'page-enter', 'page-enter-active', 
