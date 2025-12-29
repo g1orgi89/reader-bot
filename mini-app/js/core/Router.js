@@ -64,8 +64,9 @@ class AppRouter {
         this.app = app;
         
         // Навигационная защита от дублирования
-        this._lastNavigationPath = null;
+        this._lastNavigationKey = null;  // Changed from _lastNavigationPath to include query
         this._lastNavigationTime = 0;
+        this.currentQuery = {};  // Track current query params
         
         // Привязываем методы к контексту
         this.handlePopState = this.handlePopState.bind(this);
@@ -268,6 +269,24 @@ class AppRouter {
     }
     
     /**
+     * 🔑 Build stable navigation key from path and query
+     * @param {string} path - Normalized path
+     * @param {Object} query - Query parameters
+     * @returns {string} - Stable key for navigation deduplication
+     * @private
+     */
+    _buildNavigationKey(path, query) {
+        if (!query || Object.keys(query).length === 0) {
+            return path;
+        }
+        
+        // Sort query keys for stable comparison
+        const sortedKeys = Object.keys(query).sort();
+        const queryParts = sortedKeys.map(key => `${key}=${query[key]}`);
+        return `${path}?${queryParts.join('&')}`;
+    }
+
+    /**
      * 🧭 Навигация к указанному маршруту
      * @param {string} path - Путь назначения
      * @param {NavigationOptions} options - Опции навигации
@@ -278,6 +297,9 @@ class AppRouter {
         
         console.log(`🧭 Router: Навигация к ${normalizedPath} (исходный: ${path})`, query);
 
+        // Build stable target key including query params for deduplication
+        const targetKey = this._buildNavigationKey(normalizedPath, query);
+
         // GUARD 1: Усиленная защита от дублирования навигации через isNavigating flag
         if (this.isNavigating && !options.force) {
             console.log('⚠️ [NAV-GUARD] Navigation blocked: isNavigating=true (re-entrant call)');
@@ -286,7 +308,8 @@ class AppRouter {
         
         // GUARD 2: Расширенное временное окно для защиты от дублирования (1500ms)
         // Увеличено с 500ms до 1500ms для надёжности на медленных соединениях
-        if (this._lastNavigationPath === normalizedPath && 
+        // Now includes query params in comparison
+        if (this._lastNavigationKey === targetKey && 
             Date.now() - this._lastNavigationTime < 1500 && 
             !options.force) {
             console.log('⚠️ [NAV-GUARD] Navigation blocked: duplicate within 1500ms window');
@@ -294,14 +317,15 @@ class AppRouter {
         }
 
         // GUARD 3: Защита от перехода на тот же маршрут (same-route guard)
-        // Блокируем если уже на этой странице и это не replace и не force
-        if (this.currentRoute === normalizedPath && !options.replace && !options.force) {
-            console.log('⚠️ [NAV-GUARD] Navigation blocked: already on route', normalizedPath);
+        // Now compares both path AND query - allow navigation if query differs
+        const currentKey = this._buildNavigationKey(this.currentRoute, this.currentQuery);
+        if (currentKey === targetKey && !options.replace && !options.force) {
+            console.log('⚠️ [NAV-GUARD] Navigation blocked: already on route with same query', targetKey);
             return;
         }
 
         // Сохраняем информацию о последней навигации
-        this._lastNavigationPath = normalizedPath;
+        this._lastNavigationKey = targetKey;
         this._lastNavigationTime = Date.now();
 
         // Проверяем существование маршрута
@@ -431,8 +455,9 @@ class AppRouter {
             // Обновляем UI
             this.updateUI(route);
             
-            // Сохраняем текущий маршрут
+            // Сохраняем текущий маршрут и query
             this.currentRoute = normalizedPath;
+            this.currentQuery = query;
             
             // Анимация входа для новой страницы
             await this.animatePageEnter();
