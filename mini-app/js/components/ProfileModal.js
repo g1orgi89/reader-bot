@@ -146,6 +146,18 @@ class ProfileModal {
         this.backdrop.addEventListener('click', this.boundHandleBackdropClick);
         document.addEventListener('keydown', this.boundHandleEscape);
         
+        // ✅ Subscribe to follow:changed event for real-time sync
+        this._followChangedHandler = (event) => {
+            const { userId: changedUserId, following } = event.detail;
+            // Only update if this modal is open and matches the changed user
+            if (this.isOpen && changedUserId === this.userId) {
+                console.log(`✅ ProfileModal: Received follow:changed for user ${changedUserId}, updating to ${following}`);
+                this.followStatus = following;
+                this.updateFollowButton(following);
+            }
+        };
+        window.addEventListener('follow:changed', this._followChangedHandler);
+        
         // Setup Telegram BackButton with guard against duplicate handlers
         if (this.telegram?.BackButton) {
             if (!this.backButtonAttached) {
@@ -189,6 +201,12 @@ class ProfileModal {
             this.backdrop.removeEventListener('click', this.boundHandleBackdropClick);
         }
         document.removeEventListener('keydown', this.boundHandleEscape);
+        
+        // ✅ Unsubscribe from follow:changed event
+        if (this._followChangedHandler) {
+            window.removeEventListener('follow:changed', this._followChangedHandler);
+            this._followChangedHandler = null;
+        }
         
         // Hide Telegram BackButton and remove handler from global registry
         if (this.telegram?.BackButton) {
@@ -568,6 +586,14 @@ class ProfileModal {
                 }
             }
         }
+    }
+    
+    /**
+     * 🔄 Update follow button state (alias for updateFollowStatus for consistency)
+     * Used by follow:changed event handler
+     */
+    updateFollowButton(following) {
+        this.updateFollowStatus(this.userId, following);
     }
     
     /**

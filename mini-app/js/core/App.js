@@ -666,10 +666,25 @@ class ReaderApp {
             return;
         }
 
-        // GUARD 2: Prevent navigation if hash equals current route (duplicate hashchange)
-        if (this.router?.currentRoute && hash === this.router.currentRoute) {
-            console.log('⏭️ [NAV-GUARD] HashChange blocked: already on route', hash);
-            return;
+        // GUARD 2: Query-aware route key comparison
+        // Build stable key including query params to prevent duplicate navigation
+        // when only query params differ (e.g., /profile?user=123 vs /profile?user=456)
+        if (this.router?._buildNavigationKey) {
+            const path = this.router.normalizePath(rawHash);
+            const query = this.router.parseQuery(rawHash);
+            const currentKey = this.router._buildNavigationKey(this.router.currentRoute, this.router.currentQuery);
+            const newKey = this.router._buildNavigationKey(path, query);
+            
+            if (currentKey === newKey) {
+                console.log('⏭️ [NAV-GUARD] HashChange blocked: route key unchanged', newKey);
+                return;
+            }
+        } else {
+            // Fallback to simple path comparison if _buildNavigationKey not available
+            if (this.router?.currentRoute && hash === this.router.currentRoute) {
+                console.log('⏭️ [NAV-GUARD] HashChange blocked: already on route', hash);
+                return;
+            }
         }
 
         if (hash !== '/home' && this.topMenu) {
@@ -681,7 +696,8 @@ class ReaderApp {
         // Only navigate when hash differs from current route
         if (this.router?.navigate) {
             console.log('✅ [NAV-GUARD] Proceeding with navigation to', hash);
-            this.router.navigate(hash);
+            // Use replace: true for hash-triggered navigation to avoid history pollution
+            this.router.navigate(rawHash, { replace: true });
         }
 
         this.updateBackButtonVisibility(hash);

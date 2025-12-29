@@ -67,6 +67,7 @@ class AppRouter {
         this._lastNavigationKey = null;  // Changed from _lastNavigationPath to include query
         this._lastNavigationTime = 0;
         this.currentQuery = {};  // Track current query params
+        this.currentRouteKey = null; // Stable key for current route (path + query)
         
         // Привязываем методы к контексту
         this.handlePopState = this.handlePopState.bind(this);
@@ -270,9 +271,11 @@ class AppRouter {
     
     /**
      * 🔑 Build stable navigation key from path and query
+     * Creates a deterministic key for navigation deduplication and route comparison
+     * Query params are sorted alphabetically for consistent key generation
      * @param {string} path - Normalized path
      * @param {Object} query - Query parameters
-     * @returns {string} - Stable key for navigation deduplication
+     * @returns {string} - Stable key for navigation deduplication (e.g., "/profile?tab=followers&user=123")
      * @private
      */
     _buildNavigationKey(path, query) {
@@ -317,9 +320,8 @@ class AppRouter {
         }
 
         // GUARD 3: Защита от перехода на тот же маршрут (same-route guard)
-        // Now compares both path AND query - allow navigation if query differs
-        const currentKey = this._buildNavigationKey(this.currentRoute, this.currentQuery);
-        if (currentKey === targetKey && !options.replace && !options.force) {
+        // Compare using stable keys that include query params
+        if (this.currentRouteKey === targetKey && !options.replace && !options.force) {
             console.log('⚠️ [NAV-GUARD] Navigation blocked: already on route with same query', targetKey);
             return;
         }
@@ -435,8 +437,12 @@ class AppRouter {
                     
                     // ✅ SCROLL TO TOP: Reset scroll position after rendering new page
                     // Ensures profile page opens from the top even when navigating from modals
+                    // Use scrollTo with behavior: 'auto' for instant scroll (no animation)
                     if (this.container && typeof this.container.scrollTo === 'function') {
                         this.container.scrollTo({ top: 0, behavior: 'auto' });
+                    } else if (this.container) {
+                        // Fallback for browsers that don't support scrollTo options
+                        this.container.scrollTop = 0;
                     }
                     
                     // Убираем все анимационные классы перед добавлением обработчиков
@@ -461,9 +467,10 @@ class AppRouter {
             // Обновляем UI
             this.updateUI(route);
             
-            // Сохраняем текущий маршрут и query
+            // Сохраняем текущий маршрут, query и route key
             this.currentRoute = normalizedPath;
             this.currentQuery = query;
+            this.currentRouteKey = targetKey; // Update current route key for guards
             
             // Анимация входа для новой страницы
             await this.animatePageEnter();
@@ -689,6 +696,8 @@ class AppRouter {
         // Don't normalize the path here to preserve query string
         const url = `#${path.startsWith('/') ? path : '/' + path}`;
         const normalizedPath = this.normalizePath(path);
+        const query = this.parseQuery(path);
+        const routeKey = this._buildNavigationKey(normalizedPath, query);
     
         if (replace) {
             window.history.replaceState({ path: normalizedPath }, '', url);
@@ -696,6 +705,9 @@ class AppRouter {
             window.history.pushState({ path: normalizedPath }, '', url);
             this.history.push(normalizedPath);
         }
+
+        // Update currentRouteKey when URL changes
+        this.currentRouteKey = routeKey;
 
         // ✅ Обновляем Telegram BackButton (поскольку hashchange не сработает)
         if (this.app && typeof this.app.updateBackButtonVisibility === 'function') {
