@@ -299,13 +299,19 @@
    📑 TAB CONTENT SECTION
    ============================================================================ */
 
+/* ============================================================================
+   📑 TAB CONTENT
+   ============================================================================ */
+
 .profile-tab-content {
     padding: var(--spacing-lg);
     min-height: 300px;
     position: relative;
 }
 
-/* Loading overlay for tab content */
+/* Loading overlay for tab content - ANTI-FLICKER DESIGN
+   Uses overlay spinner instead of rebuilding DOM to prevent visual blinks
+   pointer-events: none allows interaction to be disabled during loading */
 .profile-tab-content.loading::before {
     content: '';
     position: absolute;
@@ -362,10 +368,13 @@
    👥 USERS LIST (Followers/Following)
    ============================================================================ */
 
+/* ANTI-FLICKER: No transitions on container to prevent blinks during innerHTML updates */
 .users-list {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
+    /* Explicitly disable transitions to prevent flicker during targeted updates */
+    transition: none !important;
 }
 
 .user-card {

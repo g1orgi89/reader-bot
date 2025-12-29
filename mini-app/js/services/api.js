@@ -1565,22 +1565,28 @@ class ApiService {
      * @param {string} userId - ID пользователя для подписки
      */
     async followUser(userId) {
+        console.log(`[FOLLOW_SYNC] api.followUser: starting follow for userId=${userId}`);
         const result = await this.request('POST', `/follow/${userId}`);
         
         // ✅ Инвалидация кэша ленты подписок после успешной подписки
         if (result && result.success) {
-            this._invalidateFollowingFeedCache();
+            console.log(`[FOLLOW_SYNC] api.followUser: success, invalidating caches for userId=${userId}`);
             
-            // ✅ Update centralized follow state
+            // (1) Invalidate related caches
+            this._invalidateFollowRelatedCaches(userId);
+            
+            // (2) Update centralized follow state
             if (typeof window !== 'undefined' && window.appState?.setFollowStatus) {
                 window.appState.setFollowStatus(userId, true);
+                console.log(`[FOLLOW_SYNC] api.followUser: updated appState for userId=${userId} to following=true`);
             }
             
-            // ✅ Dispatch global follow:changed event
+            // (3) Dispatch global follow:changed event
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('follow:changed', {
                     detail: { userId, following: true }
                 }));
+                console.log(`[FOLLOW_SYNC] api.followUser: dispatched follow:changed event for userId=${userId}`);
             }
         }
         
@@ -1592,22 +1598,28 @@ class ApiService {
      * @param {string} userId - ID пользователя
      */
     async unfollowUser(userId) {
+        console.log(`[FOLLOW_SYNC] api.unfollowUser: starting unfollow for userId=${userId}`);
         const result = await this.request('DELETE', `/follow/${userId}`);
         
         // ✅ Инвалидация кэша ленты подписок после успешной отписки
         if (result && result.success) {
-            this._invalidateFollowingFeedCache();
+            console.log(`[FOLLOW_SYNC] api.unfollowUser: success, invalidating caches for userId=${userId}`);
             
-            // ✅ Update centralized follow state
+            // (1) Invalidate related caches
+            this._invalidateFollowRelatedCaches(userId);
+            
+            // (2) Update centralized follow state
             if (typeof window !== 'undefined' && window.appState?.setFollowStatus) {
                 window.appState.setFollowStatus(userId, false);
+                console.log(`[FOLLOW_SYNC] api.unfollowUser: updated appState for userId=${userId} to following=false`);
             }
             
-            // ✅ Dispatch global follow:changed event
+            // (3) Dispatch global follow:changed event
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('follow:changed', {
                     detail: { userId, following: false }
                 }));
+                console.log(`[FOLLOW_SYNC] api.unfollowUser: dispatched follow:changed event for userId=${userId}`);
             }
         }
         
@@ -1615,7 +1627,7 @@ class ApiService {
     }
 
     /**
-     * 🗑️ Инвалидация кэша ленты подписок
+     * 🗑️ Инвалидация кэша ленты подписок (legacy)
      * @private
      */
     _invalidateFollowingFeedCache() {
@@ -1623,6 +1635,32 @@ class ApiService {
             if (key.includes('/community/feed/following') || key.includes('/following')) {
                 this.cache.delete(key);
                 console.log('🗑️ Кэш ленты подписок очищен:', key);
+            }
+        }
+    }
+    
+    /**
+     * 🗑️ Инвалидация всех связанных кэшей подписок для userId
+     * Invalidates: /follow/counts, /followers, /following, /users/:id, /profile
+     * @private
+     */
+    _invalidateFollowRelatedCaches(userId) {
+        const cachePatterns = [
+            '/follow/counts',
+            '/followers',
+            '/following',
+            `/users/${userId}`,
+            '/profile',
+            '/community/feed/following'
+        ];
+        
+        for (const key of this.cache.keys()) {
+            for (const pattern of cachePatterns) {
+                if (key.includes(pattern)) {
+                    this.cache.delete(key);
+                    console.log(`[FOLLOW_SYNC] Cache invalidated: ${key}`);
+                    break;
+                }
             }
         }
     }

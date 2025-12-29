@@ -230,14 +230,14 @@ class CommunityPage {
         // Listen for follow state changes from ProfileModal and ProfilePage (legacy event)
         window.addEventListener('followStateChanged', (event) => {
             const { userId, following } = event.detail;
-            console.log(`🔄 CommunityPage: Received followStateChanged event for user ${userId}: ${following}`);
+            console.log(`[FOLLOW_SYNC] CommunityPage: Received followStateChanged event for userId=${userId}, following=${following}`);
             this.refreshFollowStatus(userId, following);
         });
         
         // ✅ Subscribe to unified follow:changed event for real-time sync
         window.addEventListener('follow:changed', (event) => {
             const { userId, following } = event.detail;
-            console.log(`🔄 CommunityPage: Received follow:changed event for user ${userId}: ${following}`);
+            console.log(`[FOLLOW_SYNC] CommunityPage: Received follow:changed event for userId=${userId}, following=${following}`);
             this.refreshFollowStatus(userId, following);
         });
         
@@ -3370,7 +3370,7 @@ renderAchievementsSection() {
      * @param {boolean} isFollowing - Новый статус подписки
      */
     refreshFollowStatus(userId, isFollowing) {
-        console.log(`🔄 Refreshing follow status for user ${userId}: ${isFollowing}`);
+        console.log(`[FOLLOW_SYNC] CommunityPage.refreshFollowStatus: userId=${userId}, isFollowing=${isFollowing}`);
         
         // Update cache
         this.followStatusCache.set(userId, isFollowing);
@@ -3378,6 +3378,8 @@ renderAchievementsSection() {
         
         // Update all follow buttons for this user
         const followButtons = document.querySelectorAll(`.follow-btn[data-user-id="${userId}"]`);
+        console.log(`[FOLLOW_SYNC] CommunityPage.refreshFollowStatus: Found ${followButtons.length} follow buttons to update`);
+        
         followButtons.forEach(button => {
             if (isFollowing) {
                 button.classList.add('following');
@@ -3400,6 +3402,8 @@ renderAchievementsSection() {
                 `;
             }
         });
+        
+        console.log(`[FOLLOW_SYNC] CommunityPage.refreshFollowStatus: Updated ${followButtons.length} buttons for userId=${userId}`);
     }
     
     /**
