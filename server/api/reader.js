@@ -4907,7 +4907,7 @@ router.get('/following', telegramAuth, async (req, res) => {
     // Получаем информацию о пользователях
     const users = await UserProfile.find(
       { userId: { $in: userIds } },
-      { userId: 1, name: 1, avatarUrl: 1, 'statistics.totalQuotes': 1 }
+      { userId: 1, name: 1, avatarUrl: 1, telegramUsername: 1, username: 1, 'statistics.totalQuotes': 1 }
     ).lean();
     
     const usersMap = new Map(users.map(u => [u.userId, u]));
@@ -4957,7 +4957,7 @@ router.get('/followers', telegramAuth, async (req, res) => {
     // Получаем информацию о пользователях
     const users = await UserProfile.find(
       { userId: { $in: userIds } },
-      { userId: 1, name: 1, avatarUrl: 1, 'statistics.totalQuotes': 1 }
+      { userId: 1, name: 1, avatarUrl: 1, telegramUsername: 1, username: 1, 'statistics.totalQuotes': 1 }
     ).lean();
     
     const usersMap = new Map(users.map(u => [u.userId, u]));
