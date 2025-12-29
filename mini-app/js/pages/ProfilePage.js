@@ -880,78 +880,50 @@ class ProfilePage {
     }
     
     /**
-     * 👥 Render followers tab
+     * 👥 Render followers tab with stable container structure
+     * Container persists across updates to prevent flicker
      */
     renderFollowersTab() {
-        // Show spinner during loading
-        if (this.loadingFollowers) {
-            return `
-                <div class="profile-tab-content">
-                    <div class="loading-spinner-container">
-                        <div class="loading-spinner"></div>
-                        <p>Загрузка подписчиков...</p>
-                    </div>
-                </div>
-            `;
-        }
+        // Always render stable container structure
+        // Loading state and content updates are handled by CSS and targeted DOM updates
+        const followersHTML = this.followersData && this.followersData.length > 0
+            ? this.followersData.map(user => this.renderUserCard(user)).join('')
+            : '';
         
-        // Show empty state if no data and not loading
-        if (!this.followersData || this.followersData.length === 0) {
-            return `
-                <div class="profile-tab-content">
-                    <div class="empty-state">
-                        <p>Пока нет подписчиков</p>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Render user cards
-        const followersHTML = this.followersData.map(user => this.renderUserCard(user)).join('');
+        const hasData = this.followersData && this.followersData.length > 0;
         
         return `
             <div class="profile-tab-content">
-                <div class="users-list">
+                <div class="users-list" style="${hasData ? '' : 'display: none;'}">
                     ${followersHTML}
+                </div>
+                <div class="empty-state" style="${hasData ? 'display: none;' : ''}">
+                    <p>Пока нет подписчиков</p>
                 </div>
             </div>
         `;
     }
     
     /**
-     * 👤 Render following tab
+     * 👤 Render following tab with stable container structure
+     * Container persists across updates to prevent flicker
      */
     renderFollowingTab() {
-        // Show spinner during loading
-        if (this.loadingFollowing) {
-            return `
-                <div class="profile-tab-content">
-                    <div class="loading-spinner-container">
-                        <div class="loading-spinner"></div>
-                        <p>Загрузка подписок...</p>
-                    </div>
-                </div>
-            `;
-        }
+        // Always render stable container structure
+        // Loading state and content updates are handled by CSS and targeted DOM updates
+        const followingHTML = this.followingData && this.followingData.length > 0
+            ? this.followingData.map(user => this.renderUserCard(user)).join('')
+            : '';
         
-        // Show empty state if no data and not loading
-        if (!this.followingData || this.followingData.length === 0) {
-            return `
-                <div class="profile-tab-content">
-                    <div class="empty-state">
-                        <p>Пока нет подписок</p>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Render user cards
-        const followingHTML = this.followingData.map(user => this.renderUserCard(user)).join('');
+        const hasData = this.followingData && this.followingData.length > 0;
         
         return `
             <div class="profile-tab-content">
-                <div class="users-list">
+                <div class="users-list" style="${hasData ? '' : 'display: none;'}">
                     ${followingHTML}
+                </div>
+                <div class="empty-state" style="${hasData ? 'display: none;' : ''}">
+                    <p>Пока нет подписок</p>
                 </div>
             </div>
         `;
@@ -1278,7 +1250,7 @@ class ProfilePage {
         if (newTab === 'followers') {
             // Check cache first, only load if not cached
             if (!this._followersByUserId[this.userId] || this._followersByUserId[this.userId].length === 0) {
-                // Set loading flag with CSS overlay instead of full re-render
+                // Set loading flag with CSS overlay ONLY, no full re-render
                 this.loadingFollowers = true;
                 this._setTabLoading(true);
                 
@@ -1292,7 +1264,7 @@ class ProfilePage {
         } else if (newTab === 'following') {
             // Check cache first, only load if not cached
             if (!this._followingByUserId[this.userId] || this._followingByUserId[this.userId].length === 0) {
-                // Set loading flag with CSS overlay instead of full re-render
+                // Set loading flag with CSS overlay ONLY, no full re-render
                 this.loadingFollowing = true;
                 this._setTabLoading(true);
                 
