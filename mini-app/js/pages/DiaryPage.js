@@ -405,14 +405,11 @@ class DiaryPage {
         if (this.analysisVisible) {
             const lastQuote = this.state.get('lastAddedQuote');
             console.log('DEBUG: renderAIInsight lastQuote', lastQuote);
-            const summary = lastQuote?.aiAnalysis?.summary || lastQuote?.summary || '';
             const insights = lastQuote?.insights || lastQuote?.aiAnalysis?.insights || '';
 
-            if (lastQuote && (summary || insights)) {
-                // Escape HTML for summary but keep it as-is
-                const escapedSummary = this.escapeHtml(summary);
+            if (lastQuote && insights) {
                 // Format and escape insights with paragraph formatting
-                const formattedInsights = insights ? this.formatAIText(insights, 3) : '';
+                const formattedInsights = this.formatAIText(insights, 3);
                 
                 return `
                     <div class="ai-insight">
@@ -420,8 +417,7 @@ class DiaryPage {
                             <span>✨</span>
                             <span>Анализ от Анны</span>
                         </div>
-                        ${summary ? `<div class="ai-text"><b>Ответ Анны:</b> ${escapedSummary}</div>` : ''}
-                        ${insights ? `<div class="ai-text"><b>Инсайт:</b> ${formattedInsights}</div>` : ''}
+                        <div class="ai-text"><b>Инсайт:</b> ${formattedInsights}</div>
                     </div>
                 `;
             }
@@ -620,8 +616,7 @@ class DiaryPage {
             category: quote.category,
             themes: quote.themes,
             sentiment: quote.sentiment,
-            insights: quote.insights,
-            summary: quote.summary
+            insights: quote.insights
         };
         
         // Highlight search terms if search query exists
@@ -632,8 +627,7 @@ class DiaryPage {
             ? this.highlightSearchTerm(author, this.searchQuery)
             : author;
 
-        // Корректно берем summary и insights из новых и старых форматов
-        const summary = showAnalysis ? (aiAnalysis.summary || '') : '';
+        // Берем только insights (summary удален)
         const insights = showAnalysis ? (aiAnalysis.insights || '') : '';
 
         return `
@@ -641,7 +635,6 @@ class DiaryPage {
                 <button class="quote-kebab" aria-label="menu" title="Действия">…</button>
                 <div class="quote-text">${displayText}</div>
                 ${displayAuthor ? `<div class="quote-author">${displayAuthor}</div>` : ''}
-                ${summary ? `<div class="quote-summary" style="margin-top:8px;color:var(--text-primary)"><b>Ответ Анны:</b> ${summary}</div>` : ''}
                 ${insights ? `<div class="quote-insight" style="margin-top:6px;"><b>Инсайт:</b> ${insights}</div>` : ''}
                 <div class="quote-actions-inline">
                     <button class="action-btn" data-action="edit" aria-label="Редактировать цитату" title="Редактировать">✏️</button>
@@ -1186,9 +1179,8 @@ class DiaryPage {
             const themes = aiAnalysis.themes || quote.themes || [];
             const category = aiAnalysis.category || quote.category || '';
             const sentiment = aiAnalysis.sentiment || quote.sentiment || '';
-            const summary = aiAnalysis.summary || '';
 
-            // Собираем итоговый объект
+            // Собираем итоговый объект (без summary)
             const completeQuote = {
                 ...quote,
                 id: quote.id || quote._id,
@@ -1196,7 +1188,7 @@ class DiaryPage {
                 themes,
                 category,
                 sentiment,
-                aiAnalysis: { category, themes, sentiment, summary, insights }
+                aiAnalysis: { category, themes, sentiment, insights }
             };
 
             if (window.QuoteUtils) {
