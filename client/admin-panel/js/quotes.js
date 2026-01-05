@@ -595,7 +595,6 @@ class QuotesManager {
                         <div class="meta-section">
                             <h4>🤖 AI Анализ</h4>
                             <div class="ai-analysis">
-                                <p><strong>Краткий анализ:</strong> ${quote.aiAnalysis.summary}</p>
                                 <p><strong>Инсайты:</strong> ${quote.aiAnalysis.insights}</p>
                                 ${quote.aiAnalysis.recommendation ? 
                                     `<p><strong>Рекомендация:</strong> ${quote.aiAnalysis.recommendation}</p>` : ''
