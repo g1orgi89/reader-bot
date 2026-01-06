@@ -159,6 +159,21 @@ class ProfileModal {
         };
         window.addEventListener('follow:changed', this._followChangedHandler);
         
+        // ✨ Listen for status updates from HomePage
+        this._statusUpdatedHandler = (event) => {
+            if (this.isOpen && this.profileData) {
+                const currentUserId = this.state.getCurrentUserId();
+                const isOwnProfile = String(currentUserId) === String(this.userId);
+                if (isOwnProfile) {
+                    const newStatus = event.detail?.status;
+                    this.profileData.status = newStatus;
+                    this._updateDisplayedStatus(newStatus);
+                    console.log('✅ ProfileModal: Status updated from HomePage event');
+                }
+            }
+        };
+        window.addEventListener('status:updated', this._statusUpdatedHandler);
+        
         // Setup Telegram BackButton with guard against duplicate handlers
         if (this.telegram?.BackButton) {
             if (!this.backButtonAttached) {
@@ -207,6 +222,12 @@ class ProfileModal {
         if (this._followChangedHandler) {
             window.removeEventListener('follow:changed', this._followChangedHandler);
             this._followChangedHandler = null;
+        }
+        
+        // Remove status update listener
+        if (this._statusUpdatedHandler) {
+            window.removeEventListener('status:updated', this._statusUpdatedHandler);
+            this._statusUpdatedHandler = null;
         }
         
         // Hide Telegram BackButton and remove handler from global registry
@@ -375,7 +396,7 @@ class ProfileModal {
         const profile = this.profileData;
         const name = profile.name || profile.firstName || 'Пользователь';
         const bio = profile.bio || '';
-        const status = profile.status || '';
+        const status = profile.status || ''; // Real status only
         const username = profile.telegramUsername ? `@${profile.telegramUsername}` : '';
         const avatarUrl = this.resolveAvatarUrl();
         const initials = this.getInitials(name);
@@ -397,8 +418,8 @@ class ProfileModal {
                     </svg>
                 </button>
                 
-                <div class="profile-modal-body">
-                    <div class="profile-modal-left">
+                <div class="profile-modal-header">
+                    <div class="profile-modal-header-left">
                         <div class="profile-modal-avatar-container">
                             ${avatarUrl ? `
                                 <img class="profile-modal-avatar-img" src="${avatarUrl}" alt="${name}" 
@@ -406,46 +427,48 @@ class ProfileModal {
                             ` : ''}
                             <div class="profile-modal-avatar-fallback">${initials}</div>
                         </div>
-                        
-                        <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
-                        ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
-                        ${status ? `<p class="profile-modal-status">${status}</p>` : ''}
-                        
-                        ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
-                        
-                        <div class="profile-modal-stats">
-                            <div class="profile-modal-stat">
-                                <div class="stat-value">${totalQuotes}</div>
-                                <div class="stat-label">Цитат</div>
-                            </div>
-                            <div class="profile-modal-stat">
-                                <div class="stat-value">${followers}</div>
-                                <div class="stat-label">Подписчиков</div>
-                            </div>
-                            <div class="profile-modal-stat">
-                                <div class="stat-value">${following}</div>
-                                <div class="stat-label">Подписок</div>
-                            </div>
+                    </div>
+                    
+                    <div class="profile-modal-header-right profile-modal-actions">
+                        <button class="profile-action-btn" data-tab="quotes" title="Цитаты">📚</button>
+                        <button class="profile-action-btn" data-tab="followers" title="Подписчики">👥</button>
+                        <button class="profile-action-btn" data-tab="following" title="Подписки">👤</button>
+                    </div>
+                </div>
+                
+                <div class="profile-modal-body">
+                    <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
+                    ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                    ${status ? `<p class="profile-modal-status">${status}</p>` : ''}
+                    
+                    ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
+                    
+                    <div class="profile-modal-stats">
+                        <div class="profile-modal-stat">
+                            <div class="stat-value">${totalQuotes}</div>
+                            <div class="stat-label">Цитат</div>
                         </div>
-                        
-                        <div class="profile-modal-actions">
-                            ${!isOwnProfile ? `
-                                <button class="btn-follow ${this.followStatus ? 'following' : ''}" 
-                                        data-action="toggle-follow">
-                                    ${this.followStatus ? 'Отписаться' : 'Подписаться'}
-                                </button>
-                            ` : ''}
-                            
-                            <button class="btn-view-profile" data-action="open-full-profile">
-                                Открыть профиль
-                            </button>
+                        <div class="profile-modal-stat">
+                            <div class="stat-value">${followers}</div>
+                            <div class="stat-label">Подписчиков</div>
+                        </div>
+                        <div class="profile-modal-stat">
+                            <div class="stat-value">${following}</div>
+                            <div class="stat-label">Подписок</div>
                         </div>
                     </div>
                     
-                    <div class="profile-modal-right">
-                        <div class="profile-modal-badges-placeholder">
-                            🏆
-                        </div>
+                    <div class="profile-modal-actions-bottom">
+                        ${!isOwnProfile ? `
+                            <button class="btn-follow ${this.followStatus ? 'following' : ''}" 
+                                    data-action="toggle-follow">
+                                ${this.followStatus ? 'Отписаться' : 'Подписаться'}
+                            </button>
+                        ` : ''}
+                        
+                        <button class="btn-view-profile" data-action="open-full-profile">
+                            Открыть профиль
+                        </button>
                     </div>
                 </div>
             </div>
@@ -606,6 +629,44 @@ class ProfileModal {
                     followBtn.classList.remove('following');
                 }
             }
+        }
+    }
+    
+    /**
+     * 🔄 Update displayed status without full modal rebuild
+     * @param {string} newStatus - The new status to display
+     * @private
+     */
+    _updateDisplayedStatus(newStatus) {
+        if (!this.modal) return;
+        
+        // Find or create status element
+        let statusElement = this.modal.querySelector('.profile-modal-status');
+        
+        if (newStatus) {
+            if (!statusElement) {
+                // Create status element if it doesn't exist
+                statusElement = document.createElement('p');
+                statusElement.className = 'profile-modal-status';
+                
+                // Insert after profile-modal-username or profile-modal-name
+                const usernameElement = this.modal.querySelector('.profile-modal-username');
+                const nameElement = this.modal.querySelector('.profile-modal-name');
+                const insertAfter = usernameElement || nameElement;
+                
+                if (insertAfter && insertAfter.nextSibling) {
+                    insertAfter.parentNode.insertBefore(statusElement, insertAfter.nextSibling);
+                } else if (insertAfter) {
+                    insertAfter.parentNode.appendChild(statusElement);
+                }
+            }
+            
+            // Update text content
+            statusElement.textContent = newStatus;
+            statusElement.style.display = '';
+        } else if (statusElement) {
+            // Hide status element if no status
+            statusElement.style.display = 'none';
         }
     }
     
