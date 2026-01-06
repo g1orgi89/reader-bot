@@ -211,6 +211,24 @@ class SettingsPage {
                     <p class="settings-hint">Email используется для восстановления доступа и уведомлений</p>
                 </div>
                 
+                <div class="profile-status-section">
+                    <label class="settings-label">💭 Статус</label>
+                    <div class="profile-status-container">
+                        <input 
+                            type="text" 
+                            id="profileStatus" 
+                            class="form-input" 
+                            placeholder="#мысль дня"
+                            maxlength="80"
+                            value="${profile.status || ''}"
+                        >
+                        <button class="btn btn-primary" id="saveStatusBtn">
+                            💾 Сохранить
+                        </button>
+                    </div>
+                    <p class="settings-hint">Краткий публичный статус (максимум 80 символов)</p>
+                </div>
+                
                 <div class="profile-actions-section">
                     <button class="btn btn-secondary btn-block" id="resetTestBtn">
                         🔄 Пройти тест заново
@@ -437,6 +455,13 @@ class SettingsPage {
             });
         }
         
+        const saveStatusBtn = document.getElementById('saveStatusBtn');
+        if (saveStatusBtn) {
+            saveStatusBtn.addEventListener('click', () => {
+                this.handleStatusSave();
+            });
+        }
+        
         const resetTestBtn = document.getElementById('resetTestBtn');
         if (resetTestBtn) {
             resetTestBtn.addEventListener('click', () => {
@@ -613,6 +638,65 @@ class SettingsPage {
             }
         }
     }
+    
+    /**
+     * 💭 Обработчик сохранения статуса
+     */
+    async handleStatusSave() {
+        const statusInput = document.getElementById('profileStatus');
+        if (!statusInput) return;
+        
+        const status = statusInput.value.trim();
+        
+        // Limit to 80 characters
+        const trimmedStatus = status.substring(0, 80);
+        
+        try {
+            // Haptic feedback
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('light');
+            }
+            
+            // Get userId
+            const userId = this.getUserId();
+            
+            // Update profile
+            const result = await this.api.updateProfile({ status: trimmedStatus }, userId);
+            
+            if (result) {
+                // Update state
+                const currentProfile = this.state.get('user.profile') || {};
+                this.state.set('user.profile', {
+                    ...currentProfile,
+                    status: result.user?.status || null
+                });
+                
+                console.log('✅ Status updated successfully');
+                
+                // Show success message
+                if (this.telegram?.showAlert) {
+                    this.telegram.showAlert('Статус успешно сохранен');
+                } else {
+                    alert('Статус успешно сохранен');
+                }
+                
+                // Haptic success feedback
+                if (this.telegram?.hapticFeedback) {
+                    this.telegram.hapticFeedback('success');
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Error saving status:', error);
+            this.showError(error.message || 'Не удалось сохранить статус');
+            
+            // Haptic error feedback
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('error');
+            }
+        }
+    }
+
     
     /**
      * 🔄 Обработчик сброса теста
