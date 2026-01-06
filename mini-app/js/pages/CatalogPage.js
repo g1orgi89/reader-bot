@@ -666,7 +666,24 @@ class CatalogPage {
         const isSearchMode = this.showSearch;
         return `
             <div class="content">
+                ${this.renderTopSwitcher()}
                 ${isSearchMode ? this.renderSearchMode() : this.renderNormalMode()}
+            </div>
+        `;
+    }
+    
+    /**
+     * 🎚️ TOP SWITCHER (Каталог | Бесплатные разборы)
+     */
+    renderTopSwitcher() {
+        return `
+            <div class="catalog-top-switcher">
+                <button class="catalog-switcher-btn active" data-target="catalog">
+                    📚 Каталог
+                </button>
+                <button class="catalog-switcher-btn" data-target="free-audios">
+                    🎧 Бесплатные разборы
+                </button>
             </div>
         `;
     }
@@ -971,6 +988,23 @@ class CatalogPage {
      * 🎯 ОБРАБОТЧИКИ СОБЫТИЙ
      */
     attachEventListeners() {
+        // Top switcher buttons
+        const switcherBtns = document.querySelectorAll('.catalog-switcher-btn');
+        switcherBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = btn.dataset.target;
+                
+                if (target === 'free-audios') {
+                    // Navigate to free audios page
+                    if (this.app && this.app.router) {
+                        this.app.router.navigate('/free-audios');
+                    }
+                }
+                // If target is 'catalog', we're already here - do nothing
+            });
+        });
+        
         // Фильтры
         const filterTabs = document.querySelectorAll('.filter-tab');
         filterTabs.forEach(tab => {
