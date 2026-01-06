@@ -1064,7 +1064,8 @@ class HomePage {
             </div>
         `;
         
-        // Note: The edit button is outside the statusContainer, so it persists
+        // Note: The edit button (✏️) is rendered outside the statusContainer in renderHomeStatusCard(),
+        // so it remains functional during status updates without needing to re-attach event listeners
     }
 
     
