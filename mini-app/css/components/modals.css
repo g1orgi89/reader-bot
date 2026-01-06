@@ -896,11 +896,31 @@ body.modal-open {
     right: var(--spacing-md);
 }
 
+/* Profile modal header: avatar left, action buttons right */
+.profile-modal-header {
+    padding: var(--spacing-lg) var(--spacing-lg) 0;
+    padding-top: calc(var(--spacing-xl) + env(safe-area-inset-top, 0px)); /* Stretch upward */
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+}
+
+.profile-modal-header-left {
+    flex: 0 0 auto;
+}
+
+.profile-modal-header-right.profile-modal-actions {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: row;
+    gap: 6px; /* Compact gap */
+    align-items: flex-start;
+}
+
 .profile-modal-body {
     padding: var(--spacing-lg);
-    display: flex;
-    gap: var(--spacing-md);
-    align-items: flex-start;
+    text-align: center;
 }
 
 /* Left column: avatar, name, username, status */
@@ -909,29 +929,19 @@ body.modal-open {
     text-align: center;
 }
 
-/* Right column: badges placeholder */
-.profile-modal-right {
-    flex: 0 0 auto;
-    min-width: 60px;
+.profile-modal-actions-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
 }
 
-.profile-modal-badges-placeholder {
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    text-align: center;
-    padding: var(--spacing-sm);
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-md);
-    min-height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+/* No more right column badge placeholder */
 
 .profile-modal-avatar-container {
-    width: 100px;
-    height: 100px;
-    margin: 0 auto var(--spacing-md);
+    width: 80px;  /* Smaller for header placement */
+    height: 80px; /* Smaller for header placement */
+    margin: 0;  /* No bottom margin since it's in header */
     position: relative;
     border-radius: var(--radius-round);
     overflow: hidden;
@@ -953,7 +963,7 @@ body.modal-open {
 }
 
 .profile-modal-avatar-fallback {
-    font-size: 40px;
+    font-size: 32px; /* Smaller to fit 80px avatar */
     font-weight: var(--font-weight-bold);
     color: var(--text-inverse);
     text-transform: uppercase;
@@ -1026,7 +1036,7 @@ body.modal-open {
     gap: var(--spacing-sm);
 }
 
-.profile-modal-actions .btn-follow {
+.profile-modal-actions-bottom .btn-follow {
     width: 100%;
     height: var(--button-height);
     background: var(--primary-color);
@@ -1039,18 +1049,36 @@ body.modal-open {
     transition: all var(--duration-normal) var(--ease-out);
 }
 
-.profile-modal-actions .btn-follow:hover {
+.profile-modal-actions-bottom .btn-follow:hover {
     background: var(--primary-dark);
 }
 
-.profile-modal-actions .btn-follow.following {
+.profile-modal-actions-bottom .btn-follow.following {
     background: var(--bg-secondary);
     color: var(--text-primary);
     border: 1px solid var(--border);
 }
 
-.profile-modal-actions .btn-follow.following:hover {
+.profile-modal-actions-bottom .btn-follow.following:hover {
     background: var(--bg-primary);
+    border-color: var(--primary-color);
+}
+
+.profile-modal-actions-bottom .btn-view-profile {
+    width: 100%;
+    height: var(--button-height);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.profile-modal-actions-bottom .btn-view-profile:hover {
+    background: var(--bg-overlay);
     border-color: var(--primary-color);
 }
 

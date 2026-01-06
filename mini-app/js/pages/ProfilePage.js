@@ -610,7 +610,7 @@ class ProfilePage {
         const initials = this.getInitials(name);
         
         return `
-            <div class="profile-card">
+            <div class="profile-card profile-header two-col">
                 <div class="profile-card-left">
                     <div class="profile-avatar-container">
                         ${avatarUrl ? `
@@ -622,7 +622,7 @@ class ProfilePage {
                     
                     <h2 class="profile-name">${name}</h2>
                     ${formattedUsername ? `<p class="profile-username">${formattedUsername}</p>` : ''}
-                    ${status ? `<p class="profile-status">${status}</p>` : ''}
+                    ${status ? `<p class="profile-status user-status">${status}</p>` : ''}
                     
                     ${bio ? `<p class="profile-bio">${bio}</p>` : ''}
                     
@@ -634,10 +634,10 @@ class ProfilePage {
                     ` : ''}
                 </div>
                 
-                <div class="profile-card-right">
-                    <div class="profile-badges-placeholder">
-                        Бейджи
-                    </div>
+                <div class="profile-card-right profile-actions-right">
+                    <button class="profile-action-btn" data-action="switch-tab" data-tab="quotes" title="Цитаты">📚</button>
+                    <button class="profile-action-btn" data-action="switch-tab" data-tab="followers" title="Подписчики">👥</button>
+                    <button class="profile-action-btn" data-action="switch-tab" data-tab="following" title="Подписки">👤</button>
                 </div>
             </div>
         `;
@@ -875,6 +875,49 @@ class ProfilePage {
             tabContent.classList.add('loading');
         } else {
             tabContent.classList.remove('loading');
+        }
+    }
+    
+    /**
+     * 🔄 Update displayed status without full card rebuild
+     * Only updates the status element to prevent flicker
+     * @param {string|null} newStatus - The new status to display (null or empty string hides the status)
+     * @private
+     */
+    _updateDisplayedStatus(newStatus) {
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        const profileCard = root.querySelector('.profile-card');
+        if (!profileCard) return;
+        
+        // Find or create status element
+        let statusElement = profileCard.querySelector('.profile-status');
+        
+        if (newStatus) {
+            if (!statusElement) {
+                // Create status element if it doesn't exist
+                statusElement = document.createElement('p');
+                statusElement.className = 'profile-status user-status';
+                
+                // Insert after profile-username or profile-name
+                const usernameElement = profileCard.querySelector('.profile-username');
+                const nameElement = profileCard.querySelector('.profile-name');
+                const insertAfter = usernameElement || nameElement;
+                
+                if (insertAfter && insertAfter.nextSibling) {
+                    insertAfter.parentNode.insertBefore(statusElement, insertAfter.nextSibling);
+                } else if (insertAfter) {
+                    insertAfter.parentNode.appendChild(statusElement);
+                }
+            }
+            
+            // Update text content
+            statusElement.textContent = newStatus;
+            statusElement.style.display = '';
+        } else if (statusElement) {
+            // Hide status element if no status
+            statusElement.style.display = 'none';
         }
     }
     
@@ -1547,6 +1590,19 @@ class ProfilePage {
             }
         }
         
+        // ✨ Listen for status updates from HomePage
+        if (!this._statusUpdatedHandler) {
+            this._statusUpdatedHandler = (event) => {
+                if (this.isOwnProfile && this.profileData) {
+                    const newStatus = event.detail?.status;
+                    this.profileData.status = newStatus;
+                    this._updateDisplayedStatus(newStatus);
+                    console.log('✅ ProfilePage: Status updated from HomePage event');
+                }
+            };
+            window.addEventListener('status:updated', this._statusUpdatedHandler);
+        }
+        
         // Add delegated click handler for user cards
         const root = document.getElementById('profilePageRoot');
         if (root) {
@@ -1686,6 +1742,12 @@ class ProfilePage {
         if (root && this._userCardClickHandler) {
             root.removeEventListener('click', this._userCardClickHandler);
             this._userCardClickHandler = null;
+        }
+        
+        // Remove status update listener
+        if (this._statusUpdatedHandler) {
+            window.removeEventListener('status:updated', this._statusUpdatedHandler);
+            this._statusUpdatedHandler = null;
         }
         
         // Hide Telegram BackButton

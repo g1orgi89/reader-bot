@@ -1013,11 +1013,20 @@ class HomePage {
             if (response.success) {
                 // Update state
                 const profile = this.state.get('user.profile') || {};
-                profile.status = response.user?.status || null;
+                const updatedStatus = response.user?.status || null;
+                profile.status = updatedStatus;
                 this.state.set('user.profile', profile);
                 
                 // Refresh status display
                 this.refreshStatusDisplay();
+                
+                // ✨ Мгновенное обновление Профиля и Модалки через событие
+                const statusUpdatedEvent = new CustomEvent('status:updated', {
+                    detail: { status: updatedStatus }
+                });
+                window.dispatchEvent(statusUpdatedEvent);
+                
+                console.log('✅ Status updated and broadcast to Profile and Modal');
             } else {
                 throw new Error(response.error || 'Не удалось обновить статус');
             }
