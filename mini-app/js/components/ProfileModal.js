@@ -430,9 +430,9 @@ class ProfileModal {
                     </div>
                     
                     <div class="profile-modal-header-right profile-modal-actions">
-                        <button class="profile-action-btn" data-tab="quotes" title="Цитаты">📚</button>
-                        <button class="profile-action-btn" data-tab="followers" title="Подписчики">👥</button>
-                        <button class="profile-action-btn" data-tab="following" title="Подписки">👤</button>
+                        <button class="profile-action-btn" data-action="open-tab" data-tab="quotes" title="Цитаты">📚</button>
+                        <button class="profile-action-btn" data-action="open-tab" data-tab="followers" title="Подписчики">👥</button>
+                        <button class="profile-action-btn" data-action="open-tab" data-tab="following" title="Подписки">👤</button>
                     </div>
                 </div>
                 
@@ -533,6 +533,15 @@ class ProfileModal {
         if (followBtn) {
             followBtn.addEventListener('click', () => this.handleToggleFollow());
         }
+        
+        // Action buttons to open profile with specific tab
+        const tabButtons = this.modal.querySelectorAll('[data-action="open-tab"]');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tab = button.dataset.tab;
+                this.handleOpenTab(tab);
+            });
+        });
         
         // Open full profile button
         const viewProfileBtn = this.modal.querySelector('[data-action="open-full-profile"]');
@@ -676,6 +685,30 @@ class ProfileModal {
      */
     updateFollowButton(following) {
         this.updateFollowStatus(this.userId, following);
+    }
+    
+    /**
+     * 🔍 Handle open specific tab on full profile
+     */
+    handleOpenTab(tab) {
+        const profileUrl = `/profile?user=${this.userId}&tab=${tab}`;
+        
+        // Close modal first with force option for immediate effect
+        this.close({ force: true });
+        
+        // Small delay to ensure modal closes before navigation
+        setTimeout(() => {
+            if (this.router && typeof this.router.navigate === 'function') {
+                this.router.navigate(profileUrl);
+            } else {
+                window.location.hash = profileUrl;
+            }
+            
+            // Haptic feedback
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('light');
+            }
+        }, this.MODAL_CLOSE_DELAY);
     }
     
     /**
