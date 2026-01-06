@@ -934,19 +934,6 @@ body.modal-open {
     align-items: flex-start;
 }
 
-/* Legacy: Remove old header-left/header-right classes */
-.profile-modal-header-left {
-    flex: 0 0 auto;
-}
-
-.profile-modal-header-right.profile-modal-actions {
-    flex: 0 0 auto;
-    display: flex;
-    flex-direction: row;
-    gap: 6px; /* Compact gap */
-    align-items: flex-start;
-}
-
 .profile-modal-body {
     padding: var(--spacing-lg);
 }

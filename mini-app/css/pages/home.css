@@ -999,17 +999,15 @@ body.dark-theme {
     font-style: italic; /* ВСЕГДА курсив - и для заполненного, и для плейсхолдера */
 }
 
-/* Реальный статус - цвет var(--text-primary), курсив */
+/* Реальный статус - цвет var(--text-primary) */
 .home-header-status:not(.placeholder) {
     color: var(--text-primary);
-    font-style: italic;
 }
 
-/* Плейсхолдер "#мысль дня" - курсив + полупрозрачный */
+/* Плейсхолдер "#мысль дня" - полупрозрачный */
 .home-header-status.placeholder {
     color: var(--text-secondary);
     opacity: 0.6;
-    font-style: italic;
 }
 
 .home-header-status-edit-btn {
