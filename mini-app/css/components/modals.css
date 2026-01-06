@@ -896,38 +896,49 @@ body.modal-open {
     right: var(--spacing-md);
 }
 
-/* Profile modal header: avatar left, action buttons right */
+/* Profile modal header: avatar+info left, action buttons right */
 .profile-modal-header {
     padding: var(--spacing-lg) var(--spacing-lg) 0;
-    padding-top: calc(var(--spacing-xl) + env(safe-area-inset-top, 0px)); /* Stretch upward */
+    padding-top: calc(var(--spacing-2xl) + env(safe-area-inset-top, 0px)); /* Stretch upward with more padding */
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: var(--spacing-md);
 }
 
-.profile-modal-header-left {
-    flex: 0 0 auto;
+/* Left section: avatar and info stacked vertically */
+.profile-modal-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--spacing-sm);
 }
 
-.profile-modal-header-right.profile-modal-actions {
+/* Info section under avatar */
+.profile-modal-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
+
+/* Right section: action buttons in a row */
+.profile-modal-actions {
     flex: 0 0 auto;
     display: flex;
     flex-direction: row;
-    gap: 6px; /* Compact gap */
+    gap: 6px; /* Compact gap for square buttons */
     align-items: flex-start;
 }
 
 .profile-modal-body {
     padding: var(--spacing-lg);
-    text-align: center;
 }
 
-/* Left column: avatar, name, username, status */
-.profile-modal-left {
-    flex: 1;
-    text-align: center;
-}
+/* No more text-align center for body since info is in header now */
 
 .profile-modal-actions-bottom {
     display: flex;

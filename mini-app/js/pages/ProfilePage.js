@@ -635,9 +635,9 @@ class ProfilePage {
                 </div>
                 
                 <div class="profile-card-right profile-actions-right">
-                    <button class="profile-action-btn" data-action="switch-tab" data-tab="quotes" title="Цитаты">📚</button>
+                    <button class="profile-action-btn" data-action="switch-tab" data-tab="quotes" title="Цитаты">📖</button>
                     <button class="profile-action-btn" data-action="switch-tab" data-tab="followers" title="Подписчики">👥</button>
-                    <button class="profile-action-btn" data-action="switch-tab" data-tab="following" title="Подписки">👤</button>
+                    <button class="profile-action-btn" data-action="switch-tab" data-tab="following" title="Подписки">➕</button>
                 </div>
             </div>
         `;

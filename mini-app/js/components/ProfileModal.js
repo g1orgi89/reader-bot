@@ -419,7 +419,7 @@ class ProfileModal {
                 </button>
                 
                 <div class="profile-modal-header">
-                    <div class="profile-modal-header-left">
+                    <div class="profile-modal-left">
                         <div class="profile-modal-avatar-container">
                             ${avatarUrl ? `
                                 <img class="profile-modal-avatar-img" src="${avatarUrl}" alt="${name}" 
@@ -427,20 +427,22 @@ class ProfileModal {
                             ` : ''}
                             <div class="profile-modal-avatar-fallback">${initials}</div>
                         </div>
+                        
+                        <div class="profile-modal-info">
+                            <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
+                            ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                            ${status ? `<p class="profile-modal-status user-status">${status}</p>` : ''}
+                        </div>
                     </div>
                     
-                    <div class="profile-modal-header-right profile-modal-actions">
-                        <button class="profile-action-btn" data-action="open-tab" data-tab="quotes" title="Цитаты">📚</button>
+                    <div class="profile-modal-actions">
+                        <button class="profile-action-btn" data-action="open-tab" data-tab="quotes" title="Цитаты">📖</button>
                         <button class="profile-action-btn" data-action="open-tab" data-tab="followers" title="Подписчики">👥</button>
-                        <button class="profile-action-btn" data-action="open-tab" data-tab="following" title="Подписки">👤</button>
+                        <button class="profile-action-btn" data-action="open-tab" data-tab="following" title="Подписки">➕</button>
                     </div>
                 </div>
                 
                 <div class="profile-modal-body">
-                    <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
-                    ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
-                    ${status ? `<p class="profile-modal-status">${status}</p>` : ''}
-                    
                     ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
                     
                     <div class="profile-modal-stats">
@@ -656,7 +658,7 @@ class ProfileModal {
             if (!statusElement) {
                 // Create status element if it doesn't exist
                 statusElement = document.createElement('p');
-                statusElement.className = 'profile-modal-status';
+                statusElement.className = 'profile-modal-status user-status';
                 
                 // Insert after profile-modal-username or profile-modal-name
                 const usernameElement = this.modal.querySelector('.profile-modal-username');

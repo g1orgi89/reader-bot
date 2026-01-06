@@ -978,7 +978,7 @@ body.dark-theme {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 4px; /* Добавлен отступ чтобы ✔/✖ не наезжали */
+    margin-bottom: 8px; /* Увеличен отступ от 4px до 8px чтобы ✔/✖ не наезжали на меню */
 }
 
 /* 💭 Status display and editing */
@@ -996,6 +996,7 @@ body.dark-theme {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-style: italic; /* ВСЕГДА курсив - и для заполненного, и для плейсхолдера */
 }
 
 /* Реальный статус - цвет var(--text-primary) */
@@ -1003,11 +1004,10 @@ body.dark-theme {
     color: var(--text-primary);
 }
 
-/* Плейсхолдер "#мысль дня" - курсив + полупрозрачный */
+/* Плейсхолдер "#мысль дня" - полупрозрачный */
 .home-header-status.placeholder {
     color: var(--text-secondary);
     opacity: 0.6;
-    font-style: italic;
 }
 
 .home-header-status-edit-btn {
