@@ -99,6 +99,13 @@ const CONSTANTS = {
     }
   },
 
+  // User Profile Limits
+  USER_PROFILE: {
+    STATUS_MAX_LENGTH: 80,         // Maximum length for user status
+    NAME_MAX_LENGTH: 100,          // Maximum length for user name
+    BIO_MAX_LENGTH: 200            // Maximum length for user bio
+  },
+
   // Logging Levels
   LOG_LEVELS: {
     ERROR: 'error',
