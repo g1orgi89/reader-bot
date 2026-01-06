@@ -418,7 +418,7 @@ class ProfileModal {
                     </svg>
                 </button>
                 
-                <div class="profile-modal-header">
+                <div class="profile-modal-header grid">
                     <div class="profile-modal-left">
                         <div class="profile-modal-avatar-container">
                             ${avatarUrl ? `
@@ -427,33 +427,32 @@ class ProfileModal {
                             ` : ''}
                             <div class="profile-modal-avatar-fallback">${initials}</div>
                         </div>
-                        
-                        <div class="profile-modal-info">
-                            <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
-                            ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
-                            ${status ? `<p class="profile-modal-status user-status">${status}</p>` : ''}
-                        </div>
                     </div>
                     
-                    <div class="profile-modal-actions">
-                        <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="quotes" title="Цитаты">
-                            <div class="stat-btn-value">${totalQuotes}</div>
-                            <div class="stat-btn-label">Цитат</div>
-                        </button>
-                        <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="followers" title="Подписчики">
-                            <div class="stat-btn-value">${followers}</div>
-                            <div class="stat-btn-label">Подписчиков</div>
-                        </button>
-                        <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="following" title="Подписки">
-                            <div class="stat-btn-value">${following}</div>
-                            <div class="stat-btn-label">Подписок</div>
-                        </button>
+                    <div class="profile-modal-right">
+                        <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
+                        ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                        ${status ? `<p class="profile-modal-status user-status">${status}</p>` : ''}
+                        ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
+                        
+                        <div class="profile-modal-actions-top">
+                            <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="quotes" title="Цитаты">
+                                <div class="stat-btn-value">${totalQuotes}</div>
+                                <div class="stat-btn-label">Цитат</div>
+                            </button>
+                            <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="followers" title="Подписчики">
+                                <div class="stat-btn-value">${followers}</div>
+                                <div class="stat-btn-label">Подписчиков</div>
+                            </button>
+                            <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="following" title="Подписки">
+                                <div class="stat-btn-value">${following}</div>
+                                <div class="stat-btn-label">Подписок</div>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="profile-modal-body">
-                    ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
-                    
                     <div class="profile-modal-actions-bottom">
                         ${!isOwnProfile ? `
                             <button class="btn-follow ${this.followStatus ? 'following' : ''}" 

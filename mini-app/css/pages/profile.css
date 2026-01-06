@@ -127,9 +127,75 @@
 /* Two-column layout: avatar+info left, action buttons right */
 .profile-card.two-col {
     display: flex;
-    justify-content: space-between;
+    justif-content: space-between;
     align-items: flex-start;
     gap: var(--spacing-md);
+}
+
+/* Grid layout for profile header - NEW */
+.profile-header.grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--spacing-md);
+    align-items: start;
+}
+
+.profile-left {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: flex-start;
+}
+
+.badges-placeholder-rect {
+    width: 180px;
+    min-height: 60px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.badge-outline {
+    width: 50px;
+    height: 20px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.profile-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.profile-right .user-name {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.profile-right .user-username {
+    color: var(--text-secondary);
+    margin-top: 2px;
+    margin-bottom: 6px;
+}
+
+.profile-right .user-status {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.25;
+    font-style: italic;
+}
+
+.profile-actions-top {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
 }
 
 /* Left column: avatar, name, username, status */
@@ -220,16 +286,17 @@
     line-height: var(--line-height-normal);
 }
 
-/* User status - smaller than username, secondary color, single line truncation */
+/* User status - smaller than username, secondary color, multi-line wrapping */
 .user-status {
     font-size: calc(var(--font-size-sm) - 1px);
     color: var(--text-secondary);
     margin: 0 0 var(--spacing-md);
-    line-height: var(--line-height-normal);
+    line-height: 1.25;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-style: italic;
 }
 
 .profile-bio {

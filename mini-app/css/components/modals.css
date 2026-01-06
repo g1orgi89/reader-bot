@@ -906,6 +906,15 @@ body.modal-open {
     gap: var(--spacing-md);
 }
 
+/* Grid layout for modal header - NEW */
+.profile-modal-header.grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--spacing-md);
+    align-items: start;
+    padding-top: var(--spacing-sm);
+}
+
 /* Left section: avatar and info stacked vertically */
 .profile-modal-left {
     flex: 1;
@@ -914,6 +923,12 @@ body.modal-open {
     align-items: center;
     text-align: center;
     gap: var(--spacing-sm);
+}
+
+.profile-modal-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 /* Info section under avatar */
@@ -932,6 +947,12 @@ body.modal-open {
     flex-direction: row;
     gap: 6px; /* Compact gap for square buttons */
     align-items: flex-start;
+}
+
+.profile-modal-actions-top {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
 }
 
 /* Apply stat-btn styling to modal action buttons */
@@ -1031,7 +1052,7 @@ body.modal-open {
 
 .profile-modal-name {
     font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-semibold);
     color: var(--text-primary);
     margin: 0 0 var(--spacing-2xs);
 }
@@ -1039,14 +1060,19 @@ body.modal-open {
 .profile-modal-username {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
-    margin: 0 0 var(--spacing-2xs);
+    margin-top: 2px;
+    margin-bottom: 6px;
 }
 
 .profile-modal-status {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.25;
+    font-style: italic;
     margin: 0 0 var(--spacing-sm);
-    line-height: var(--line-height-normal);
 }
 
 .profile-modal-bio {

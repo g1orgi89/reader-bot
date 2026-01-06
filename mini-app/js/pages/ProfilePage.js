@@ -609,8 +609,8 @@ class ProfilePage {
         const initials = this.getInitials(name);
         
         return `
-            <div class="profile-card profile-header two-col">
-                <div class="profile-card-left">
+            <div class="profile-card profile-header grid">
+                <div class="profile-left">
                     <div class="profile-avatar-container">
                         ${avatarUrl ? `
                             <img class="profile-avatar-img" src="${avatarUrl}" alt="${name}" 
@@ -619,11 +619,34 @@ class ProfilePage {
                         <div class="profile-avatar-fallback">${initials}</div>
                     </div>
                     
-                    <h2 class="profile-name">${name}</h2>
-                    ${formattedUsername ? `<p class="profile-username">${formattedUsername}</p>` : ''}
-                    ${status ? `<p class="profile-status user-status">${status}</p>` : ''}
-                    
+                    <!-- Placeholder for badges -->
+                    <div class="badges-placeholder-rect">
+                        <div class="badge-outline"></div>
+                        <div class="badge-outline"></div>
+                        <div class="badge-outline"></div>
+                    </div>
+                </div>
+                
+                <div class="profile-right">
+                    <div class="user-name">${name}</div>
+                    ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
+                    ${status ? `<div class="user-status">${status}</div>` : ''}
                     ${bio ? `<p class="profile-bio">${bio}</p>` : ''}
+                    
+                    <div class="profile-actions-top">
+                        <button class="profile-action-btn stat-btn ${this.activeTab === 'quotes' ? 'active' : ''}" data-action="switch-tab" data-tab="quotes" data-stat="quotes" title="Цитаты">
+                            <div class="stat-btn-value">${profile.stats?.totalQuotes || 0}</div>
+                            <div class="stat-btn-label">Цитат</div>
+                        </button>
+                        <button class="profile-action-btn stat-btn ${this.activeTab === 'followers' ? 'active' : ''}" data-action="switch-tab" data-tab="followers" data-stat="followers" title="Подписчики">
+                            <div class="stat-btn-value">${profile.stats?.followers || 0}</div>
+                            <div class="stat-btn-label">Подписчиков</div>
+                        </button>
+                        <button class="profile-action-btn stat-btn ${this.activeTab === 'following' ? 'active' : ''}" data-action="switch-tab" data-tab="following" data-stat="following" title="Подписки">
+                            <div class="stat-btn-value">${profile.stats?.following || 0}</div>
+                            <div class="stat-btn-label">Подписок</div>
+                        </button>
+                    </div>
                     
                     ${!this.isOwnProfile ? `
                         <button class="follow-btn-large ${this.followStatus ? 'following' : ''}" 
@@ -631,21 +654,6 @@ class ProfilePage {
                             ${this.followStatus ? 'Отписаться' : 'Подписаться'}
                         </button>
                     ` : ''}
-                </div>
-                
-                <div class="profile-card-right profile-actions-right">
-                    <button class="profile-action-btn stat-btn ${this.activeTab === 'quotes' ? 'active' : ''}" data-action="switch-tab" data-tab="quotes" data-stat="quotes" title="Цитаты">
-                        <div class="stat-btn-value">${profile.stats?.totalQuotes || 0}</div>
-                        <div class="stat-btn-label">Цитат</div>
-                    </button>
-                    <button class="profile-action-btn stat-btn ${this.activeTab === 'followers' ? 'active' : ''}" data-action="switch-tab" data-tab="followers" data-stat="followers" title="Подписчики">
-                        <div class="stat-btn-value">${profile.stats?.followers || 0}</div>
-                        <div class="stat-btn-label">Подписчиков</div>
-                    </button>
-                    <button class="profile-action-btn stat-btn ${this.activeTab === 'following' ? 'active' : ''}" data-action="switch-tab" data-tab="following" data-stat="following" title="Подписки">
-                        <div class="stat-btn-value">${profile.stats?.following || 0}</div>
-                        <div class="stat-btn-label">Подписок</div>
-                    </button>
                 </div>
             </div>
         `;
