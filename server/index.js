@@ -278,6 +278,7 @@ const categoriesRoutes = require('./api/categories');
 const targetAudiencesRoutes = require('./api/targetAudiences');
 const utmTemplatesRoutes = require('./api/utmTemplates');
 const annaPersonaRoutes = require('./api/annaPersona');
+const audioRoutes = require('./api/audio');
 
 // 🔧 ИСПРАВЛЕНИЕ: Возвращаем полный knowledge API с детальным логированием ошибок
 let knowledgeRoutes, usersRoutes, quotesRoutes;
@@ -744,6 +745,74 @@ app.use(`${config.app.apiPrefix}/categories`, categoriesRoutes);
 app.use(`${config.app.apiPrefix}/target-audiences`, targetAudiencesRoutes);
 app.use(`${config.app.apiPrefix}/utm-templates`, utmTemplatesRoutes);
 app.use(`${config.app.apiPrefix}/anna-persona`, annaPersonaRoutes);
+
+// 🎵 Audio API routes
+logger.info('🎵 Registering Audio API routes...');
+app.use(`${config.app.apiPrefix}/audio`, audioRoutes);
+
+// 🔒 Protected audio streaming endpoint (outside /api prefix)
+logger.info('🔒 Registering protected media stream route...');
+app.get('/media/stream/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.query.userId; // In production, get from auth token
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    const audioService = require('./services/audio/audioService');
+    logger.info(`🔒 Protected stream request for audio ${id}, user ${userId}...`);
+    
+    // Check access
+    const unlocked = await audioService.isUnlocked(userId, id);
+    
+    if (!unlocked) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
+    // Get audio metadata to find file
+    const audio = await audioService.findById(id);
+    
+    if (!audio) {
+      return res.status(404).json({
+        success: false,
+        error: 'Audio not found'
+      });
+    }
+
+    // For free content, this endpoint shouldn't be called
+    // but handle it gracefully
+    if (audio.isFree) {
+      return res.redirect(audio.audioUrl);
+    }
+
+    // For premium content, use X-Accel-Redirect
+    // This tells Nginx to serve the file from a protected location
+    // The protected location is configured in Nginx config
+    const protectedPath = `/media-protected/${id}.mp3`;
+    
+    logger.info(`✅ Granting access via X-Accel-Redirect: ${protectedPath}`);
+    
+    res.setHeader('X-Accel-Redirect', protectedPath);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.end();
+  } catch (error) {
+    logger.error(`❌ Error in protected stream:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to stream audio',
+      details: error.message
+    });
+  }
+});
 
 logger.info('✅ All API routes registered successfully');
 

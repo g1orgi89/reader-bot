@@ -1,0 +1,235 @@
+/**
+ * Audio API routes
+ * @file server/api/audio.js
+ */
+
+const express = require('express');
+const router = express.Router();
+
+// Services
+const audioService = require('../services/audio/audioService');
+const AudioProgress = require('../models/AudioProgress');
+const logger = require('../utils/logger');
+
+/**
+ * GET /api/audio/free
+ * List all free audio content
+ * @returns {Array} Array of free audio metadata
+ */
+router.get('/free', async (req, res) => {
+  try {
+    logger.info('📚 Fetching free audio list...');
+    
+    const freeAudios = await audioService.listFreeAudios();
+    
+    res.json({
+      success: true,
+      audios: freeAudios
+    });
+  } catch (error) {
+    logger.error('❌ Error fetching free audios:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch free audio list',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/audio/:id
+ * Get audio metadata with unlock status
+ * @param {string} id - Audio ID
+ * @returns {Object} Audio metadata with unlocked flag
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.query.userId; // In production, get from auth token
+    
+    logger.info(`📚 Fetching audio metadata for ${id}...`);
+    
+    const audio = await audioService.findById(id);
+    
+    if (!audio) {
+      return res.status(404).json({
+        success: false,
+        error: 'Audio not found'
+      });
+    }
+
+    // Check if audio is unlocked for this user
+    let unlocked = false;
+    if (userId) {
+      unlocked = await audioService.isUnlocked(userId, id);
+    }
+
+    res.json({
+      success: true,
+      audio: {
+        ...audio,
+        unlocked
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Error fetching audio metadata:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch audio metadata',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/audio/:id/stream-url
+ * Get streaming URL for audio
+ * @param {string} id - Audio ID
+ * @returns {Object} Object with url property
+ */
+router.get('/:id/stream-url', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.query.userId; // In production, get from auth token
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User ID required'
+      });
+    }
+
+    logger.info(`🎵 Getting stream URL for audio ${id}, user ${userId}...`);
+    
+    const streamUrl = await audioService.getStreamUrl(userId, id);
+    
+    res.json({
+      success: true,
+      ...streamUrl
+    });
+  } catch (error) {
+    logger.error(`❌ Error getting stream URL:`, error);
+    
+    if (error.message === 'Audio not found') {
+      return res.status(404).json({
+        success: false,
+        error: 'Audio not found'
+      });
+    }
+    
+    if (error.message === 'Access denied') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get stream URL',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/audio/:id/progress
+ * Update listening progress
+ * @param {string} id - Audio ID
+ * @body {number} positionSec - Current position in seconds
+ * @returns {Object} Updated progress
+ */
+router.post('/:id/progress', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { positionSec } = req.body;
+    const userId = req.query.userId; // In production, get from auth token
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User ID required'
+      });
+    }
+
+    if (typeof positionSec !== 'number' || positionSec < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid positionSec'
+      });
+    }
+
+    logger.info(`💾 Updating progress for audio ${id}, user ${userId}: ${positionSec}s`);
+    
+    const progress = await AudioProgress.updateProgress(userId, id, positionSec);
+    
+    res.json({
+      success: true,
+      progress: {
+        audioId: progress.audioId,
+        positionSec: progress.positionSec,
+        updatedAt: progress.updatedAt
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Error updating progress:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update progress',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/audio/:id/progress
+ * Get listening progress
+ * @param {string} id - Audio ID
+ * @returns {Object} Progress data
+ */
+router.get('/:id/progress', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.query.userId; // In production, get from auth token
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User ID required'
+      });
+    }
+
+    logger.info(`📊 Fetching progress for audio ${id}, user ${userId}...`);
+    
+    const progress = await AudioProgress.getProgress(userId, id);
+    
+    if (!progress) {
+      return res.json({
+        success: true,
+        progress: {
+          audioId: id,
+          positionSec: 0,
+          updatedAt: null
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      progress: {
+        audioId: progress.audioId,
+        positionSec: progress.positionSec,
+        updatedAt: progress.updatedAt
+      }
+    });
+  } catch (error) {
+    logger.error(`❌ Error fetching progress:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch progress',
+      details: error.message
+    });
+  }
+});
+
+module.exports = router;
