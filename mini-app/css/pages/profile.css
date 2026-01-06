@@ -136,8 +136,29 @@
 .profile-header.grid {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 12px; /* Reduced gap to bring name/username closer to avatar */
+    gap: 10px; /* Reduced gap to bring name/username closer to avatar */
     align-items: start;
+}
+
+/* User heading row: name + username in one line */
+.user-heading-row {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.user-heading-row .user-name {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.user-heading-row .user-username {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0;
 }
 
 .profile-left {
@@ -153,18 +174,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.profile-right .user-name {
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin: 0;
-}
-
-.profile-right .user-username {
-    color: var(--text-secondary);
-    margin: 0 0 6px 0;
-    font-size: var(--font-size-sm);
 }
 
 /* Status card within profile */
@@ -653,6 +662,29 @@
 }
 
 /* ============================================================================
+   ♾️ INFINITE SCROLL
+   ============================================================================ */
+
+/* Infinite scroll loader - centered spinner with terracotta animation */
+.infinite-loader {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin: var(--spacing-lg) auto;
+}
+
+/* Sentinel element - invisible trigger for IntersectionObserver */
+.infinite-sentinel {
+    height: 1px;
+    width: 100%;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* ============================================================================
    ❌ ERROR STATE
    ============================================================================ */
 
@@ -788,7 +820,7 @@
 .profile-modal-header.grid {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 12px; /* Match profile page gap */
+    gap: 10px; /* Match profile page gap for consistency */
     align-items: start;
     padding: var(--spacing-lg);
 }
@@ -801,8 +833,8 @@
 }
 
 .profile-modal-avatar-container {
-    width: 120px;
-    height: 120px;
+    width: 72px; /* Reduced from 120px */
+    height: 72px; /* Reduced from 120px */
     position: relative;
     border-radius: var(--radius-round);
     overflow: hidden;
@@ -824,30 +856,38 @@
 }
 
 .profile-modal-avatar-fallback {
-    font-size: 48px;
+    font-size: 28px; /* Reduced from 48px to match smaller avatar */
     font-weight: var(--font-weight-bold);
     color: var(--text-inverse);
     text-transform: uppercase;
     z-index: 1;
 }
 
+/* Profile modal heading row: name + username in one line */
+.profile-modal-heading-row {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.profile-modal-heading-row .profile-modal-name {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin: 0;
+    font-size: var(--font-size-lg);
+}
+
+.profile-modal-heading-row .profile-modal-username {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: var(--font-size-sm);
+}
+
 .profile-modal-right {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.profile-modal-name {
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-primary);
-    margin: 0;
-    font-size: var(--font-size-xl);
-}
-
-.profile-modal-username {
-    color: var(--text-secondary);
-    margin: 0 0 6px 0;
-    font-size: var(--font-size-sm);
 }
 
 /* Status card within modal */

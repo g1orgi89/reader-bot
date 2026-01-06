@@ -84,6 +84,10 @@ class ProfilePage {
         this.quotesLimit = 20;
         this.hasMoreQuotes = true;
         
+        // Infinite scroll state
+        this._isLoadingMoreQuotes = false;
+        this._infiniteScrollObserver = null;
+        
         // Persistent username cache to prevent disappearing
         this.cachedUsername = null;
         
@@ -621,8 +625,10 @@ class ProfilePage {
                 </div>
                 
                 <div class="profile-right">
-                    <div class="user-name">${name}</div>
-                    ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
+                    <div class="user-heading-row">
+                        <div class="user-name">${name}</div>
+                        ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
+                    </div>
                     
                     ${status ? `
                         <div class="user-status-card">
@@ -779,7 +785,6 @@ class ProfilePage {
             
             // Update quotes list for quotes tab
             const quotesList = tabContent.querySelector('.quotes-list');
-            const loadMoreContainer = tabContent.querySelector('.load-more-container');
             const emptyState = tabContent.querySelector('.empty-state');
             
             if (this.userQuotes && this.userQuotes.length > 0) {
@@ -804,32 +809,35 @@ class ProfilePage {
                     console.log(`[PROFILE_REFRESH] Created new .quotes-list with ${this.userQuotes.length} quotes`);
                 }
                 
-                // Update or create load-more button
+                // Update or create infinite scroll elements
                 if (this.hasMoreQuotes) {
-                    const loadMoreHTML = `
-                        <div class="load-more-container">
-                            <button class="btn-secondary load-more-btn" data-action="load-more-quotes">
-                                Загрузить ещё
-                            </button>
-                        </div>
-                    `;
+                    let loader = tabContent.querySelector('.infinite-loader');
+                    let sentinel = tabContent.querySelector('.infinite-sentinel');
                     
-                    if (loadMoreContainer) {
-                        loadMoreContainer.outerHTML = loadMoreHTML;
-                    } else {
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = loadMoreHTML;
-                        tabContent.appendChild(tempDiv.firstElementChild);
+                    if (!loader) {
+                        loader = document.createElement('div');
+                        loader.className = 'infinite-loader';
+                        loader.style.display = 'none';
+                        tabContent.appendChild(loader);
                     }
                     
-                    // Re-attach event listener for load-more button
-                    const newLoadMoreBtn = tabContent.querySelector('[data-action="load-more-quotes"]');
-                    if (newLoadMoreBtn) {
-                        newLoadMoreBtn.addEventListener('click', (e) => this.handleLoadMoreQuotes(e));
+                    if (!sentinel) {
+                        sentinel = document.createElement('div');
+                        sentinel.className = 'infinite-sentinel';
+                        tabContent.appendChild(sentinel);
                     }
-                } else if (loadMoreContainer) {
-                    // Remove load-more button if no more quotes
-                    loadMoreContainer.remove();
+                    
+                    // Re-setup observer
+                    requestAnimationFrame(() => {
+                        this._setupInfiniteScroll();
+                    });
+                } else {
+                    // Remove infinite scroll elements if no more quotes
+                    const loader = tabContent.querySelector('.infinite-loader');
+                    const sentinel = tabContent.querySelector('.infinite-sentinel');
+                    if (loader) loader.remove();
+                    if (sentinel) sentinel.remove();
+                    this._cleanupInfiniteScroll();
                 }
                 
                 // Hide empty state if present
@@ -847,13 +855,15 @@ class ProfilePage {
                     tabContent.innerHTML = emptyStateHTML;
                 }
                 
-                // Hide quotes list and load-more if present
+                // Hide quotes list and infinite scroll elements if present
                 if (quotesList) {
                     quotesList.style.display = 'none';
                 }
-                if (loadMoreContainer) {
-                    loadMoreContainer.style.display = 'none';
-                }
+                const loader = tabContent.querySelector('.infinite-loader');
+                const sentinel = tabContent.querySelector('.infinite-sentinel');
+                if (loader) loader.style.display = 'none';
+                if (sentinel) sentinel.style.display = 'none';
+                this._cleanupInfiniteScroll();
             }
         }
         
@@ -1034,11 +1044,8 @@ class ProfilePage {
                     ${quotesHTML}
                 </div>
                 ${this.hasMoreQuotes ? `
-                    <div class="load-more-container">
-                        <button class="btn-secondary load-more-btn" data-action="load-more-quotes">
-                            Загрузить ещё
-                        </button>
-                    </div>
+                    <div class="infinite-loader" style="display: none;"></div>
+                    <div class="infinite-sentinel"></div>
                 ` : ''}
             </div>
         `;
@@ -1455,6 +1462,17 @@ class ProfilePage {
             this.refreshTabContent();
         }
         
+        // Setup infinite scroll if switching to quotes tab
+        if (newTab === 'quotes') {
+            // Use requestAnimationFrame to ensure DOM is ready
+            requestAnimationFrame(() => {
+                this._setupInfiniteScroll();
+            });
+        } else {
+            // Cleanup observer if switching away from quotes
+            this._cleanupInfiniteScroll();
+        }
+        
         // Sync follow button UI after tab switch
         this.syncFollowButtonUiFromState();
     }
@@ -1571,6 +1589,124 @@ class ProfilePage {
         return `${(words[0][0] || '').toUpperCase()}${(words[1][0] || '').toUpperCase()}`;
     }
     
+    
+    /**
+     * 🔄 Setup IntersectionObserver for infinite scroll
+     * @private
+     */
+    _setupInfiniteScroll() {
+        // Clean up any existing observer first
+        this._cleanupInfiniteScroll();
+        
+        // Only setup if on quotes tab
+        if (this.activeTab !== 'quotes') {
+            return;
+        }
+        
+        const root = document.getElementById('profilePageRoot');
+        if (!root) return;
+        
+        const sentinel = root.querySelector('.infinite-sentinel');
+        if (!sentinel) return;
+        
+        console.log('🔄 ProfilePage: Setting up IntersectionObserver for infinite scroll');
+        
+        // Create observer with root margin to trigger slightly before reaching bottom
+        this._infiniteScrollObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && this.hasMoreQuotes && !this._isLoadingMoreQuotes) {
+                    console.log('🔄 ProfilePage: Sentinel intersected, loading more quotes');
+                    this._loadMoreQuotesInfinite();
+                }
+            });
+        }, {
+            root: null, // viewport
+            rootMargin: '100px', // trigger 100px before reaching sentinel
+            threshold: 0
+        });
+        
+        this._infiniteScrollObserver.observe(sentinel);
+        console.log('✅ ProfilePage: IntersectionObserver attached to sentinel');
+    }
+    
+    /**
+     * 🧹 Cleanup IntersectionObserver
+     * @private
+     */
+    _cleanupInfiniteScroll() {
+        if (this._infiniteScrollObserver) {
+            this._infiniteScrollObserver.disconnect();
+            this._infiniteScrollObserver = null;
+            console.log('🧹 ProfilePage: IntersectionObserver disconnected');
+        }
+    }
+    
+    /**
+     * 📚 Load more quotes for infinite scroll
+     * @private
+     */
+    async _loadMoreQuotesInfinite() {
+        if (this._isLoadingMoreQuotes || !this.hasMoreQuotes) {
+            return;
+        }
+        
+        this._isLoadingMoreQuotes = true;
+        
+        // Show loader
+        const root = document.getElementById('profilePageRoot');
+        if (root) {
+            const loader = root.querySelector('.infinite-loader');
+            if (loader) {
+                loader.style.display = 'block';
+            }
+        }
+        
+        try {
+            // Increment offset
+            this.quotesOffset += this.quotesLimit;
+            
+            // Load more quotes
+            await this.loadUserQuotes(this.quotesLimit, this.quotesOffset, true);
+            
+            // Update quotes list without full rebuild
+            if (root) {
+                const quotesList = root.querySelector('.quotes-list');
+                if (quotesList) {
+                    // Append new quotes to existing list
+                    const newQuotesCount = Math.min(this.quotesLimit, this.userQuotes.length - (this.quotesOffset));
+                    const startIndex = this.userQuotes.length - newQuotesCount;
+                    const newQuotes = this.userQuotes.slice(startIndex);
+                    
+                    const newQuotesHTML = newQuotes.map(quote => this.renderQuoteCard(quote)).join('');
+                    quotesList.insertAdjacentHTML('beforeend', newQuotesHTML);
+                    
+                    console.log(`✅ ProfilePage: Appended ${newQuotes.length} new quotes to list`);
+                }
+                
+                // Hide/remove loader and sentinel if no more quotes
+                if (!this.hasMoreQuotes) {
+                    const loader = root.querySelector('.infinite-loader');
+                    const sentinel = root.querySelector('.infinite-sentinel');
+                    if (loader) loader.remove();
+                    if (sentinel) sentinel.remove();
+                    this._cleanupInfiniteScroll();
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ ProfilePage: Error loading more quotes:', error);
+        } finally {
+            this._isLoadingMoreQuotes = false;
+            
+            // Hide loader
+            if (root) {
+                const loader = root.querySelector('.infinite-loader');
+                if (loader) {
+                    loader.style.display = 'none';
+                }
+            }
+        }
+    }
     
     /**
      * 🎯 Called when page is shown
@@ -1734,6 +1870,9 @@ class ProfilePage {
         requestAnimationFrame(() => {
             this.syncFollowButtonUiFromState();
         });
+        
+        // 🔄 Setup IntersectionObserver for infinite scroll (quotes tab only)
+        this._setupInfiniteScroll();
     }
     
     /**
@@ -1750,6 +1889,9 @@ class ProfilePage {
             clearTimeout(this._refreshTimer);
             this._refreshTimer = null;
         }
+        
+        // Cleanup infinite scroll observer
+        this._cleanupInfiniteScroll();
         
         // Remove delegated click handler for user cards
         const root = document.getElementById('profilePageRoot');
@@ -1815,6 +1957,9 @@ class ProfilePage {
      * 🧹 Cleanup
      */
     destroy() {
+        // Cleanup infinite scroll observer
+        this._cleanupInfiniteScroll();
+        
         // Clear debounce timer
         if (this._refreshTimer) {
             clearTimeout(this._refreshTimer);

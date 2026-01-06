@@ -430,8 +430,10 @@ class ProfileModal {
                     </div>
                     
                     <div class="profile-modal-right">
-                        <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
-                        ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                        <div class="profile-modal-heading-row">
+                            <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
+                            ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                        </div>
                         
                         ${status ? `
                             <div class="profile-modal-status-card">
