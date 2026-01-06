@@ -668,6 +668,45 @@
     transform: scale(0.95);
 }
 
+/* Stat buttons with counters - adapted for horizontal row */
+.profile-action-btn.stat-btn {
+    width: auto;
+    min-width: 60px;
+    height: auto;
+    padding: 6px 8px;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stat-btn-value {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+    line-height: 1;
+}
+
+.stat-btn-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.profile-action-btn.stat-btn.active {
+    background: var(--bg-overlay);
+    border-color: var(--primary-color);
+}
+
+.profile-action-btn.stat-btn.active .stat-btn-value {
+    color: var(--primary-color);
+}
+
+.profile-action-btn.stat-btn:hover .stat-btn-value {
+    color: var(--primary-color);
+}
+
 /* Profile modal: apply same compact styling to action buttons */
 .profile-modal-actions {
     display: inline-flex;
