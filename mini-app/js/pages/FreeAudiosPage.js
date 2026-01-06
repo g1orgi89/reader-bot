@@ -1,5 +1,5 @@
 /**
- * 🎵 Бесплатные аудиоразборы — верхние табы .tabs/.tab, мгновенный переход
+ * 🎵 Бесплатные аудио разборы — верхние табы .tabs/.tab, мгновенный переход
  */
 class FreeAudiosPage {
   constructor(app) {
@@ -8,10 +8,6 @@ class FreeAudiosPage {
     this.state = app.state;
     this.telegram = app.telegram;
     this.items = [];
-  }
-
-  async init() { 
-    this.items = []; 
   }
 
   renderTopTabs() {
@@ -37,7 +33,7 @@ class FreeAudiosPage {
         <div class="cards">
           <div class="loading-state">
             <div class="loading-spinner"></div>
-            <div class="loading-text">Загружаем бесплатные аудиоразборы...</div>
+            <div class="loading-text">Загружаем бесплатные аудио разборы...</div>
           </div>
         </div>
       `;
@@ -100,6 +96,9 @@ class FreeAudiosPage {
         const id = btn.getAttribute('data-id');
         try {
           const resp = await fetch(`/api/audio/${encodeURIComponent(id)}`, { credentials: 'include' });
+          if (!resp.ok) {
+            throw new Error(`HTTP error ${resp.status}`);
+          }
           const meta = await resp.json();
           const url = meta?.audioUrl || `/media/free/${encodeURIComponent(id)}.mp3`;
           if (this.telegram && this.telegram.openLink) {
@@ -107,7 +106,8 @@ class FreeAudiosPage {
           } else {
             window.open(url, '_blank');
           }
-        } catch {
+        } catch (err) {
+          console.warn('⚠️ FreeAudiosPage: Failed to fetch audio metadata:', err);
           const fallback = `/media/free/${encodeURIComponent(id)}.mp3`;
           if (this.telegram && this.telegram.openLink) {
             this.telegram.openLink(fallback);
@@ -122,6 +122,9 @@ class FreeAudiosPage {
   async onShow() {
     try {
       const res = await fetch('/api/audio/free', { credentials: 'include' });
+      if (!res.ok) {
+        throw new Error(`HTTP error ${res.status}`);
+      }
       const list = await res.json();
       this.items = Array.isArray(list) ? list : (list?.data || []);
       const container = document.getElementById('page-content');
@@ -136,6 +139,13 @@ class FreeAudiosPage {
       }
     } catch (e) { 
       console.warn('⚠️ FreeAudiosPage load failed:', e); 
+      // Re-render with empty items to show loading state
+      this.items = [];
+      const container = document.getElementById('page-content');
+      if (container) {
+        container.innerHTML = this.render();
+        this.attachEventListeners();
+      }
     }
   }
 
