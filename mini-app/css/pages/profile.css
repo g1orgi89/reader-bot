@@ -146,7 +146,14 @@
     align-items: baseline;
     gap: 8px;
     margin-bottom: 4px;
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* allow wrap for line break */
+}
+
+/* Scope explicit left alignment where centering might occur */
+.profile-header .user-heading-row {
+    width: 100%;
+    text-align: left;
+    justify-content: flex-start;
 }
 
 .user-heading-row .user-name {
@@ -163,6 +170,16 @@
     flex-basis: 100%;
     display: block;
     margin-top: 2px;
+}
+
+/* Force username to occupy full next line (both class variants and both contexts covered) */
+.profile-header .user-heading-row .user-username,
+.profile-header .user-heading-row .profile-username,
+.profile-modal-content .user-heading-row .user-username,
+.profile-modal-content .user-heading-row .profile-username {
+    flex-basis: 100%;
+    display: block;
+    margin-top: 2px; /* subtle spacing below name */
 }
 
 .profile-left {
@@ -873,6 +890,14 @@
     align-items: baseline;
     gap: 8px;
     margin-bottom: 4px;
+    flex-wrap: wrap; /* allow wrap for line break */
+}
+
+/* Scope explicit left alignment where centering might occur */
+.profile-modal-content .profile-modal-heading-row {
+    width: 100%;
+    text-align: left;
+    justify-content: flex-start;
 }
 
 .profile-modal-heading-row .profile-modal-name {
@@ -886,6 +911,20 @@
     color: var(--text-secondary);
     margin: 0;
     font-size: var(--font-size-sm);
+    flex-basis: 100%;
+    display: block;
+    margin-top: 2px; /* subtle spacing below name */
+}
+
+/* Force username to occupy full next line (both class variants and both contexts covered) */
+.profile-header .profile-modal-heading-row .user-username,
+.profile-header .profile-modal-heading-row .profile-username,
+.profile-modal-content .profile-modal-heading-row .user-username,
+.profile-modal-content .profile-modal-heading-row .profile-username,
+.profile-modal-content .profile-modal-heading-row .profile-modal-username {
+    flex-basis: 100%;
+    display: block;
+    margin-top: 2px; /* subtle spacing below name */
 }
 
 .profile-modal-right {
