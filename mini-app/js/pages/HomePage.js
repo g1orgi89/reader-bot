@@ -580,7 +580,7 @@ class HomePage {
     
     /**
      * 👤 Рендер встроенного блока с аватаром и меню (ТОЛЬКО на главной!)
-     * 🔧 PATCH: Redesigned header with larger avatar, name, and username
+     * 🔧 PATCH: Redesigned header with larger avatar, name, username, and status
      */
     renderUserHeader(user) {
         const name =
@@ -590,6 +590,7 @@ class HomePage {
             '';
         const initials = name ? this.getInitials(name) : '';
         const username = user.username ? `@${user.username}` : '';
+        const status = user.status || '';
         
         return `
             <div class="home-header">
@@ -599,12 +600,64 @@ class HomePage {
                 <div class="home-header-info">
                     <div class="home-header-name">${name || 'Пользователь'}</div>
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
+                    ${this.renderStatusDisplay(status)}
                 </div>
                 <div class="home-header-spacer"></div>
                 <button class="home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">⋮</button>
             </div>
         `;
     }
+
+    /**
+     * 💭 Рендер статуса пользователя с возможностью редактирования
+     * Показывает плейсхолдер "#мысль дня" только когда статус пуст
+     */
+    renderStatusDisplay(status) {
+        const displayText = status || '#мысль дня';
+        const isPlaceholder = !status;
+        
+        return `
+            <div class="home-header-status-container" id="statusContainer">
+                <div class="home-header-status ${isPlaceholder ? 'placeholder' : ''}" id="statusDisplay">
+                    ${displayText}
+                </div>
+                <button class="home-header-status-edit-btn" id="statusEditBtn" aria-label="Редактировать статус">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+    }
+
+    /**
+     * 💾 Рендер инлайн-редактора статуса
+     * Показывается вместо статуса при нажатии на кнопку редактирования
+     */
+    renderStatusEditor(currentStatus = '') {
+        return `
+            <div class="home-header-status-editor" id="statusEditor">
+                <input 
+                    type="text" 
+                    class="home-header-status-input" 
+                    id="statusInput"
+                    maxlength="80"
+                    value="${currentStatus}"
+                    placeholder="#мысль дня"
+                    autocomplete="off"
+                />
+                <div class="home-header-status-editor-btns">
+                    <button class="home-header-status-editor-btn save" id="statusSaveBtn" aria-label="Сохранить">
+                        ✔
+                    </button>
+                    <button class="home-header-status-editor-btn cancel" id="statusCancelBtn" aria-label="Отмена">
+                        ✖
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
 
     /**
      * 🖼️ Рендер аватара с поддержкой изображений
@@ -854,6 +907,12 @@ class HomePage {
             menuBtn.addEventListener('click', () => this.handleMenuClick());
         }
         
+        // 💭 NEW: Status edit button
+        const statusEditBtn = document.getElementById('statusEditBtn');
+        if (statusEditBtn) {
+            statusEditBtn.addEventListener('click', () => this.handleStatusEditClick());
+        }
+        
         // Кнопка добавления цитаты
         const addQuoteBtn = document.getElementById('addQuoteBtn');
         if (addQuoteBtn) {
@@ -883,6 +942,130 @@ class HomePage {
         // Обработчики для последних цитат
         this.attachRecentQuoteEvents();
     }
+    
+    /**
+     * 💭 Обработчик клика по кнопке редактирования статуса
+     * Переключает отображение на инлайн-редактор
+     */
+    handleStatusEditClick() {
+        this.telegram.hapticFeedback('light');
+        
+        const statusContainer = document.getElementById('statusContainer');
+        if (!statusContainer) return;
+        
+        // Get current status from profile
+        const profile = this.state.get('user.profile') || {};
+        const currentStatus = profile.status || '';
+        
+        // Replace status display with editor
+        statusContainer.innerHTML = this.renderStatusEditor(currentStatus);
+        
+        // Attach editor event listeners
+        const statusInput = document.getElementById('statusInput');
+        const saveBtn = document.getElementById('statusSaveBtn');
+        const cancelBtn = document.getElementById('statusCancelBtn');
+        
+        if (statusInput) {
+            // Focus input
+            statusInput.focus();
+            statusInput.select();
+            
+            // Handle Enter key to save
+            statusInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handleStatusSave(statusInput.value);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.handleStatusCancel();
+                }
+            });
+        }
+        
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                this.handleStatusSave(statusInput?.value || '');
+            });
+        }
+        
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.handleStatusCancel();
+            });
+        }
+    }
+    
+    /**
+     * 💾 Сохранение нового статуса
+     */
+    async handleStatusSave(newStatus) {
+        this.telegram.hapticFeedback('success');
+        
+        try {
+            // Trim and limit to 80 chars
+            const trimmedStatus = newStatus.trim().substring(0, 80);
+            
+            // Update via API
+            const response = await this.api.updateProfile({
+                status: trimmedStatus
+            });
+            
+            if (response.success) {
+                // Update state
+                const profile = this.state.get('user.profile') || {};
+                profile.status = response.user?.status || null;
+                this.state.set('user.profile', profile);
+                
+                // Refresh status display
+                this.refreshStatusDisplay();
+            } else {
+                throw new Error(response.error || 'Не удалось обновить статус');
+            }
+        } catch (error) {
+            console.error('❌ Error saving status:', error);
+            this.telegram.showAlert('Не удалось сохранить статус. Попробуйте позже.');
+            this.handleStatusCancel();
+        }
+    }
+    
+    /**
+     * ❌ Отмена редактирования статуса
+     */
+    handleStatusCancel() {
+        this.telegram.hapticFeedback('light');
+        this.refreshStatusDisplay();
+    }
+    
+    /**
+     * 🔄 Обновление отображения статуса
+     */
+    refreshStatusDisplay() {
+        const statusContainer = document.getElementById('statusContainer');
+        if (!statusContainer) return;
+        
+        const profile = this.state.get('user.profile') || {};
+        const status = profile.status || '';
+        const displayText = status || '#мысль дня';
+        const isPlaceholder = !status;
+        
+        statusContainer.innerHTML = `
+            <div class="home-header-status ${isPlaceholder ? 'placeholder' : ''}" id="statusDisplay">
+                ${displayText}
+            </div>
+            <button class="home-header-status-edit-btn" id="statusEditBtn" aria-label="Редактировать статус">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+            </button>
+        `;
+        
+        // Re-attach edit button listener
+        const statusEditBtn = document.getElementById('statusEditBtn');
+        if (statusEditBtn) {
+            statusEditBtn.addEventListener('click', () => this.handleStatusEditClick());
+        }
+    }
+
     
     /**
      * 👤 Обработчик клика по аватару (навигация в настройки)

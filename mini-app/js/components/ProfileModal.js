@@ -375,6 +375,8 @@ class ProfileModal {
         const profile = this.profileData;
         const name = profile.name || profile.firstName || 'Пользователь';
         const bio = profile.bio || '';
+        const status = profile.status || '';
+        const username = profile.telegramUsername ? `@${profile.telegramUsername}` : '';
         const avatarUrl = this.resolveAvatarUrl();
         const initials = this.getInitials(name);
         
@@ -396,44 +398,54 @@ class ProfileModal {
                 </button>
                 
                 <div class="profile-modal-body">
-                    <div class="profile-modal-avatar-container">
-                        ${avatarUrl ? `
-                            <img class="profile-modal-avatar-img" src="${avatarUrl}" alt="${name}" 
-                                 onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
-                        ` : ''}
-                        <div class="profile-modal-avatar-fallback">${initials}</div>
-                    </div>
-                    
-                    <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
-                    
-                    ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
-                    
-                    <div class="profile-modal-stats">
-                        <div class="profile-modal-stat">
-                            <div class="stat-value">${totalQuotes}</div>
-                            <div class="stat-label">Цитат</div>
+                    <div class="profile-modal-left">
+                        <div class="profile-modal-avatar-container">
+                            ${avatarUrl ? `
+                                <img class="profile-modal-avatar-img" src="${avatarUrl}" alt="${name}" 
+                                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
+                            ` : ''}
+                            <div class="profile-modal-avatar-fallback">${initials}</div>
                         </div>
-                        <div class="profile-modal-stat">
-                            <div class="stat-value">${followers}</div>
-                            <div class="stat-label">Подписчиков</div>
-                        </div>
-                        <div class="profile-modal-stat">
-                            <div class="stat-value">${following}</div>
-                            <div class="stat-label">Подписок</div>
-                        </div>
-                    </div>
-                    
-                    <div class="profile-modal-actions">
-                        ${!isOwnProfile ? `
-                            <button class="btn-follow ${this.followStatus ? 'following' : ''}" 
-                                    data-action="toggle-follow">
-                                ${this.followStatus ? 'Отписаться' : 'Подписаться'}
-                            </button>
-                        ` : ''}
                         
-                        <button class="btn-view-profile" data-action="open-full-profile">
-                            Открыть профиль
-                        </button>
+                        <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
+                        ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                        ${status ? `<p class="profile-modal-status">${status}</p>` : ''}
+                        
+                        ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
+                        
+                        <div class="profile-modal-stats">
+                            <div class="profile-modal-stat">
+                                <div class="stat-value">${totalQuotes}</div>
+                                <div class="stat-label">Цитат</div>
+                            </div>
+                            <div class="profile-modal-stat">
+                                <div class="stat-value">${followers}</div>
+                                <div class="stat-label">Подписчиков</div>
+                            </div>
+                            <div class="profile-modal-stat">
+                                <div class="stat-value">${following}</div>
+                                <div class="stat-label">Подписок</div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-modal-actions">
+                            ${!isOwnProfile ? `
+                                <button class="btn-follow ${this.followStatus ? 'following' : ''}" 
+                                        data-action="toggle-follow">
+                                    ${this.followStatus ? 'Отписаться' : 'Подписаться'}
+                                </button>
+                            ` : ''}
+                            
+                            <button class="btn-view-profile" data-action="open-full-profile">
+                                Открыть профиль
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-modal-right">
+                        <div class="profile-modal-badges-placeholder">
+                            🏆
+                        </div>
                     </div>
                 </div>
             </div>

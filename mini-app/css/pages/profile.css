@@ -118,8 +118,42 @@
 .profile-card {
     background: var(--bg-card);
     padding: var(--spacing-2xl) var(--spacing-lg);
-    text-align: center;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: var(--spacing-lg);
+    align-items: flex-start;
+}
+
+/* Left column: avatar, name, username, status */
+.profile-card-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* Right column: badges placeholder */
+.profile-card-right {
+    flex: 0 0 auto;
+    min-width: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.profile-badges-placeholder {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--spacing-md);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .profile-avatar-container {
@@ -169,6 +203,13 @@
     font-size: var(--font-size-base);
     color: var(--text-secondary);
     margin: 0 0 var(--spacing-sm);
+}
+
+.profile-status {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0 0 var(--spacing-md);
+    line-height: var(--line-height-normal);
 }
 
 .profile-bio {

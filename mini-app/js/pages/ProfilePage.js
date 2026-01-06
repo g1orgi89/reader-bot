@@ -586,6 +586,7 @@ class ProfilePage {
         const profile = this.profileData || {};
         const name = profile.name || profile.firstName || 'Пользователь';
         const bio = profile.bio || '';
+        const status = profile.status || '';
         
         // Get username with strict priority: cachedUsername → backend → state → Telegram initData
         // Never display empty username, always use the cached non-empty value
@@ -610,25 +611,34 @@ class ProfilePage {
         
         return `
             <div class="profile-card">
-                <div class="profile-avatar-container">
-                    ${avatarUrl ? `
-                        <img class="profile-avatar-img" src="${avatarUrl}" alt="${name}" 
-                             onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
+                <div class="profile-card-left">
+                    <div class="profile-avatar-container">
+                        ${avatarUrl ? `
+                            <img class="profile-avatar-img" src="${avatarUrl}" alt="${name}" 
+                                 onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" />
+                        ` : ''}
+                        <div class="profile-avatar-fallback">${initials}</div>
+                    </div>
+                    
+                    <h2 class="profile-name">${name}</h2>
+                    ${formattedUsername ? `<p class="profile-username">${formattedUsername}</p>` : ''}
+                    ${status ? `<p class="profile-status">${status}</p>` : ''}
+                    
+                    ${bio ? `<p class="profile-bio">${bio}</p>` : ''}
+                    
+                    ${!this.isOwnProfile ? `
+                        <button class="follow-btn-large ${this.followStatus ? 'following' : ''}" 
+                                data-action="toggle-follow" data-user-id="${this.userId}">
+                            ${this.followStatus ? 'Отписаться' : 'Подписаться'}
+                        </button>
                     ` : ''}
-                    <div class="profile-avatar-fallback">${initials}</div>
                 </div>
                 
-                <h2 class="profile-name">${name}</h2>
-                ${formattedUsername ? `<p class="profile-username">${formattedUsername}</p>` : ''}
-                
-                ${bio ? `<p class="profile-bio">${bio}</p>` : ''}
-                
-                ${!this.isOwnProfile ? `
-                    <button class="follow-btn-large ${this.followStatus ? 'following' : ''}" 
-                            data-action="toggle-follow" data-user-id="${this.userId}">
-                        ${this.followStatus ? 'Отписаться' : 'Подписаться'}
-                    </button>
-                ` : ''}
+                <div class="profile-card-right">
+                    <div class="profile-badges-placeholder">
+                        Бейджи
+                    </div>
+                </div>
             </div>
         `;
     }

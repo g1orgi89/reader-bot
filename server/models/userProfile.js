@@ -227,6 +227,13 @@ const userProfileSchema = new mongoose.Schema({
     default: null
     // URL загруженного аватара пользователя
   },
+  status: {
+    type: String,
+    maxlength: 80,
+    trim: true,
+    default: null
+    // Публичный статус пользователя (максимум 80 символов)
+  },
   testResults: {
     type: testResultsSchema,
     required: true

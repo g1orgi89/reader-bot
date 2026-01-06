@@ -887,7 +887,7 @@ body.modal-open {
 
 .profile-modal-content {
     position: relative;
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: calc(var(--spacing-2xl) + env(safe-area-inset-top, 0px)); /* Increased top padding */
 }
 
 .profile-modal-content .modal-close {
@@ -898,6 +898,34 @@ body.modal-open {
 
 .profile-modal-body {
     padding: var(--spacing-lg);
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+}
+
+/* Left column: avatar, name, username, status */
+.profile-modal-left {
+    flex: 1;
+    text-align: center;
+}
+
+/* Right column: badges placeholder */
+.profile-modal-right {
+    flex: 0 0 auto;
+    min-width: 60px;
+}
+
+.profile-modal-badges-placeholder {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--spacing-sm);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .profile-modal-avatar-container {
@@ -940,7 +968,20 @@ body.modal-open {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     color: var(--text-primary);
-    margin: 0 0 var(--spacing-xs);
+    margin: 0 0 var(--spacing-2xs);
+}
+
+.profile-modal-username {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0 0 var(--spacing-2xs);
+}
+
+.profile-modal-status {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0 0 var(--spacing-sm);
+    line-height: var(--line-height-normal);
 }
 
 .profile-modal-bio {
