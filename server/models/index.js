@@ -14,6 +14,11 @@ const Favorite = require('./Favorite');
 const Follow = require('./Follow');
 const Feedback = require('./Feedback');
 
+// Import audio models
+const AudioProgress = require('./AudioProgress');
+const UserEntitlement = require('./UserEntitlement');
+const Purchase = require('./Purchase');
+
 // Import analytics models
 const { UTMClick, PromoCodeUsage, UserAction } = require('./analytics');
 
@@ -42,6 +47,11 @@ async function initializeModels() {
       Favorite.ensureIndexes(),
       Follow.ensureIndexes(),
       Feedback.ensureIndexes(),
+      
+      // Audio models
+      AudioProgress.ensureIndexes(),
+      UserEntitlement.ensureIndexes(),
+      Purchase.ensureIndexes(),
       
       // Analytics models
       UTMClick.ensureIndexes(),
@@ -221,6 +231,11 @@ module.exports = {
   Favorite,
   Follow,
   Feedback,
+  
+  // Audio models
+  AudioProgress,
+  UserEntitlement,
+  Purchase,
   
   // Analytics models
   UTMClick,
