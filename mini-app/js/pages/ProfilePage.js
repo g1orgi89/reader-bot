@@ -573,7 +573,6 @@ class ProfilePage {
         return `
             <div class="content profile-page" id="profilePageRoot">
                 ${this.renderProfileCard()}
-                ${this.renderStatistics()}
                 ${this.renderTabContent()}
             </div>
         `;
@@ -635,9 +634,18 @@ class ProfilePage {
                 </div>
                 
                 <div class="profile-card-right profile-actions-right">
-                    <button class="profile-action-btn" data-action="switch-tab" data-tab="quotes" title="Цитаты">📖</button>
-                    <button class="profile-action-btn" data-action="switch-tab" data-tab="followers" title="Подписчики">👥</button>
-                    <button class="profile-action-btn" data-action="switch-tab" data-tab="following" title="Подписки">➕</button>
+                    <button class="profile-action-btn stat-btn ${this.activeTab === 'quotes' ? 'active' : ''}" data-action="switch-tab" data-tab="quotes" data-stat="quotes" title="Цитаты">
+                        <div class="stat-btn-value">${profile.stats?.totalQuotes || 0}</div>
+                        <div class="stat-btn-label">Цитат</div>
+                    </button>
+                    <button class="profile-action-btn stat-btn ${this.activeTab === 'followers' ? 'active' : ''}" data-action="switch-tab" data-tab="followers" data-stat="followers" title="Подписчики">
+                        <div class="stat-btn-value">${profile.stats?.followers || 0}</div>
+                        <div class="stat-btn-label">Подписчиков</div>
+                    </button>
+                    <button class="profile-action-btn stat-btn ${this.activeTab === 'following' ? 'active' : ''}" data-action="switch-tab" data-tab="following" data-stat="following" title="Подписки">
+                        <div class="stat-btn-value">${profile.stats?.following || 0}</div>
+                        <div class="stat-btn-label">Подписок</div>
+                    </button>
                 </div>
             </div>
         `;

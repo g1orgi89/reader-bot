@@ -436,29 +436,23 @@ class ProfileModal {
                     </div>
                     
                     <div class="profile-modal-actions">
-                        <button class="profile-action-btn" data-action="open-tab" data-tab="quotes" title="Цитаты">📖</button>
-                        <button class="profile-action-btn" data-action="open-tab" data-tab="followers" title="Подписчики">👥</button>
-                        <button class="profile-action-btn" data-action="open-tab" data-tab="following" title="Подписки">➕</button>
+                        <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="quotes" title="Цитаты">
+                            <div class="stat-btn-value">${totalQuotes}</div>
+                            <div class="stat-btn-label">Цитат</div>
+                        </button>
+                        <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="followers" title="Подписчики">
+                            <div class="stat-btn-value">${followers}</div>
+                            <div class="stat-btn-label">Подписчиков</div>
+                        </button>
+                        <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="following" title="Подписки">
+                            <div class="stat-btn-value">${following}</div>
+                            <div class="stat-btn-label">Подписок</div>
+                        </button>
                     </div>
                 </div>
                 
                 <div class="profile-modal-body">
                     ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
-                    
-                    <div class="profile-modal-stats">
-                        <div class="profile-modal-stat">
-                            <div class="stat-value">${totalQuotes}</div>
-                            <div class="stat-label">Цитат</div>
-                        </div>
-                        <div class="profile-modal-stat">
-                            <div class="stat-value">${followers}</div>
-                            <div class="stat-label">Подписчиков</div>
-                        </div>
-                        <div class="profile-modal-stat">
-                            <div class="stat-value">${following}</div>
-                            <div class="stat-label">Подписок</div>
-                        </div>
-                    </div>
                     
                     <div class="profile-modal-actions-bottom">
                         ${!isOwnProfile ? `
