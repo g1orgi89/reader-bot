@@ -1146,6 +1146,136 @@ body.dark-theme {
     z-index: 1;
 }
 
+/* ============================================================================
+   💭 HOME STATUS CARD (#МЫСЛЬДНЯ)
+   ============================================================================ */
+
+.home-status-card {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #E6E0D6);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+.home-status-card:hover {
+    box-shadow: 0 4px 12px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+}
+
+.home-status-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.home-status-card-title {
+    font-size: var(--font-size-xs, 13px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--text-secondary, #666666);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.home-status-card-edit-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--primary-color, #D2452C);
+    background: var(--surface, #FFFFFF);
+    border-radius: var(--radius-round, 50%);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all var(--transition-fast, 0.2s ease);
+    flex-shrink: 0;
+}
+
+.home-status-card-edit-btn:hover {
+    background: var(--bg-overlay, rgba(210, 69, 44, 0.1));
+    box-shadow: 0 0 8px rgba(210, 69, 44, 0.15);
+}
+
+.home-status-card-edit-btn:active {
+    transform: scale(0.95);
+}
+
+.home-status-card-text {
+    font-size: var(--font-size-sm, 14px);
+    line-height: 1.4;
+    color: var(--text-primary, #2D2D2D);
+    font-style: italic;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.home-status-card-text.placeholder {
+    color: var(--text-secondary, #666666);
+    opacity: 0.6;
+}
+
+/* Status editor within card */
+.home-status-editor {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.home-status-input {
+    flex: 1;
+    font-size: var(--font-size-sm, 14px);
+    color: var(--text-primary, #2D2D2D);
+    background: var(--bg-secondary, #FEFCF8);
+    border: 1px solid var(--border, #E6E0D6);
+    border-radius: var(--radius-sm, 4px);
+    padding: 6px 10px;
+    font-family: var(--font-family-primary, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    transition: border-color var(--transition-fast, 0.2s ease);
+}
+
+.home-status-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #D2452C);
+}
+
+.home-status-editor-btns {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.home-status-editor-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--primary-color, #D2452C);
+    border-radius: var(--radius-round, 50%);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all var(--transition-fast, 0.2s ease);
+    background: var(--surface, #FFFFFF);
+    color: var(--primary-color, #D2452C);
+}
+
+.home-status-editor-btn.save:hover,
+.home-status-editor-btn.cancel:hover {
+    background: var(--bg-overlay, rgba(210, 69, 44, 0.1));
+    box-shadow: 0 0 8px rgba(210, 69, 44, 0.15);
+}
+
+.home-status-editor-btn:active {
+    transform: scale(0.95);
+}
+
 /* === Unify home recent quotes with compact Inter styling === */
 .recent-quotes-section .quote-card.recent .quote-text {
   font-family: var(--font-family-primary);

@@ -618,20 +618,17 @@ class ProfilePage {
                         ` : ''}
                         <div class="profile-avatar-fallback">${initials}</div>
                     </div>
-                    
-                    <!-- Placeholder for badges -->
-                    <div class="badges-placeholder-rect">
-                        <div class="badge-outline"></div>
-                        <div class="badge-outline"></div>
-                        <div class="badge-outline"></div>
-                    </div>
                 </div>
                 
                 <div class="profile-right">
                     <div class="user-name">${name}</div>
                     ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
-                    ${status ? `<div class="user-status">${status}</div>` : ''}
-                    ${bio ? `<p class="profile-bio">${bio}</p>` : ''}
+                    
+                    ${status ? `
+                        <div class="user-status-card">
+                            <div class="user-status-card-text">${status}</div>
+                        </div>
+                    ` : ''}
                     
                     <div class="profile-actions-top">
                         <button class="profile-action-btn stat-btn ${this.activeTab === 'quotes' ? 'active' : ''}" data-action="switch-tab" data-tab="quotes" data-stat="quotes" title="Цитаты">
@@ -907,33 +904,34 @@ class ProfilePage {
         const profileCard = root.querySelector('.profile-card');
         if (!profileCard) return;
         
-        // Find or create status element
-        let statusElement = profileCard.querySelector('.profile-status');
+        // Find or create status card
+        let statusCard = profileCard.querySelector('.user-status-card');
         
         if (newStatus) {
-            if (!statusElement) {
-                // Create status element if it doesn't exist
-                statusElement = document.createElement('p');
-                statusElement.className = 'profile-status user-status';
+            if (!statusCard) {
+                // Create status card if it doesn't exist
+                statusCard = document.createElement('div');
+                statusCard.className = 'user-status-card';
                 
-                // Insert after profile-username or profile-name
-                const usernameElement = profileCard.querySelector('.profile-username');
-                const nameElement = profileCard.querySelector('.profile-name');
+                // Insert after user-username or user-name
+                const usernameElement = profileCard.querySelector('.user-username');
+                const nameElement = profileCard.querySelector('.user-name');
                 const insertAfter = usernameElement || nameElement;
+                const profileRight = profileCard.querySelector('.profile-right');
                 
-                if (insertAfter && insertAfter.nextSibling) {
-                    insertAfter.parentNode.insertBefore(statusElement, insertAfter.nextSibling);
-                } else if (insertAfter) {
-                    insertAfter.parentNode.appendChild(statusElement);
+                if (insertAfter && insertAfter.nextSibling && profileRight.contains(insertAfter)) {
+                    profileRight.insertBefore(statusCard, insertAfter.nextSibling);
+                } else if (insertAfter && profileRight.contains(insertAfter)) {
+                    insertAfter.parentNode.appendChild(statusCard);
                 }
             }
             
             // Update text content
-            statusElement.textContent = newStatus;
-            statusElement.style.display = '';
-        } else if (statusElement) {
-            // Hide status element if no status
-            statusElement.style.display = 'none';
+            statusCard.innerHTML = `<div class="user-status-card-text">${newStatus}</div>`;
+            statusCard.style.display = '';
+        } else if (statusCard) {
+            // Hide status card if no status
+            statusCard.style.display = 'none';
         }
     }
     

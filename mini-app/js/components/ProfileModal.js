@@ -432,8 +432,12 @@ class ProfileModal {
                     <div class="profile-modal-right">
                         <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
                         ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
-                        ${status ? `<p class="profile-modal-status user-status">${status}</p>` : ''}
-                        ${bio ? `<p class="profile-modal-bio">${bio}</p>` : ''}
+                        
+                        ${status ? `
+                            <div class="profile-modal-status-card">
+                                <div class="profile-modal-status-card-text">${status}</div>
+                            </div>
+                        ` : ''}
                         
                         <div class="profile-modal-actions-top">
                             <button class="profile-action-btn stat-btn" data-action="open-tab" data-tab="quotes" title="Цитаты">
@@ -644,33 +648,34 @@ class ProfileModal {
     _updateDisplayedStatus(newStatus) {
         if (!this.modal) return;
         
-        // Find or create status element
-        let statusElement = this.modal.querySelector('.profile-modal-status');
+        // Find or create status card
+        let statusCard = this.modal.querySelector('.profile-modal-status-card');
         
         if (newStatus) {
-            if (!statusElement) {
-                // Create status element if it doesn't exist
-                statusElement = document.createElement('p');
-                statusElement.className = 'profile-modal-status user-status';
+            if (!statusCard) {
+                // Create status card if it doesn't exist
+                statusCard = document.createElement('div');
+                statusCard.className = 'profile-modal-status-card';
                 
                 // Insert after profile-modal-username or profile-modal-name
                 const usernameElement = this.modal.querySelector('.profile-modal-username');
                 const nameElement = this.modal.querySelector('.profile-modal-name');
                 const insertAfter = usernameElement || nameElement;
+                const profileRight = this.modal.querySelector('.profile-modal-right');
                 
-                if (insertAfter && insertAfter.nextSibling) {
-                    insertAfter.parentNode.insertBefore(statusElement, insertAfter.nextSibling);
-                } else if (insertAfter) {
-                    insertAfter.parentNode.appendChild(statusElement);
+                if (insertAfter && insertAfter.nextSibling && profileRight.contains(insertAfter)) {
+                    profileRight.insertBefore(statusCard, insertAfter.nextSibling);
+                } else if (insertAfter && profileRight.contains(insertAfter)) {
+                    insertAfter.parentNode.appendChild(statusCard);
                 }
             }
             
             // Update text content
-            statusElement.textContent = newStatus;
-            statusElement.style.display = '';
-        } else if (statusElement) {
-            // Hide status element if no status
-            statusElement.style.display = 'none';
+            statusCard.innerHTML = `<div class="profile-modal-status-card-text">${newStatus}</div>`;
+            statusCard.style.display = '';
+        } else if (statusCard) {
+            // Hide status card if no status
+            statusCard.style.display = 'none';
         }
     }
     
