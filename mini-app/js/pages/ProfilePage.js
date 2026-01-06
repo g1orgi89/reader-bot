@@ -609,11 +609,6 @@ class ProfilePage {
         const avatarUrl = this.resolveAvatarUrl();
         const initials = this.getInitials(name);
         
-        const stats = this.profileData?.stats || {};
-        const totalQuotes = stats.totalQuotes || 0;
-        const followers = stats.followers || 0;
-        const following = stats.following || 0;
-        
         return `
             <div class="profile-card profile-header two-col">
                 <div class="profile-card-left">
