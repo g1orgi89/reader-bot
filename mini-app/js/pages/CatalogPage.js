@@ -673,17 +673,15 @@ class CatalogPage {
     }
     
     /**
-     * 🎚️ TOP SWITCHER (Каталог | Бесплатные разборы)
+     * 🎚️ TOP TABS (Каталог | Аудио) - Using .tabs/.tab from diary.css
      */
     renderTopSwitcher() {
+        const normalized = this.app?.router?.normalizePath?.(window.location.hash.slice(1)) || '/catalog';
+        const isCatalog = normalized === '/catalog';
         return `
-            <div class="catalog-top-switcher">
-                <button class="catalog-switcher-btn active" data-target="catalog">
-                    📚 Каталог
-                </button>
-                <button class="catalog-switcher-btn" data-target="free-audios">
-                    🎧 Бесплатные разборы
-                </button>
+            <div class="tabs">
+                <button class="tab ${isCatalog ? 'active' : ''}" data-href="/catalog">Каталог</button>
+                <button class="tab ${!isCatalog ? 'active' : ''}" data-href="/free-audios">Аудио</button>
             </div>
         `;
     }
@@ -988,20 +986,22 @@ class CatalogPage {
      * 🎯 ОБРАБОТЧИКИ СОБЫТИЙ
      */
     attachEventListeners() {
-        // Top switcher buttons
-        const switcherBtns = document.querySelectorAll('.catalog-switcher-btn');
-        switcherBtns.forEach(btn => {
+        // Top tabs: instant navigation using .tabs/.tab
+        const topTabButtons = document.querySelectorAll('.tabs .tab');
+        topTabButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                const target = btn.dataset.target;
-                
-                if (target === 'free-audios') {
-                    // Navigate to free audios page
-                    if (this.app && this.app.router) {
-                        this.app.router.navigate('/free-audios');
-                    }
+                const href = btn.getAttribute('data-href');
+                // Update active state immediately for instant visual feedback
+                topTabButtons.forEach(b => b.classList.toggle('active', b === btn));
+                // Haptic feedback
+                if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+                    this.telegram.hapticFeedback('light');
                 }
-                // If target is 'catalog', we're already here - do nothing
+                // Navigate instantly
+                if (this.app && this.app.router) {
+                    this.app.router.navigate(href);
+                }
             });
         });
         

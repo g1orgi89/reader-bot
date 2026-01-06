@@ -235,9 +235,9 @@ class AppRouter {
         this.routes.set('/free-audios', {
             path: '/free-audios',
             component: FreeAudiosPage,
-            title: 'Бесплатные разборы',
+            title: 'Аудио',
             requiresAuth: true,
-            showBottomNav: false
+            showBottomNav: true
         });
         
         // Free audio player (dynamic :id route)

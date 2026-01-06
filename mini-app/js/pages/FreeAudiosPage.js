@@ -1,282 +1,154 @@
 /**
- * Free Audios Page - List of free audio content
- * @file mini-app/js/pages/FreeAudiosPage.js
+ * 🎵 Бесплатные аудио разборы — верхние табы .tabs/.tab, мгновенный переход
  */
-
 class FreeAudiosPage {
   constructor(app) {
     this.app = app;
     this.api = app.api;
     this.state = app.state;
     this.telegram = app.telegram;
-    this.router = app.router;
-    this.query = app.initialState?.query || {};
-
-    // Audio data
-    this.audios = [];
-    this.loading = false;
-
-    console.log('📻 FreeAudiosPage: Initialized');
+    this.items = [];
   }
 
-  /**
-   * Prefetch data before rendering
-   */
-  async prefetch() {
-    if (this.audios.length > 0) {
-      console.log('📻 FreeAudiosPage: Using cached data');
-      return;
+  renderTopTabs() {
+    const normalized = this.app?.router?.normalizePath?.(window.location.hash.slice(1)) || '/free-audios';
+    const isCatalog = normalized === '/catalog';
+    return `
+      <div class="tabs">
+        <button class="tab ${isCatalog ? 'active' : ''}" data-href="/catalog">Каталог</button>
+        <button class="tab ${!isCatalog ? 'active' : ''}" data-href="/free-audios">Аудио</button>
+      </div>
+    `;
+  }
+
+  escape(t) { 
+    const d = document.createElement('div'); 
+    d.textContent = String(t||''); 
+    return d.innerHTML; 
+  }
+
+  renderList() {
+    if (!Array.isArray(this.items) || this.items.length === 0) {
+      return `
+        <div class="cards">
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Загружаем бесплатные аудио разборы...</div>
+          </div>
+        </div>
+      `;
     }
-
-    await this.loadAudios();
+    return `
+      <div class="cards">
+        ${this.items.map(x => `
+          <div class="book-card" data-id="${this.escape(x.id)}">
+            <div class="book-main">
+              <div class="book-cover cover-1">
+                <img class="book-cover-img" src="${this.escape(x.coverUrl||'')}" alt="${this.escape(x.title)}" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+                <div class="cover-fallback-text fallback">${this.escape(x.title)}</div>
+              </div>
+              <div class="book-info">
+                <div class="book-header">
+                  <div>
+                    <div class="book-title">${this.escape(x.title)}</div>
+                    ${x.author ? `<div class="book-author">${this.escape(x.author)}</div>` : ''}
+                  </div>
+                </div>
+                <div class="book-description">${this.escape(x.description||'')}</div>
+              </div>
+            </div>
+            <div class="book-footer">
+              <div class="book-pricing"><div class="book-price">Бесплатно</div></div>
+              <button class="buy-button" data-id="${this.escape(x.id)}">Прослушать</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
   }
 
-  /**
-   * Initialize page
-   */
-  async init() {
-    console.log('📻 FreeAudiosPage: Init');
-  }
-
-  /**
-   * Load free audios from API
-   */
-  async loadAudios() {
-    try {
-      this.loading = true;
-      console.log('📻 FreeAudiosPage: Loading audios...');
-
-      const response = await this.api.getFreeAudios();
-
-      if (response.success && response.audios) {
-        this.audios = response.audios;
-        console.log(`✅ FreeAudiosPage: Loaded ${this.audios.length} audio(s)`);
-      } else {
-        console.warn('⚠️ FreeAudiosPage: No audios returned');
-        this.audios = [];
-      }
-    } catch (error) {
-      console.error('❌ FreeAudiosPage: Error loading audios:', error);
-      this.audios = [];
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  /**
-   * Render page
-   */
   render() {
     return `
-      <div class="content free-audios-page">
-        ${this.renderHeader()}
-        ${this.loading ? this.renderLoading() : this.renderAudiosList()}
+      <div class="content">
+        ${this.renderTopTabs()}
+        ${this.renderList()}
       </div>
     `;
   }
 
-  /**
-   * Render page header
-   */
-  renderHeader() {
-    return `
-      <div class="free-audios-header">
-        <h1 class="page-title">🎧 Бесплатные разборы</h1>
-        <p class="page-subtitle">Слушайте аудиоразборы книг бесплатно</p>
-      </div>
-    `;
-  }
-
-  /**
-   * Render loading state
-   */
-  renderLoading() {
-    return `
-      <div class="loading-container">
-        <div class="loading-spinner"></div>
-        <p>Загружаем аудио...</p>
-      </div>
-    `;
-  }
-
-  /**
-   * Render audios list
-   */
-  renderAudiosList() {
-    if (this.audios.length === 0) {
-      return this.renderEmptyState();
-    }
-
-    return `
-      <div class="audios-list">
-        ${this.audios.map(audio => this.renderAudioCard(audio)).join('')}
-      </div>
-    `;
-  }
-
-  /**
-   * Render single audio card
-   */
-  renderAudioCard(audio) {
-    const escapeHtml = window.escapeHtml || ((text) => text);
-    const duration = this.formatDuration(audio.durationSec);
-
-    return `
-      <div class="audio-card" data-audio-id="${audio.id}">
-        <div class="audio-cover">
-          <img src="${audio.coverUrl}" alt="${escapeHtml(audio.title)}" 
-               onerror="this.src='/assets/audio/default-cover.jpg'">
-          <div class="audio-play-overlay">
-            <div class="audio-play-icon">▶</div>
-          </div>
-        </div>
-        <div class="audio-info">
-          <h3 class="audio-title">${escapeHtml(audio.title)}</h3>
-          <p class="audio-author">${escapeHtml(audio.author)}</p>
-          <p class="audio-description">${escapeHtml(audio.description)}</p>
-          <div class="audio-meta">
-            <span class="audio-duration">⏱️ ${duration}</span>
-            <span class="audio-free-badge">🎁 Бесплатно</span>
-          </div>
-        </div>
-        <button class="audio-listen-btn" data-audio-id="${audio.id}">
-          🎧 Прослушать
-        </button>
-      </div>
-    `;
-  }
-
-  /**
-   * Render empty state
-   */
-  renderEmptyState() {
-    return `
-      <div class="empty-state">
-        <div class="empty-icon">🎧</div>
-        <h3>Нет доступных аудио</h3>
-        <p>Скоро здесь появятся бесплатные аудиоразборы книг</p>
-      </div>
-    `;
-  }
-
-  /**
-   * Format duration in seconds to human readable
-   * @param {number} seconds - Duration in seconds
-   * @returns {string} Formatted duration
-   */
-  formatDuration(seconds) {
-    if (!seconds) return '0 мин';
-
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-
-    if (hours > 0) {
-      return `${hours} ч ${minutes} мин`;
-    }
-    return `${minutes} мин`;
-  }
-
-  /**
-   * Attach event listeners
-   */
   attachEventListeners() {
-    // Listen buttons
-    const listenButtons = document.querySelectorAll('.audio-listen-btn');
-    listenButtons.forEach(btn => {
+    const tabButtons = document.querySelectorAll('.tabs .tab');
+    tabButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const href = btn.getAttribute('data-href');
+        tabButtons.forEach(b => b.classList.toggle('active', b === btn));
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+          this.telegram.hapticFeedback('light');
+        }
+        this.app.router.navigate(href);
+      });
+    });
+
+    document.querySelectorAll('.buy-button').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const audioId = btn.dataset.audioId;
-        this.handleListen(audioId);
-      });
-    });
-
-    // Audio cards (also clickable)
-    const audioCards = document.querySelectorAll('.audio-card');
-    audioCards.forEach(card => {
-      card.addEventListener('click', () => {
-        const audioId = card.dataset.audioId;
-        this.handleListen(audioId);
+        const id = btn.getAttribute('data-id');
+        try {
+          const resp = await fetch(`/api/audio/${encodeURIComponent(id)}`, { credentials: 'include' });
+          if (!resp.ok) {
+            throw new Error(`HTTP error ${resp.status}`);
+          }
+          const meta = await resp.json();
+          const url = meta?.audioUrl || `/media/free/${encodeURIComponent(id)}.mp3`;
+          if (this.telegram && this.telegram.openLink) {
+            this.telegram.openLink(url);
+          } else {
+            window.open(url, '_blank');
+          }
+        } catch (err) {
+          console.warn('⚠️ FreeAudiosPage: Failed to fetch audio metadata:', err);
+          const fallback = `/media/free/${encodeURIComponent(id)}.mp3`;
+          if (this.telegram && this.telegram.openLink) {
+            this.telegram.openLink(fallback);
+          } else {
+            window.open(fallback, '_blank');
+          }
+        }
       });
     });
   }
 
-  /**
-   * Handle listen button click
-   * @param {string} audioId - Audio ID
-   */
-  async handleListen(audioId) {
+  async onShow() {
     try {
-      console.log(`🎧 FreeAudiosPage: Starting playback for ${audioId}`);
-
-      // Find audio metadata
-      const audio = this.audios.find(a => a.id === audioId);
-      if (!audio) {
-        console.error('❌ FreeAudiosPage: Audio not found');
-        return;
+      const res = await fetch('/api/audio/free', { credentials: 'include' });
+      if (!res.ok) {
+        throw new Error(`HTTP error ${res.status}`);
       }
-
-      // Haptic feedback
-      if (this.telegram?.hapticFeedback) {
-        this.telegram.hapticFeedback('medium');
+      const list = await res.json();
+      this.items = Array.isArray(list) ? list : (list?.data || []);
+      const container = document.getElementById('page-content');
+      if (container) {
+        container.innerHTML = this.render();
+        this.attachEventListeners();
+        if (typeof container.scrollTo === 'function') {
+          container.scrollTo({ top: 0, behavior: 'auto' });
+        } else {
+          container.scrollTop = 0;
+        }
       }
-
-      // Start playback through global audio service
-      await window.audioService.play({
-        id: audio.id,
-        title: audio.title,
-        artist: audio.author,
-        cover: audio.coverUrl
-      }, this.api);
-
-      // Navigate to player page
-      this.router.navigate(`/free-audios/${audioId}`);
-
-    } catch (error) {
-      console.error('❌ FreeAudiosPage: Playback error:', error);
-      
-      if (this.telegram?.showAlert) {
-        this.telegram.showAlert('Ошибка воспроизведения. Попробуйте снова.');
+    } catch (e) { 
+      console.warn('⚠️ FreeAudiosPage load failed:', e); 
+      // Re-render with empty items to show loading state
+      this.items = [];
+      const container = document.getElementById('page-content');
+      if (container) {
+        container.innerHTML = this.render();
+        this.attachEventListeners();
       }
     }
   }
 
-  /**
-   * Page shown
-   */
-  onShow() {
-    console.log('📻 FreeAudiosPage: onShow');
-
-    // Reload if data is old
-    if (this.audios.length === 0 && !this.loading) {
-      this.loadAudios().then(() => this.rerender());
-    }
-  }
-
-  /**
-   * Page hidden
-   */
-  onHide() {
-    console.log('📻 FreeAudiosPage: onHide');
-  }
-
-  /**
-   * Rerender page
-   */
-  rerender() {
-    const container = document.getElementById('page-content');
-    if (container) {
-      container.innerHTML = this.render();
-      this.attachEventListeners();
-    }
-  }
-
-  /**
-   * Cleanup
-   */
-  destroy() {
-    console.log('📻 FreeAudiosPage: Destroyed');
-  }
+  onHide() {}
 }
-
-// Export to window
 window.FreeAudiosPage = FreeAudiosPage;
