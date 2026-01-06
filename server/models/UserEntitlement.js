@@ -67,6 +67,8 @@ userEntitlementSchema.methods.isValid = function() {
 
 /**
  * Grant an entitlement to a user
+ * Note: This creates a new entitlement each time. For updating existing entitlements,
+ * first revoke the old one or use findOneAndUpdate in calling code.
  * @param {mongoose.Types.ObjectId} userId - User ID
  * @param {string} kind - Entitlement kind
  * @param {string} resourceId - Resource identifier
@@ -77,6 +79,19 @@ userEntitlementSchema.methods.isValid = function() {
  * @returns {Promise<Object>} Created entitlement
  */
 userEntitlementSchema.statics.grant = async function(userId, kind, resourceId, options = {}) {
+  // Check if entitlement already exists
+  const existing = await this.findOne({ userId, kind, resourceId });
+  
+  if (existing) {
+    // Update existing entitlement if it exists
+    existing.expiresAt = options.expiresAt || null;
+    existing.grantedBy = options.grantedBy || 'system';
+    existing.metadata = options.metadata || {};
+    existing.grantedAt = new Date();
+    return await existing.save();
+  }
+  
+  // Create new entitlement
   const entitlement = new this({
     userId,
     kind,

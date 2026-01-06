@@ -45,7 +45,10 @@ router.get('/free', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.query.userId; // In production, get from auth token
+    // TODO: SECURITY - Replace with JWT authentication
+    // Current implementation uses query param for development only
+    // In production, extract userId from verified JWT token: req.user.id
+    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
     
     logger.info(`📚 Fetching audio metadata for ${id}...`);
     
@@ -90,7 +93,9 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/stream-url', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.query.userId; // In production, get from auth token
+    // TODO: SECURITY - Replace with JWT authentication
+    // Current implementation uses query param for development only
+    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
     
     if (!userId) {
       return res.status(401).json({
@@ -143,7 +148,8 @@ router.post('/:id/progress', async (req, res) => {
   try {
     const { id } = req.params;
     const { positionSec } = req.body;
-    const userId = req.query.userId; // In production, get from auth token
+    // TODO: SECURITY - Replace with JWT authentication
+    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
     
     if (!userId) {
       return res.status(401).json({
@@ -190,7 +196,8 @@ router.post('/:id/progress', async (req, res) => {
 router.get('/:id/progress', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.query.userId; // In production, get from auth token
+    // TODO: SECURITY - Replace with JWT authentication
+    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
     
     if (!userId) {
       return res.status(401).json({

@@ -4,10 +4,13 @@
  */
 
 const logger = require('../../utils/logger');
+// Import entitlement service at top level to avoid dynamic require
+const { hasAudioAccess } = require('../access/entitlementService');
 
 /**
  * Metadata for free audio content
  * In production, this would come from a database
+ * TODO: Move to database model for easier content management
  */
 const FREE_AUDIO_METADATA = {
   'free-1': {
@@ -96,8 +99,7 @@ async function isUnlocked(userId, audioId) {
     }
 
     // For premium content, check entitlements
-    // Import here to avoid circular dependencies
-    const { hasAudioAccess } = require('../access/entitlementService');
+    // Import already at top level to avoid circular dependencies
     const hasAccess = await hasAudioAccess(userId, audioId);
     
     logger.info(`${hasAccess ? '✅' : '❌'} Audio ${audioId} ${hasAccess ? 'unlocked' : 'locked'} for user ${userId}`);

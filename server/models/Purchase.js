@@ -119,13 +119,42 @@ purchaseSchema.index({ source: 1, status: 1 });
  */
 purchaseSchema.statics.recordPurchase = async function(data, options = {}) {
   // Check for duplicate event ID (idempotency)
+  // Use findOneAndUpdate with upsert to prevent race conditions
   if (options.eventId) {
-    const existing = await this.findOne({ eventId: options.eventId });
-    if (existing) {
-      return existing; // Already processed
+    try {
+      const existing = await this.findOneAndUpdate(
+        { eventId: options.eventId },
+        {
+          $setOnInsert: {
+            userId: data.userId,
+            source: data.source,
+            items: data.items,
+            totalAmount: data.totalAmount || 0,
+            currency: data.currency || 'USD',
+            status: data.status || 'completed',
+            externalPaymentId: options.externalPaymentId || null,
+            rawPayload: options.rawPayload || {},
+            metadata: options.metadata || {},
+            processedAt: new Date()
+          }
+        },
+        { 
+          upsert: true, 
+          new: true,
+          setDefaultsOnInsert: true
+        }
+      );
+      return existing;
+    } catch (error) {
+      // If duplicate key error on eventId, fetch and return existing
+      if (error.code === 11000) {
+        return await this.findOne({ eventId: options.eventId });
+      }
+      throw error;
     }
   }
 
+  // No eventId provided, create new purchase
   const purchase = new this({
     userId: data.userId,
     source: data.source,
