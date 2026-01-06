@@ -228,6 +228,26 @@ class AppRouter {
             requiresAuth: true,
             showBottomNav: false
         });
+        
+        // ✨ NEW ROUTES: Free Audio Pages
+        
+        // Free audios list
+        this.routes.set('/free-audios', {
+            path: '/free-audios',
+            component: FreeAudiosPage,
+            title: 'Бесплатные разборы',
+            requiresAuth: true,
+            showBottomNav: false
+        });
+        
+        // Free audio player (dynamic :id route)
+        this.routes.set('/free-audios/:id', {
+            path: '/free-audios/:id',
+            component: FreeAudioPlayerPage,
+            title: 'Плеер',
+            requiresAuth: true,
+            showBottomNav: false
+        });
 
         console.log(`✅ Router: Зарегистрировано ${this.routes.size} маршрутов`);
     }
@@ -915,7 +935,35 @@ class AppRouter {
             normalized = '/home';
         }
         
+        // Check for dynamic routes (e.g., /free-audios/some-id)
+        // Match against registered routes with dynamic segments
+        const exactMatch = this.routes.get(normalized);
+        if (exactMatch) {
+            return normalized;
+        }
+        
+        // Try to match dynamic routes (e.g., /free-audios/:id)
+        for (const [routePath, _] of this.routes.entries()) {
+            if (routePath.includes(':')) {
+                const pattern = this.routeToRegex(routePath);
+                if (pattern.test(normalized)) {
+                    return routePath; // Return the route template
+                }
+            }
+        }
+        
         return normalized;
+    }
+    
+    /**
+     * Convert route path with :param to regex
+     * @param {string} routePath - Route path with dynamic segments
+     * @returns {RegExp} Regular expression for matching
+     */
+    routeToRegex(routePath) {
+        // Convert /free-audios/:id to /free-audios/[^/]+
+        const pattern = routePath.replace(/:[^/]+/g, '[^/]+');
+        return new RegExp(`^${pattern}$`);
     }
 
     /**

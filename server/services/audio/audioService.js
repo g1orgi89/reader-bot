@@ -13,14 +13,14 @@ const { hasAudioAccess } = require('../access/entitlementService');
  * TODO: Move to database model for easier content management
  */
 const FREE_AUDIO_METADATA = {
-  'free-1': {
-    id: 'free-1',
-    title: 'Введение в психологию чтения',
-    author: 'Анна Бусел',
-    description: 'Вводный аудиоразбор о психологии чтения и работе с книгами',
-    durationSec: 1800, // 30 minutes
-    coverUrl: '/assets/audio/free-1-cover.jpg',
-    audioFile: 'intro-psychology-reading.mp3',
+  'free-lpp': {
+    id: 'free-lpp',
+    title: 'Разбор: «Маленький принц»',
+    author: 'Антуан де Сент-Экзюпери',
+    description: 'Глубокий аудиоразбор классической книги о смысле жизни, любви и дружбе',
+    durationSec: 3600, // 60 minutes (example duration)
+    coverUrl: '/assets/audio/free-lpp.jpg',
+    audioFile: 'lpp.mp3',
     isFree: true
   }
   // More free audios can be added here

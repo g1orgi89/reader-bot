@@ -1754,6 +1754,66 @@ class ApiService {
         const qs = params.toString();
         return this.request('GET', qs ? `/community/feed/following?${qs}` : '/community/feed/following');
     }
+
+    // ==========================================
+    // 🎧 AUDIO API METHODS
+    // ==========================================
+
+    /**
+     * Get list of free audios
+     * @returns {Promise<Object>} Response with audios array
+     */
+    async getFreeAudios() {
+        console.log('🎧 ApiService: Getting free audios...');
+        return this.request('GET', '/audio/free');
+    }
+
+    /**
+     * Get audio metadata
+     * @param {string} audioId - Audio identifier
+     * @returns {Promise<Object>} Response with audio metadata
+     */
+    async getAudioMetadata(audioId) {
+        const userId = this.resolveUserId();
+        console.log(`🎧 ApiService: Getting metadata for audio ${audioId}...`);
+        return this.request('GET', `/audio/${audioId}?userId=${userId}`);
+    }
+
+    /**
+     * Get audio stream URL
+     * @param {string} audioId - Audio identifier
+     * @returns {Promise<Object>} Response with stream URL
+     */
+    async getAudioStreamUrl(audioId) {
+        const userId = this.resolveUserId();
+        console.log(`🎧 ApiService: Getting stream URL for audio ${audioId}...`);
+        return this.request('GET', `/audio/${audioId}/stream-url?userId=${userId}`);
+    }
+
+    /**
+     * Get audio playback progress
+     * @param {string} audioId - Audio identifier
+     * @returns {Promise<Object>} Response with progress data
+     */
+    async getAudioProgress(audioId) {
+        const userId = this.resolveUserId();
+        console.log(`🎧 ApiService: Getting progress for audio ${audioId}...`);
+        return this.request('GET', `/audio/${audioId}/progress?userId=${userId}`);
+    }
+
+    /**
+     * Update audio playback progress
+     * @param {string} audioId - Audio identifier
+     * @param {number} positionSec - Current position in seconds
+     * @returns {Promise<Object>} Response with updated progress
+     */
+    async updateAudioProgress(audioId, positionSec) {
+        const userId = this.resolveUserId();
+        console.log(`🎧 ApiService: Updating progress for audio ${audioId}: ${positionSec}s`);
+        return this.request('POST', `/audio/${audioId}/progress?userId=${userId}`, {
+            positionSec
+        });
+    }
 }
 
 // 🌍 Глобальный экспорт (только если window доступен)

@@ -720,3 +720,40 @@
     50% { transform: scale(1.02); }
     100% { transform: scale(1); }
 }
+
+/* ==========================================
+   CATALOG TOP SWITCHER
+   ========================================== */
+
+.catalog-top-switcher {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-xs);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.catalog-switcher-btn {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.catalog-switcher-btn.active {
+    background: var(--bg-card);
+    color: var(--primary-color);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+}
+
+.catalog-switcher-btn:active {
+    transform: scale(0.98);
+}
