@@ -11,7 +11,7 @@ class FreeAudiosPage {
     this.loaded = false;
   }
 
-  async init() {
+  init() {
     this.items = [];
     this.loaded = false;
   }
@@ -160,7 +160,7 @@ class FreeAudiosPage {
       this.items = this.parseListResponse(json);
       this.loaded = true;
     } catch (e) { 
-      console.warn('⚠️ FreeAudiosPage: ошибка загрузки списка free аудио:', e);
+      console.warn('⚠️ FreeAudiosPage: Failed to load free audio list:', e);
       this.items = [];
       this.loaded = true;
     }
