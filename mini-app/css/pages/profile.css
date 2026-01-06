@@ -613,6 +613,42 @@
 }
 
 /* ============================================================================
+   🔘 PROFILE ACTION BUTTONS
+   ============================================================================ */
+
+/* Profile: action buttons container on the right */
+.profile-actions-right {
+    display: inline-flex;
+    gap: 6px; /* Reduced from 8px for more compact layout */
+}
+
+/* Action buttons - square, compact */
+.profile-action-btn {
+    width: 32px;   /* Reduced from 36px */
+    height: 32px;  /* Reduced from 36px */
+    border-radius: 6px; /* Reduced from 8px */
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px; /* For emoji icons to fit properly in 32px buttons */
+}
+
+.profile-action-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Profile modal: apply same compact styling to action buttons */
+.profile-modal-actions {
+    display: inline-flex;
+    gap: 6px; /* Reduced from 8px for more compact layout */
+}
+
+/* ============================================================================
    📱 MOBILE RESPONSIVE
    ============================================================================ */
 
