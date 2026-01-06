@@ -146,6 +146,7 @@
     align-items: baseline;
     gap: 8px;
     margin-bottom: 4px;
+    flex-wrap: wrap;
 }
 
 .user-heading-row .user-name {
@@ -159,6 +160,9 @@
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
     margin: 0;
+    flex-basis: 100%;
+    display: block;
+    margin-top: 2px;
 }
 
 .profile-left {
