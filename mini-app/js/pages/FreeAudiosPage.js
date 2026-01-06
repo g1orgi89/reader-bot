@@ -8,6 +8,12 @@ class FreeAudiosPage {
     this.state = app.state;
     this.telegram = app.telegram;
     this.items = [];
+    this.loaded = false;
+  }
+
+  init() {
+    this.items = [];
+    this.loaded = false;
   }
 
   renderTopTabs() {
@@ -27,8 +33,18 @@ class FreeAudiosPage {
     return d.innerHTML; 
   }
 
+  renderEmptyStateBlock() {
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">🎧</div>
+        <h3>Бесплатные аудио пока недоступны</h3>
+        <p>Загляните позже — мы добавим новые материалы.</p>
+      </div>
+    `;
+  }
+
   renderList() {
-    if (!Array.isArray(this.items) || this.items.length === 0) {
+    if (!this.loaded) {
       return `
         <div class="cards">
           <div class="loading-state">
@@ -37,6 +53,9 @@ class FreeAudiosPage {
           </div>
         </div>
       `;
+    }
+    if (!Array.isArray(this.items) || this.items.length === 0) {
+      return this.renderEmptyStateBlock();
     }
     return `
       <div class="cards">
@@ -119,32 +138,40 @@ class FreeAudiosPage {
     });
   }
 
+  parseListResponse(json) {
+    if (Array.isArray(json)) return json;
+    if (Array.isArray(json?.data)) return json.data;
+    if (Array.isArray(json?.audios)) return json.audios;
+    if (Array.isArray(json?.items)) return json.items;
+    if (json && typeof json === 'object') {
+      const values = Object.values(json);
+      if (values.length && typeof values[0] === 'object' && values[0].id) return values;
+    }
+    return [];
+  }
+
   async onShow() {
     try {
       const res = await fetch('/api/audio/free', { credentials: 'include' });
       if (!res.ok) {
         throw new Error(`HTTP error ${res.status}`);
       }
-      const list = await res.json();
-      this.items = Array.isArray(list) ? list : (list?.data || []);
-      const container = document.getElementById('page-content');
-      if (container) {
-        container.innerHTML = this.render();
-        this.attachEventListeners();
-        if (typeof container.scrollTo === 'function') {
-          container.scrollTo({ top: 0, behavior: 'auto' });
-        } else {
-          container.scrollTop = 0;
-        }
-      }
+      const json = await res.json();
+      this.items = this.parseListResponse(json);
+      this.loaded = true;
     } catch (e) { 
-      console.warn('⚠️ FreeAudiosPage load failed:', e); 
-      // Re-render with empty items to show loading state
+      console.warn('⚠️ FreeAudiosPage: Failed to load free audio list:', e);
       this.items = [];
-      const container = document.getElementById('page-content');
-      if (container) {
-        container.innerHTML = this.render();
-        this.attachEventListeners();
+      this.loaded = true;
+    }
+    const container = document.getElementById('page-content');
+    if (container) {
+      container.innerHTML = this.render();
+      this.attachEventListeners();
+      if (typeof container.scrollTo === 'function') {
+        container.scrollTo({ top: 0, behavior: 'auto' });
+      } else {
+        container.scrollTop = 0;
       }
     }
   }
