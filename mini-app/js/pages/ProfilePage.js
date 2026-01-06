@@ -634,7 +634,7 @@ class ProfilePage {
                 </div>
                 
                 <div class="profile-card-right profile-actions-right">
-                    <button class="profile-action-btn stat-btn" data-action="switch-tab" data-tab="quotes" data-stat="quotes" title="Цитаты">
+                    <button class="profile-action-btn stat-btn ${this.activeTab === 'quotes' ? 'active' : ''}" data-action="switch-tab" data-tab="quotes" data-stat="quotes" title="Цитаты">
                         <div class="stat-btn-value">${profile.stats?.totalQuotes || 0}</div>
                         <div class="stat-btn-label">Цитат</div>
                     </button>
