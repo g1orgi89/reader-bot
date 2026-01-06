@@ -634,7 +634,7 @@ class ProfileModal {
     
     /**
      * 🔄 Update displayed status without full modal rebuild
-     * @param {string} newStatus - The new status to display
+     * @param {string|null} newStatus - The new status to display (null or empty string hides the status)
      * @private
      */
     _updateDisplayedStatus(newStatus) {

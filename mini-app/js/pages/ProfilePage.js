@@ -881,7 +881,7 @@ class ProfilePage {
     /**
      * 🔄 Update displayed status without full card rebuild
      * Only updates the status element to prevent flicker
-     * @param {string} newStatus - The new status to display
+     * @param {string|null} newStatus - The new status to display (null or empty string hides the status)
      * @private
      */
     _updateDisplayedStatus(newStatus) {
@@ -898,7 +898,7 @@ class ProfilePage {
             if (!statusElement) {
                 // Create status element if it doesn't exist
                 statusElement = document.createElement('p');
-                statusElement.className = 'profile-status';
+                statusElement.className = 'profile-status user-status';
                 
                 // Insert after profile-username or profile-name
                 const usernameElement = profileCard.querySelector('.profile-username');
