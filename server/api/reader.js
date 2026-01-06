@@ -626,7 +626,8 @@ router.post('/auth/telegram', async (req, res) => {
         username: user.username || '',
         telegramId: user.id,
         isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false,
-        avatarUrl: userProfile ? userProfile.avatarUrl : null
+        avatarUrl: userProfile ? userProfile.avatarUrl : null,
+        status: userProfile ? userProfile.status : null
       },
       isOnboardingComplete: userProfile ? userProfile.isOnboardingComplete : false
     };
@@ -1214,6 +1215,7 @@ router.get('/profile',telegramAuth, async (req, res) => {
         email: user.email,
         avatarUrl: user.avatarUrl,
         telegramUsername: user.telegramUsername,
+        status: user.status,
         isOnboardingComplete: user.isOnboardingComplete,
         registeredAt: user.registeredAt,
         source: user.source,
@@ -1234,7 +1236,7 @@ router.get('/profile',telegramAuth, async (req, res) => {
 router.patch('/profile', telegramAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    const { email, name, avatarUrl } = req.body;
+    const { email, name, avatarUrl, status } = req.body;
 
     const user = await UserProfile.findOne({ userId });
     if (!user) {
@@ -1263,6 +1265,12 @@ router.patch('/profile', telegramAuth, async (req, res) => {
       user.avatarUrl = avatarUrl;
     }
 
+    // Handle status update: trim and convert empty string to null
+    if (status !== undefined) {
+      const trimmedStatus = typeof status === 'string' ? status.trim() : '';
+      user.status = trimmedStatus.length > 0 ? trimmedStatus.substring(0, 80) : null;
+    }
+
     await user.save();
 
     res.json({
@@ -1273,6 +1281,7 @@ router.patch('/profile', telegramAuth, async (req, res) => {
         name: user.name,
         email: user.email,
         avatarUrl: user.avatarUrl,
+        status: user.status,
         isOnboardingComplete: user.isOnboardingComplete
       }
     });
@@ -1318,6 +1327,7 @@ router.get('/users/:id', telegramAuth, async (req, res) => {
         avatarUrl: user.avatarUrl,
         photoUrl: user.photoUrl,
         telegramUsername: user.telegramUsername,
+        status: user.status,
         registeredAt: user.registeredAt,
         stats: {
           totalQuotes,
