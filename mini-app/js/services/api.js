@@ -1824,6 +1824,17 @@ class ApiService {
             positionSec
         });
     }
+
+    /**
+     * Get last listened track for a container
+     * @param {string} containerId - Container identifier
+     * @returns {Promise<Object>} Response with trackId and positionSec
+     */
+    async getLastTrack(containerId) {
+        const userId = this.resolveUserId();
+        console.log(`🎧 ApiService: Getting last track for container ${containerId}...`);
+        return this.request('GET', `/audio/${containerId}/last-track?userId=${userId}`);
+    }
 }
 
 // 🌍 Глобальный экспорт (только если window доступен)

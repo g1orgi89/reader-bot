@@ -90,10 +90,26 @@ class FreeAudioPlayerPage {
         // If this is a container with tracks, store them
         if (response.tracks && Array.isArray(response.tracks)) {
           this.tracks = response.tracks;
-          // Set current track to first track if not already set
-          if (!this.currentTrackId && this.tracks.length > 0) {
+          
+          // Get the last listened track to resume playback
+          try {
+            console.log(`🎵 FreeAudioPlayerPage: Container detected, fetching last track...`);
+            const lastTrackResponse = await this.api.getLastTrack(this.audioId);
+            
+            if (lastTrackResponse.success && lastTrackResponse.trackId) {
+              // Set current track to the last listened one
+              this.currentTrackId = lastTrackResponse.trackId;
+              console.log(`✅ FreeAudioPlayerPage: Resuming from track ${this.currentTrackId}`);
+            } else {
+              // Fallback to first track
+              this.currentTrackId = this.tracks[0].id;
+              console.log(`📊 FreeAudioPlayerPage: No last track found, using first track`);
+            }
+          } catch (error) {
+            console.warn('⚠️ FreeAudioPlayerPage: Error getting last track, using first:', error);
             this.currentTrackId = this.tracks[0].id;
           }
+          
           console.log(`✅ FreeAudioPlayerPage: Container loaded with ${this.tracks.length} tracks`);
         }
         

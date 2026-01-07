@@ -22,22 +22,12 @@ function makeMediaUrl(relativePath) {
  * TODO: Move to database model for easier content management
  */
 const FREE_AUDIO_METADATA = {
-  'free-lpp': {
-    id: 'free-lpp',
-    title: 'Разбор: «Маленький принц»',
-    author: 'Антуан де Сент-Экзюпери',
-    description: 'Глубокий аудиоразбор классической книги о смысле жизни, любви и дружбе',
-    durationSec: 3600, // 60 minutes (example duration)
-    coverUrl: '/assets/audio/free-lpp.jpg',
-    audioFile: 'lpp.mp3',
-    isFree: true
-  },
   'malenkii_princ': {
     id: 'malenkii_princ',
     title: 'Разбор: «Маленький принц»',
     author: 'Антуан де Сент-Экзюпери',
     description: 'Глубокий аудиоразбор по частям',
-    coverUrl: '/assets/covers/malenkii_princ.png',
+    coverUrl: '/assets/book-covers/malenkii_princ.png',
     isFree: true,
     tracks: [
       {
@@ -81,16 +71,24 @@ const FREE_AUDIO_METADATA = {
  */
 async function listFreeAudios() {
   try {
-    const freeAudios = Object.values(FREE_AUDIO_METADATA).map(audio => ({
-      id: audio.id,
-      title: audio.title,
-      author: audio.author,
-      description: audio.description,
-      durationSec: audio.durationSec,
-      coverUrl: audio.coverUrl,
-      audioUrl: `/media/free/${audio.audioFile}`,
-      isFree: true
-    }));
+    const freeAudios = Object.values(FREE_AUDIO_METADATA).map(audio => {
+      const result = {
+        id: audio.id,
+        title: audio.title,
+        author: audio.author,
+        description: audio.description,
+        coverUrl: audio.coverUrl,
+        isFree: true
+      };
+      
+      // Only add audioUrl for single files (not containers)
+      if (audio.audioFile) {
+        result.audioUrl = `/media/free/${audio.audioFile}`;
+        result.durationSec = audio.durationSec;
+      }
+      
+      return result;
+    });
 
     logger.info(`📚 Listed ${freeAudios.length} free audio(s)`);
     return freeAudios;
@@ -233,10 +231,76 @@ async function getStreamUrl(userId, audioId) {
   }
 }
 
+/**
+ * Get the last listened track for a container
+ * @param {mongoose.Types.ObjectId} userId - User ID (optional)
+ * @param {string} containerId - Container ID
+ * @returns {Promise<Object|null>} Object with trackId and positionSec, or null
+ */
+async function getLastTrack(userId, containerId) {
+  try {
+    // Get container metadata to verify it exists and has tracks
+    const container = FREE_AUDIO_METADATA[containerId];
+    
+    if (!container || !container.tracks || container.tracks.length === 0) {
+      logger.warn(`⚠️ Container ${containerId} not found or has no tracks`);
+      return null;
+    }
+
+    // If userId is not valid, return default (first track)
+    if (!userId) {
+      logger.info(`📊 No userId provided, returning first track for ${containerId}`);
+      return {
+        trackId: container.tracks[0].id,
+        positionSec: 0
+      };
+    }
+
+    // Import AudioProgress here to avoid circular dependencies
+    const AudioProgress = require('../../models/AudioProgress');
+    
+    // Get all progress records for this container's tracks
+    const trackIds = container.tracks.map(t => t.id);
+    const progressRecords = await AudioProgress.find({
+      userId: userId,
+      audioId: { $in: trackIds }
+    }).sort({ updatedAt: -1 }).limit(1);
+
+    // If found a progress record, return that track
+    if (progressRecords.length > 0) {
+      const lastProgress = progressRecords[0];
+      logger.info(`✅ Found last track for ${containerId}: ${lastProgress.audioId} at ${lastProgress.positionSec}s`);
+      return {
+        trackId: lastProgress.audioId,
+        positionSec: lastProgress.positionSec
+      };
+    }
+
+    // No progress found, return first track
+    logger.info(`📊 No progress found for ${containerId}, returning first track`);
+    return {
+      trackId: container.tracks[0].id,
+      positionSec: 0
+    };
+  } catch (error) {
+    logger.error(`❌ Error getting last track for ${containerId}:`, error);
+    // Return first track on error
+    const container = FREE_AUDIO_METADATA[containerId];
+    if (container && container.tracks && container.tracks.length > 0) {
+      return {
+        trackId: container.tracks[0].id,
+        positionSec: 0
+      };
+    }
+    return null;
+  }
+}
+
 module.exports = {
   listFreeAudios,
   findById,
   isUnlocked,
   getStreamUrl,
+  getLastTrack,
   makeMediaUrl
 };
