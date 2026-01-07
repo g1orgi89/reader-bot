@@ -13,7 +13,9 @@ class FreeAudioPlayerPage {
     this.query = app.initialState?.query || {};
 
     // Get audio ID from route params
-    this.audioId = this.extractAudioId();
+    // Try to get from initialState first (passed via navigate options.state)
+    // Fallback to extracting from hash if not available
+    this.audioId = app.initialState?.id || app.initialState?.audioId || this.extractAudioId();
 
     // Audio metadata
     this.audioMetadata = null;

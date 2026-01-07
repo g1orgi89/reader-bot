@@ -117,7 +117,7 @@ class FreeAudiosPage {
         if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
           this.telegram.hapticFeedback('light');
         }
-        this.app.router.navigate(`/free-audios/${encodeURIComponent(id)}`);
+        this.app.router.navigate(`/free-audios/${encodeURIComponent(id)}`, { state: { id } });
       });
     });
   }
