@@ -64,7 +64,7 @@ class FreeAudiosPage {
             <div class="book-main">
               <div class="book-cover cover-1">
                 <img class="book-cover-img" src="${this.escape(x.coverUrl||'')}" alt="${this.escape(x.title)}" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-                <div class="cover-fallback-text fallback">${this.escape(x.title)}</div>
+                <div class="cover-fallback-text" style="display: none;">${this.escape(x.title)}</div>
               </div>
               <div class="book-info">
                 <div class="book-header">

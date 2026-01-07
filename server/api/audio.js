@@ -267,4 +267,46 @@ router.get('/:id/progress', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/audio/:containerId/last-track
+ * Get the last listened track in a container (for resuming playback)
+ * @param {string} containerId - Container ID
+ * @returns {Object} Object with trackId and positionSec
+ */
+router.get('/:containerId/last-track', async (req, res) => {
+  try {
+    const { containerId } = req.params;
+    // TODO: SECURITY - Replace with JWT authentication
+    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
+    
+    logger.info(`📊 Fetching last track for container ${containerId}, user ${userId || 'anonymous'}...`);
+    
+    // Dev-safe: pass userId even if invalid, service will handle it
+    const lastTrack = await audioService.getLastTrack(
+      userId && isValidObjectId(userId) ? userId : null,
+      containerId
+    );
+    
+    if (!lastTrack) {
+      return res.status(404).json({
+        success: false,
+        error: 'Container not found or has no tracks'
+      });
+    }
+
+    res.json({
+      success: true,
+      trackId: lastTrack.trackId,
+      positionSec: lastTrack.positionSec
+    });
+  } catch (error) {
+    logger.error('❌ GET last-track failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get last track',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;

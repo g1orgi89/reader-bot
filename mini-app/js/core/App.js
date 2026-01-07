@@ -69,6 +69,12 @@ class ReaderApp {
                 // Add fallback class to parent container if it exists
                 if (img.parentElement) {
                     img.parentElement.classList.add('fallback');
+                    
+                    // Show fallback text if it exists
+                    const fallbackText = img.parentElement.querySelector('.cover-fallback-text, .profile-avatar-fallback, .user-avatar-fallback');
+                    if (fallbackText) {
+                        fallbackText.style.display = 'flex';
+                    }
                 }
                 
                 console.log('🖼️ Image load failed, fallback applied:', img.src);
