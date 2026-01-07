@@ -31,6 +31,9 @@ class FreeAudioPlayerPage {
     // Bound handler for audio service updates
     this.handleAudioUpdate = this.handleAudioUpdate.bind(this);
 
+    // Animation frame for smooth progress updates
+    this._raf = null;
+
     console.log('🎵 FreeAudioPlayerPage: Initialized for', this.audioId);
   }
 
@@ -101,6 +104,13 @@ class FreeAudioPlayerPage {
     };
 
     this.updatePlayerUI();
+
+    // Start/stop smooth progress animation based on play state
+    if (this.playerState.isPlaying) {
+      this.startProgressAnimation();
+    } else {
+      this.stopProgressAnimation();
+    }
   }
 
   /**
@@ -110,8 +120,10 @@ class FreeAudioPlayerPage {
     // Update play/pause button
     const playBtn = document.querySelector('.player-play-btn');
     if (playBtn) {
-      playBtn.textContent = this.playerState.isPlaying ? '⏸' : '▶';
-      playBtn.classList.toggle('playing', this.playerState.isPlaying);
+      const isPlaying = !!this.playerState.isPlaying;
+      // Force text presentation (no emoji): U+FE0E
+      playBtn.textContent = isPlaying ? '⏸\uFE0E' : '▶\uFE0E';
+      playBtn.classList.toggle('playing', isPlaying);
     }
 
     // Update time display
@@ -138,6 +150,45 @@ class FreeAudioPlayerPage {
     if (seekSlider && this.playerState.duration > 0) {
       seekSlider.value = this.playerState.currentPosition;
       seekSlider.max = this.playerState.duration;
+    }
+  }
+
+  /**
+   * Start smooth progress animation using requestAnimationFrame
+   */
+  startProgressAnimation() {
+    if (this._raf) return; // Already running
+
+    const bar = document.querySelector('.player-progress-bar');
+    const slider = document.querySelector('.player-seek-slider');
+    const currentTimeEl = document.querySelector('.player-current-time');
+
+    const tick = () => {
+      const audio = window.audioService && window.audioService.audio;
+      if (audio && !audio.paused && this.playerState.duration > 0) {
+        const t = audio.currentTime;
+        const pct = (t / this.playerState.duration) * 100;
+        
+        if (bar) bar.style.width = `${pct}%`;
+        if (slider) slider.value = t;
+        if (currentTimeEl) currentTimeEl.textContent = this.formatTime(t);
+        
+        this._raf = requestAnimationFrame(tick);
+      } else {
+        this._raf = null;
+      }
+    };
+
+    this._raf = requestAnimationFrame(tick);
+  }
+
+  /**
+   * Stop smooth progress animation
+   */
+  stopProgressAnimation() {
+    if (this._raf) {
+      cancelAnimationFrame(this._raf);
+      this._raf = null;
     }
   }
 
@@ -246,7 +297,7 @@ class FreeAudioPlayerPage {
           </button>
           
           <button class="player-control-btn player-play-btn">
-            ${this.playerState.isPlaying ? '⏸' : '▶'}
+            ${this.playerState.isPlaying ? '⏸\uFE0E' : '▶\uFE0E'}
           </button>
           
           <button class="player-control-btn player-seek-forward" data-seek="15">
@@ -394,6 +445,9 @@ class FreeAudioPlayerPage {
    */
   destroy() {
     console.log('🎵 FreeAudioPlayerPage: Destroyed');
+
+    // Stop progress animation to prevent memory leaks
+    this.stopProgressAnimation();
 
     // Unsubscribe from audio service
     window.audioService.offUpdate(this.handleAudioUpdate);
