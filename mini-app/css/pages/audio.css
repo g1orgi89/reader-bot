@@ -420,3 +420,48 @@
     font-size: 28px;
   }
 }
+
+/* ==========================================
+   TRACK LIST (PLAYLIST)
+   ========================================== */
+
+.track-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.track-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.track-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.track-item:active {
+  transform: scale(0.95);
+}
+
+.track-item.active {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background: rgba(var(--primary-color-rgb, 59, 130, 246), 0.1);
+}
+
+@media (max-width: 360px) {
+  .track-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
