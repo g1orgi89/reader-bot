@@ -47,8 +47,9 @@ router.get('/free', async (req, res) => {
 /**
  * GET /api/audio/:id
  * Get audio metadata with unlock status
- * @param {string} id - Audio ID
- * @returns {Object} Audio metadata with unlocked flag
+ * Supports both containers (with tracks) and individual audios/tracks
+ * @param {string} id - Audio ID (container ID or track ID)
+ * @returns {Object} Audio metadata with unlocked flag (and tracks if container)
  */
 router.get('/:id', async (req, res) => {
   try {
@@ -75,6 +76,19 @@ router.get('/:id', async (req, res) => {
       unlocked = await audioService.isUnlocked(userId, id);
     }
 
+    // Return container with tracks if applicable
+    if (audio.tracks) {
+      return res.json({
+        success: true,
+        audio: {
+          ...audio,
+          unlocked
+        },
+        tracks: audio.tracks
+      });
+    }
+
+    // Return single audio/track
     res.json({
       success: true,
       audio: {

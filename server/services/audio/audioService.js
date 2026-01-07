@@ -8,6 +8,15 @@ const logger = require('../../utils/logger');
 const { hasAudioAccess } = require('../access/entitlementService');
 
 /**
+ * Helper to construct media URL for free audio files
+ * @param {string} relativePath - Relative path to audio file (e.g., 'malenkii_princ/01.mp3')
+ * @returns {string} Full media URL
+ */
+function makeMediaUrl(relativePath) {
+  return `/media/free/${relativePath}`;
+}
+
+/**
  * Metadata for free audio content
  * In production, this would come from a database
  * TODO: Move to database model for easier content management
@@ -22,6 +31,46 @@ const FREE_AUDIO_METADATA = {
     coverUrl: '/assets/audio/free-lpp.jpg',
     audioFile: 'lpp.mp3',
     isFree: true
+  },
+  'malenkii_princ': {
+    id: 'malenkii_princ',
+    title: 'Разбор: «Маленький принц»',
+    author: 'Антуан де Сент-Экзюпери',
+    description: 'Глубокий аудиоразбор по частям',
+    coverUrl: '/assets/covers/malenkii_princ.png',
+    isFree: true,
+    tracks: [
+      {
+        id: 'malenkii_princ-01',
+        title: 'Часть 1',
+        file: 'malenkii_princ/01.mp3'
+      },
+      {
+        id: 'malenkii_princ-02',
+        title: 'Часть 2',
+        file: 'malenkii_princ/02.mp3'
+      },
+      {
+        id: 'malenkii_princ-03',
+        title: 'Часть 3',
+        file: 'malenkii_princ/03.mp3'
+      },
+      {
+        id: 'malenkii_princ-04',
+        title: 'Часть 4',
+        file: 'malenkii_princ/04.mp3'
+      },
+      {
+        id: 'malenkii_princ-05',
+        title: 'Часть 5',
+        file: 'malenkii_princ/05.mp3'
+      },
+      {
+        id: 'malenkii_princ-06',
+        title: 'Часть 6',
+        file: 'malenkii_princ/06.mp3'
+      }
+    ]
   }
   // More free audios can be added here
 };
@@ -52,15 +101,30 @@ async function listFreeAudios() {
 }
 
 /**
- * Find audio by ID
- * @param {string} audioId - Audio identifier
+ * Find audio by ID (container or individual track)
+ * @param {string} audioId - Audio identifier (container ID or track ID)
  * @returns {Promise<Object|null>} Audio metadata or null if not found
  */
 async function findById(audioId) {
   try {
-    // Check free audios
+    // Check if it's a direct container
     if (FREE_AUDIO_METADATA[audioId]) {
       const audio = FREE_AUDIO_METADATA[audioId];
+      
+      // If it's a container with tracks, return container metadata
+      if (audio.tracks) {
+        return {
+          id: audio.id,
+          title: audio.title,
+          author: audio.author,
+          description: audio.description,
+          coverUrl: audio.coverUrl,
+          isFree: true,
+          tracks: audio.tracks
+        };
+      }
+      
+      // Otherwise, it's a single audio file
       return {
         id: audio.id,
         title: audio.title,
@@ -71,6 +135,25 @@ async function findById(audioId) {
         audioUrl: `/media/free/${audio.audioFile}`,
         isFree: true
       };
+    }
+
+    // Check if it's a track ID (format: containerId-trackNumber)
+    for (const containerId in FREE_AUDIO_METADATA) {
+      const container = FREE_AUDIO_METADATA[containerId];
+      if (container.tracks) {
+        const track = container.tracks.find(t => t.id === audioId);
+        if (track) {
+          return {
+            id: track.id,
+            title: track.title,
+            author: container.author,
+            coverUrl: container.coverUrl,
+            audioUrl: makeMediaUrl(track.file),
+            isFree: true,
+            containerId: containerId
+          };
+        }
+      }
     }
 
     // In the future, check database for premium content
@@ -87,13 +170,13 @@ async function findById(audioId) {
 /**
  * Check if user has access to audio
  * @param {mongoose.Types.ObjectId} userId - User ID
- * @param {string} audioId - Audio identifier
+ * @param {string} audioId - Audio identifier (container ID or track ID)
  * @returns {Promise<boolean>} True if user has access
  */
 async function isUnlocked(userId, audioId) {
   try {
-    // Free content is always unlocked
-    if (audioId.startsWith('free-')) {
+    // Free content is always unlocked (including tracks from free containers)
+    if (audioId.startsWith('free-') || audioId.startsWith('malenkii_princ')) {
       logger.info(`✅ Free audio ${audioId} is unlocked for all users`);
       return true;
     }
@@ -114,7 +197,7 @@ async function isUnlocked(userId, audioId) {
 /**
  * Get streaming URL for audio
  * @param {mongoose.Types.ObjectId} userId - User ID
- * @param {string} audioId - Audio identifier
+ * @param {string} audioId - Audio identifier (container ID or track ID)
  * @returns {Promise<Object>} Object with url property
  */
 async function getStreamUrl(userId, audioId) {
@@ -131,7 +214,12 @@ async function getStreamUrl(userId, audioId) {
       throw new Error('Access denied');
     }
 
-    // For free content, return direct URL
+    // For containers with tracks, return URL of first track
+    if (audio.tracks && audio.tracks.length > 0) {
+      return { url: makeMediaUrl(audio.tracks[0].file) };
+    }
+
+    // For free content (single files or tracks), return direct URL
     if (audio.isFree) {
       return { url: audio.audioUrl };
     }
@@ -149,5 +237,6 @@ module.exports = {
   listFreeAudios,
   findById,
   isUnlocked,
-  getStreamUrl
+  getStreamUrl,
+  makeMediaUrl
 };
