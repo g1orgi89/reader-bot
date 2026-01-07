@@ -21,6 +21,10 @@ class FreeAudioPlayerPage {
     this.audioMetadata = null;
     this.loading = false;
 
+    // Track playlist state
+    this.tracks = null; // Array of tracks if this is a container
+    this.currentTrackId = null; // Current track being played
+
     // Player state (from AudioService)
     this.playerState = {
       isPlaying: false,
@@ -30,6 +34,7 @@ class FreeAudioPlayerPage {
 
     // Bound handler for audio service updates
     this.handleAudioUpdate = this.handleAudioUpdate.bind(this);
+    this.handleAudioEnded = this.handleAudioEnded.bind(this);
 
     // Animation frame for smooth progress updates
     this._raf = null;
@@ -81,6 +86,17 @@ class FreeAudioPlayerPage {
 
       if (response.success && response.audio) {
         this.audioMetadata = response.audio;
+        
+        // If this is a container with tracks, store them
+        if (response.tracks && Array.isArray(response.tracks)) {
+          this.tracks = response.tracks;
+          // Set current track to first track if not already set
+          if (!this.currentTrackId && this.tracks.length > 0) {
+            this.currentTrackId = this.tracks[0].id;
+          }
+          console.log(`✅ FreeAudioPlayerPage: Container loaded with ${this.tracks.length} tracks`);
+        }
+        
         console.log('✅ FreeAudioPlayerPage: Metadata loaded');
       } else {
         console.warn('⚠️ FreeAudioPlayerPage: No metadata returned');
@@ -255,6 +271,38 @@ class FreeAudioPlayerPage {
   }
 
   /**
+   * Handle audio ended event (auto-progression to next track)
+   */
+  handleAudioEnded() {
+    console.log('🎵 FreeAudioPlayerPage: Audio ended');
+    
+    if (!this.tracks || this.tracks.length === 0) {
+      console.log('🎵 FreeAudioPlayerPage: No tracks, stopping playback');
+      return;
+    }
+
+    // Find current track index
+    const currentIndex = this.tracks.findIndex(t => t.id === this.currentTrackId);
+    
+    if (currentIndex === -1) {
+      console.warn('⚠️ FreeAudioPlayerPage: Current track not found in list');
+      return;
+    }
+
+    // Check if there's a next track
+    if (currentIndex < this.tracks.length - 1) {
+      const nextTrack = this.tracks[currentIndex + 1];
+      console.log(`🎵 FreeAudioPlayerPage: Auto-progressing to next track: ${nextTrack.title}`);
+      
+      this.currentTrackId = nextTrack.id;
+      this.updateTrackListUI();
+      this.startPlayback();
+    } else {
+      console.log('🎵 FreeAudioPlayerPage: Reached end of playlist');
+    }
+  }
+
+  /**
    * Render player
    */
   renderPlayer() {
@@ -274,6 +322,8 @@ class FreeAudioPlayerPage {
           <h2 class="player-title">${escapeHtml(this.audioMetadata.title)}</h2>
           <p class="player-author">${escapeHtml(this.audioMetadata.author)}</p>
         </div>
+
+        ${this.renderTrackList()}
 
         <!-- Progress Bar -->
         <div class="player-progress">
@@ -311,6 +361,45 @@ class FreeAudioPlayerPage {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Render track list (if this is a container with tracks)
+   */
+  renderTrackList() {
+    if (!this.tracks || this.tracks.length === 0) {
+      return '';
+    }
+
+    const escapeHtml = window.escapeHtml || ((text) => text);
+
+    return `
+      <div class="track-list">
+        ${this.tracks.map(track => `
+          <button class="track-item ${track.id === this.currentTrackId ? 'active' : ''}" 
+                  data-track-id="${track.id}">
+            ${escapeHtml(track.title)}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  /**
+   * Update track list UI to reflect current track
+   */
+  updateTrackListUI() {
+    if (!this.tracks || this.tracks.length === 0) return;
+
+    const trackItems = document.querySelectorAll('.track-item');
+    trackItems.forEach(item => {
+      const trackId = item.getAttribute('data-track-id');
+      if (trackId === this.currentTrackId) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
   }
 
   /**
@@ -370,6 +459,34 @@ class FreeAudioPlayerPage {
         this.router.navigate('/free-audios');
       });
     }
+
+    // Track selection buttons
+    this.attachTrackEvents();
+  }
+
+  /**
+   * Attach track selection event listeners
+   */
+  attachTrackEvents() {
+    if (!this.tracks || this.tracks.length === 0) return;
+
+    const trackItems = document.querySelectorAll('.track-item');
+    trackItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const trackId = item.getAttribute('data-track-id');
+        
+        if (trackId && trackId !== this.currentTrackId) {
+          console.log(`🎵 FreeAudioPlayerPage: Switching to track ${trackId}`);
+          this.currentTrackId = trackId;
+          this.updateTrackListUI();
+          this.startPlayback();
+          
+          if (this.telegram?.hapticFeedback) {
+            this.telegram.hapticFeedback('light');
+          }
+        }
+      });
+    });
   }
 
   /**
@@ -377,6 +494,11 @@ class FreeAudioPlayerPage {
    */
   onShow() {
     console.log('🎵 FreeAudioPlayerPage: onShow');
+
+    // Subscribe to audio ended event for auto-progression
+    if (window.audioService && typeof window.audioService.onEnded === 'function') {
+      window.audioService.onEnded(this.handleAudioEnded);
+    }
 
     // Get current audio service state
     const currentState = window.audioService.getState();
@@ -405,11 +527,25 @@ class FreeAudioPlayerPage {
     }
 
     try {
+      // Determine which audio ID to play (track ID or container ID)
+      const audioIdToPlay = this.currentTrackId || this.audioId;
+      
+      console.log(`🎵 FreeAudioPlayerPage: Starting playback for ${audioIdToPlay}`);
+
+      // Get stream URL for the current track/audio
+      const streamUrlResponse = await this.api.getAudioStreamUrl(audioIdToPlay);
+      
+      if (!streamUrlResponse.success || !streamUrlResponse.url) {
+        throw new Error('Failed to get stream URL');
+      }
+
+      // Play the audio using AudioService
       await window.audioService.play({
-        id: this.audioMetadata.id,
-        title: this.audioMetadata.title,
+        id: audioIdToPlay,
+        title: this.getTrackTitle(),
         artist: this.audioMetadata.author,
-        cover: this.audioMetadata.coverUrl
+        cover: this.audioMetadata.coverUrl,
+        url: streamUrlResponse.url
       }, this.api);
     } catch (error) {
       console.error('❌ FreeAudioPlayerPage: Playback error:', error);
@@ -418,6 +554,19 @@ class FreeAudioPlayerPage {
         this.telegram.showAlert('Ошибка воспроизведения. Попробуйте снова.');
       }
     }
+  }
+
+  /**
+   * Get title for current track (or main audio title)
+   */
+  getTrackTitle() {
+    if (this.tracks && this.currentTrackId) {
+      const track = this.tracks.find(t => t.id === this.currentTrackId);
+      if (track) {
+        return `${this.audioMetadata.title} - ${track.title}`;
+      }
+    }
+    return this.audioMetadata.title;
   }
 
   /**
@@ -451,6 +600,11 @@ class FreeAudioPlayerPage {
 
     // Unsubscribe from audio service
     window.audioService.offUpdate(this.handleAudioUpdate);
+    
+    // Unsubscribe from ended event
+    if (window.audioService && typeof window.audioService.offEnded === 'function') {
+      window.audioService.offEnded(this.handleAudioEnded);
+    }
   }
 }
 
