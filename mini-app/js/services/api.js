@@ -253,8 +253,18 @@ class ApiService {
      * ИСПРАВЛЕНО: Убраны все debug заглушки - только реальный API
      */
     async request(method, endpoint, data = null, options = {}) {
+        // Route audio endpoints to /api/audio instead of /api/reader
+        let baseUrl = this.baseURL;
+        let endpointPath = endpoint;
+        
+        if (endpoint.startsWith('/audio/')) {
+            baseUrl = '/api/audio';
+            // Remove the /audio prefix since the base is already /api/audio
+            endpointPath = endpoint.slice(6); // Remove '/audio' prefix
+        }
+        
         // Add cache-busting for quotes endpoints on GET requests OR if noCache is requested
-        let finalUrl = `${this.baseURL}${endpoint}`;
+        let finalUrl = `${baseUrl}${endpointPath}`;
         if (method === 'GET' && (endpoint.includes('/quotes') || options.noCache)) {
             const separator = endpoint.includes('?') ? '&' : '?';
             finalUrl += `${separator}_t=${Date.now()}`;
