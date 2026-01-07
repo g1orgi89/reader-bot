@@ -110,30 +110,14 @@ class FreeAudiosPage {
     });
 
     document.querySelectorAll('.buy-button').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
         const id = btn.getAttribute('data-id');
-        try {
-          const resp = await fetch(`/api/audio/${encodeURIComponent(id)}`, { credentials: 'include' });
-          if (!resp.ok) {
-            throw new Error(`HTTP error ${resp.status}`);
-          }
-          const meta = await resp.json();
-          const url = meta?.audioUrl || `/media/free/${encodeURIComponent(id)}.mp3`;
-          if (this.telegram && this.telegram.openLink) {
-            this.telegram.openLink(url);
-          } else {
-            window.open(url, '_blank');
-          }
-        } catch (err) {
-          console.warn('⚠️ FreeAudiosPage: Failed to fetch audio metadata:', err);
-          const fallback = `/media/free/${encodeURIComponent(id)}.mp3`;
-          if (this.telegram && this.telegram.openLink) {
-            this.telegram.openLink(fallback);
-          } else {
-            window.open(fallback, '_blank');
-          }
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+          this.telegram.hapticFeedback('light');
         }
+        this.app.router.navigate(`/free-audios/${encodeURIComponent(id)}`);
       });
     });
   }
