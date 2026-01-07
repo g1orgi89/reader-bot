@@ -36,6 +36,9 @@ class AudioService {
     // Current audio metadata
     this.currentAudio = null;
 
+    // API service reference for background sync
+    this.apiServiceRef = null;
+
     // State
     this.isPlaying = false;
     this.currentPosition = 0;
@@ -189,6 +192,9 @@ class AudioService {
 
       // Store metadata
       this.currentAudio = metadata;
+
+      // Store API service reference for background sync
+      this.apiServiceRef = apiService;
 
       // Get stream URL from API
       const response = await apiService.getAudioStreamUrl(metadata.id);
@@ -365,18 +371,18 @@ class AudioService {
     }
 
     try {
-      const apiService = window.app?.api;
-      if (!apiService || !apiService.updateAudioProgress) {
-        console.warn('⚠️ AudioService: API service not available for server sync');
+      const api = this.apiServiceRef;
+      if (!api) {
+        // Silently skip if API service not available (dev mode)
         return;
       }
 
-      await apiService.updateAudioProgress(this.currentAudio.id, this.audio.currentTime);
+      await api.updateAudioProgress(this.currentAudio.id, Math.floor(this.currentPosition));
       this.lastServerSync = now;
       
-      console.log(`💾 AudioService: Progress synced to server: ${this.audio.currentTime}s`);
+      console.log(`💾 AudioService: Progress synced to server: ${Math.floor(this.currentPosition)}s`);
     } catch (error) {
-      console.error('❌ AudioService: Server sync error:', error);
+      // Silently handle errors in dev mode (no console warnings)
     }
   }
 
@@ -388,18 +394,20 @@ class AudioService {
    */
   async loadProgressFromServer(audioId, apiService) {
     try {
-      if (!apiService || !apiService.getAudioProgress) {
-        console.warn('⚠️ AudioService: API service not available for loading progress');
-        return { audioId, positionSec: 0, updatedAt: null };
+      const api = apiService || this.apiServiceRef;
+      if (!api) {
+        // Return local progress if API not available
+        return { audioId, positionSec: this.loadProgressFromLocal(audioId)?.positionSec || 0, updatedAt: null };
       }
 
-      const response = await apiService.getAudioProgress(audioId);
+      const response = await api.getAudioProgress(audioId);
       
       if (response.success && response.progress) {
         return response.progress;
       }
     } catch (error) {
-      console.error('❌ AudioService: Server load error:', error);
+      // Return local progress on error (dev mode - silent fallback)
+      return { audioId, positionSec: this.loadProgressFromLocal(audioId)?.positionSec || 0, updatedAt: null };
     }
 
     return { audioId, positionSec: 0, updatedAt: null };
