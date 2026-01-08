@@ -24,6 +24,7 @@ class FreeAudioPlayerPage {
     // Track playlist state
     this.tracks = null; // Array of tracks if this is a container
     this.currentTrackId = null; // Current track being played
+    this._initialPositionSec = null; // Initial position to seek to on first play
 
     // Player state (from AudioService)
     this.playerState = {
@@ -99,15 +100,19 @@ class FreeAudioPlayerPage {
             if (lastTrackResponse.success && lastTrackResponse.trackId) {
               // Set current track to the last listened one
               this.currentTrackId = lastTrackResponse.trackId;
-              console.log(`✅ FreeAudioPlayerPage: Resuming from track ${this.currentTrackId}`);
+              // Save initial position to seek to on first play
+              this._initialPositionSec = lastTrackResponse.positionSec || 0;
+              console.log(`✅ FreeAudioPlayerPage: Resuming from track ${this.currentTrackId} at ${this._initialPositionSec}s`);
             } else {
               // Fallback to first track
               this.currentTrackId = this.tracks[0].id;
+              this._initialPositionSec = 0;
               console.log(`📊 FreeAudioPlayerPage: No last track found, using first track`);
             }
           } catch (error) {
             console.warn('⚠️ FreeAudioPlayerPage: Error getting last track, using first:', error);
             this.currentTrackId = this.tracks[0].id;
+            this._initialPositionSec = 0;
           }
           
           console.log(`✅ FreeAudioPlayerPage: Container loaded with ${this.tracks.length} tracks`);
@@ -311,6 +316,8 @@ class FreeAudioPlayerPage {
       console.log(`🎵 FreeAudioPlayerPage: Auto-progressing to next track: ${nextTrack.title}`);
       
       this.currentTrackId = nextTrack.id;
+      // Clear initial position when auto-progressing
+      this._initialPositionSec = null;
       this.updateTrackListUI();
       this.startPlayback();
     } else {
@@ -494,6 +501,8 @@ class FreeAudioPlayerPage {
         if (trackId && trackId !== this.currentTrackId) {
           console.log(`🎵 FreeAudioPlayerPage: Switching to track ${trackId}`);
           this.currentTrackId = trackId;
+          // Clear initial position when manually switching tracks
+          this._initialPositionSec = null;
           this.updateTrackListUI();
           this.startPlayback();
           
@@ -519,8 +528,11 @@ class FreeAudioPlayerPage {
     // Get current audio service state
     const currentState = window.audioService.getState();
     
+    // Determine expected audio ID (track or container)
+    const expectedId = this.currentTrackId || this.audioId;
+    
     // If playing different audio, start playing this one
-    if (!currentState.currentAudio || currentState.currentAudio.id !== this.audioId) {
+    if (!currentState.currentAudio || currentState.currentAudio.id !== expectedId) {
       this.startPlayback();
     } else {
       // Update UI with current state
@@ -560,9 +572,20 @@ class FreeAudioPlayerPage {
         id: audioIdToPlay,
         title: this.getTrackTitle(),
         artist: this.audioMetadata.author,
-        cover: this.audioMetadata.coverUrl,
+        coverUrl: this.audioMetadata.coverUrl,
         url: streamUrlResponse.url
       }, this.api);
+
+      // Apply initial position if available (only on first play)
+      if (this._initialPositionSec !== null && this._initialPositionSec > 0) {
+        console.log(`🎵 FreeAudioPlayerPage: Seeking to initial position ${this._initialPositionSec}s`);
+        // Wait a bit for audio to load metadata
+        setTimeout(() => {
+          window.audioService.seekTo(this._initialPositionSec);
+          // Clear the initial position so we don't seek again
+          this._initialPositionSec = null;
+        }, 500);
+      }
     } catch (error) {
       console.error('❌ FreeAudioPlayerPage: Playback error:', error);
       
