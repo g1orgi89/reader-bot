@@ -10,6 +10,7 @@ const express = require('express');
 const audioRoutes = require('../../server/api/audio');
 const AudioProgress = require('../../server/models/AudioProgress');
 const UserEntitlement = require('../../server/models/UserEntitlement');
+const UserProfile = require('../../server/models/userProfile');
 
 // Mock the logger to avoid console output during tests
 jest.mock('../../server/utils/logger', () => {
@@ -302,13 +303,12 @@ describe('Audio API Integration Tests', () => {
   });
 
   describe('Telegram userId Resolution', () => {
-    const UserProfile = require('../../server/models/userProfile');
     let telegramUserId;
     let userObjectId;
 
     beforeEach(async () => {
-      // Create a test user with Telegram ID
-      telegramUserId = '1798451247';
+      // Create a test user with dynamically generated Telegram ID
+      telegramUserId = `${Date.now()}`;
       const userProfile = new UserProfile({
         userId: telegramUserId,
         name: 'Test User',

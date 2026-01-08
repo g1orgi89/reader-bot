@@ -42,14 +42,14 @@ async function resolveUserObjectId(rawUserId) {
   try {
     const userProfile = await UserProfile.findOne({ userId: userIdStr });
     if (userProfile) {
-      logger.info(`✅ Resolved Telegram ID ${userIdStr} to ObjectId ${userProfile._id}`);
+      logger.debug(`Resolved Telegram ID to ObjectId: ${userProfile._id}`);
       return userProfile._id;
     }
     
-    logger.warn(`⚠️ User not found for Telegram ID ${userIdStr}`);
+    logger.warn(`User not found for provided userId`);
     return null;
   } catch (error) {
-    logger.error(`❌ Error resolving user ID ${userIdStr}:`, error);
+    logger.error(`Error resolving user ID:`, error);
     return null;
   }
 }
