@@ -238,4 +238,66 @@ describe('Audio API Integration Tests', () => {
       expect(response.body.error).toBe('User ID required');
     });
   });
+
+  describe('GET /api/audio/:containerId/last-track', () => {
+    it('should return first track for container without progress', async () => {
+      const response = await request(app)
+        .get('/api/audio/malenkii_princ/last-track')
+        .query({ userId: testUserId.toString() })
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.trackId).toBe('malenkii_princ-01');
+      expect(response.body.positionSec).toBe(0);
+    });
+
+    it('should return last listened track with position', async () => {
+      // Create progress for track 4 at 25 seconds
+      await AudioProgress.updateProgress(testUserId, 'malenkii_princ-04', 25);
+
+      const response = await request(app)
+        .get('/api/audio/malenkii_princ/last-track')
+        .query({ userId: testUserId.toString() })
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.trackId).toBe('malenkii_princ-04');
+      expect(response.body.positionSec).toBe(25);
+    });
+
+    it('should return most recent track when multiple tracks have progress', async () => {
+      // Create progress for multiple tracks (the second one should be returned as most recent)
+      await AudioProgress.updateProgress(testUserId, 'malenkii_princ-02', 10);
+      await AudioProgress.updateProgress(testUserId, 'malenkii_princ-05', 30);
+
+      const response = await request(app)
+        .get('/api/audio/malenkii_princ/last-track')
+        .query({ userId: testUserId.toString() })
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.trackId).toBe('malenkii_princ-05');
+      expect(response.body.positionSec).toBe(30);
+    });
+
+    it('should return 404 for non-existing container', async () => {
+      const response = await request(app)
+        .get('/api/audio/non-existing-container/last-track')
+        .query({ userId: testUserId.toString() })
+        .expect(404);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Container not found or has no tracks');
+    });
+
+    it('should work without userId (returns first track)', async () => {
+      const response = await request(app)
+        .get('/api/audio/malenkii_princ/last-track')
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.trackId).toBe('malenkii_princ-01');
+      expect(response.body.positionSec).toBe(0);
+    });
+  });
 });

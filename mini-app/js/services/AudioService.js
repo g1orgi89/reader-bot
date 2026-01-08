@@ -17,7 +17,7 @@ class AudioService {
    * @property {string} id - Audio identifier
    * @property {string} title - Audio title
    * @property {string} artist - Audio artist/author
-   * @property {string} cover - Cover image URL
+   * @property {string} coverUrl - Cover image URL
    * @property {string} url - Audio stream URL
    */
 
@@ -51,6 +51,7 @@ class AudioService {
 
     // Event listeners
     this.updateListeners = new Set();
+    this.endedListeners = new Set();
 
     // Initialize
     this.setupAudioListeners();
@@ -85,6 +86,7 @@ class AudioService {
       this.stopProgressTracking();
       this.saveProgressToServer();
       this.notifyListeners();
+      this.notifyEndedListeners();
       console.log('⏹️ AudioService: Ended');
     });
 
@@ -150,11 +152,12 @@ class AudioService {
   updateMediaSession(metadata) {
     if (!('mediaSession' in navigator)) return;
 
+    // Note: Fallback to 'cover' for backward compatibility during migration to 'coverUrl'
     navigator.mediaSession.metadata = new MediaMetadata({
       title: metadata.title || 'Аудио разбор',
       artist: metadata.artist || 'Reader Bot',
       artwork: [
-        { src: metadata.cover || '/assets/audio/default-cover.jpg', sizes: '512x512', type: 'image/jpeg' }
+        { src: metadata.coverUrl || metadata.cover || '/assets/audio/default-cover.jpg', sizes: '512x512', type: 'image/jpeg' }
       ]
     });
 
@@ -454,6 +457,35 @@ class AudioService {
   }
 
   /**
+   * Add ended listener
+   * @param {Function} callback - Listener callback
+   */
+  onEnded(callback) {
+    this.endedListeners.add(callback);
+  }
+
+  /**
+   * Remove ended listener
+   * @param {Function} callback - Listener callback
+   */
+  offEnded(callback) {
+    this.endedListeners.delete(callback);
+  }
+
+  /**
+   * Notify all ended listeners
+   */
+  notifyEndedListeners() {
+    this.endedListeners.forEach(listener => {
+      try {
+        listener();
+      } catch (error) {
+        console.error('❌ AudioService: Ended listener error:', error);
+      }
+    });
+  }
+
+  /**
    * Notify all listeners of state change
    * @param {Object} extra - Extra data to pass to listeners
    */
@@ -496,6 +528,7 @@ class AudioService {
     this.audio.pause();
     this.audio.src = '';
     this.updateListeners.clear();
+    this.endedListeners.clear();
     console.log('🧹 AudioService: Destroyed');
   }
 }
