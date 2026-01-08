@@ -17,7 +17,7 @@ class AudioService {
    * @property {string} id - Audio identifier
    * @property {string} title - Audio title
    * @property {string} artist - Audio artist/author
-   * @property {string} cover - Cover image URL
+   * @property {string} coverUrl - Cover image URL
    * @property {string} url - Audio stream URL
    */
 
