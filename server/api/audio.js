@@ -10,6 +10,7 @@ const mongoose = require('mongoose');
 // Services
 const audioService = require('../services/audio/audioService');
 const AudioProgress = require('../models/AudioProgress');
+const UserProfile = require('../models/userProfile');
 const logger = require('../utils/logger');
 
 /**
@@ -18,6 +19,40 @@ const logger = require('../utils/logger');
  * @returns {boolean} True if valid ObjectId
  */
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+/**
+ * Resolve Telegram userId to MongoDB ObjectId
+ * Handles both ObjectId and numeric Telegram IDs
+ * @param {string|number} rawUserId - Raw user ID (can be ObjectId string or Telegram numeric ID)
+ * @returns {Promise<mongoose.Types.ObjectId|null>} MongoDB ObjectId or null if not found/invalid
+ */
+async function resolveUserObjectId(rawUserId) {
+  if (!rawUserId) {
+    return null;
+  }
+
+  const userIdStr = String(rawUserId);
+
+  // If already a valid ObjectId, return it
+  if (isValidObjectId(userIdStr)) {
+    return new mongoose.Types.ObjectId(userIdStr);
+  }
+
+  // Otherwise, try to find user by Telegram userId in UserProfile
+  try {
+    const userProfile = await UserProfile.findOne({ userId: userIdStr });
+    if (userProfile) {
+      logger.info(`✅ Resolved Telegram ID ${userIdStr} to ObjectId ${userProfile._id}`);
+      return userProfile._id;
+    }
+    
+    logger.warn(`⚠️ User not found for Telegram ID ${userIdStr}`);
+    return null;
+  } catch (error) {
+    logger.error(`❌ Error resolving user ID ${userIdStr}:`, error);
+    return null;
+  }
+}
 
 /**
  * GET /api/audio/free
@@ -171,10 +206,13 @@ router.post('/:id/progress', async (req, res) => {
     const { id } = req.params;
     const { positionSec } = req.body;
     // TODO: SECURITY - Replace with JWT authentication
-    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
+    const rawUserId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
+    
+    // Resolve userId (handles both ObjectId and Telegram numeric ID)
+    const userId = await resolveUserObjectId(rawUserId);
     
     // Dev-safe: return safe default for invalid userId (prevents 500 errors)
-    if (!userId || !isValidObjectId(userId)) {
+    if (!userId) {
       return res.json({
         success: true,
         audioId: id,
@@ -221,10 +259,13 @@ router.get('/:id/progress', async (req, res) => {
   try {
     const { id } = req.params;
     // TODO: SECURITY - Replace with JWT authentication
-    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
+    const rawUserId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
+    
+    // Resolve userId (handles both ObjectId and Telegram numeric ID)
+    const userId = await resolveUserObjectId(rawUserId);
     
     // Dev-safe: return safe default for invalid userId (prevents 500 errors)
-    if (!userId || !isValidObjectId(userId)) {
+    if (!userId) {
       return res.json({
         success: true,
         audioId: id,
@@ -277,15 +318,15 @@ router.get('/:containerId/last-track', async (req, res) => {
   try {
     const { containerId } = req.params;
     // TODO: SECURITY - Replace with JWT authentication
-    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
+    const rawUserId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
     
-    logger.info(`📊 Fetching last track for container ${containerId}, user ${userId || 'anonymous'}...`);
+    logger.info(`📊 Fetching last track for container ${containerId}, user ${rawUserId || 'anonymous'}...`);
     
-    // Dev-safe: pass userId even if invalid, service will handle it
-    const lastTrack = await audioService.getLastTrack(
-      userId && isValidObjectId(userId) ? userId : null,
-      containerId
-    );
+    // Resolve userId (handles both ObjectId and Telegram numeric ID)
+    const userId = await resolveUserObjectId(rawUserId);
+    
+    // Dev-safe: pass resolved userId to service
+    const lastTrack = await audioService.getLastTrack(userId, containerId);
     
     if (!lastTrack) {
       return res.status(404).json({
