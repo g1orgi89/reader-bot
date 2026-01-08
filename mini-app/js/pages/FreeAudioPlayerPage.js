@@ -584,15 +584,28 @@ class FreeAudioPlayerPage {
         
         // Wait for audio to be ready before seeking
         const audio = window.audioService.audio;
-        if (audio.readyState >= 2) { // HAVE_CURRENT_DATA or better
+        const HAVE_CURRENT_DATA = 2; // HTMLMediaElement.HAVE_CURRENT_DATA
+        
+        if (audio.readyState >= HAVE_CURRENT_DATA) {
           window.audioService.seekTo(positionToSeek);
         } else {
           // If not ready yet, wait for loadedmetadata event
+          let timeoutId = null;
           const onMetadataLoaded = () => {
             audio.removeEventListener('loadedmetadata', onMetadataLoaded);
+            if (timeoutId) clearTimeout(timeoutId);
             window.audioService.seekTo(positionToSeek);
           };
           audio.addEventListener('loadedmetadata', onMetadataLoaded);
+          
+          // Safety timeout to prevent memory leak if metadata never loads
+          timeoutId = setTimeout(() => {
+            audio.removeEventListener('loadedmetadata', onMetadataLoaded);
+            console.warn('⚠️ FreeAudioPlayerPage: Metadata load timeout, attempting seekTo anyway');
+            if (audio.readyState > 0) {
+              window.audioService.seekTo(positionToSeek);
+            }
+          }, 5000);
         }
       }
     } catch (error) {
