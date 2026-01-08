@@ -152,6 +152,7 @@ class AudioService {
   updateMediaSession(metadata) {
     if (!('mediaSession' in navigator)) return;
 
+    // Note: Fallback to 'cover' for backward compatibility during migration to 'coverUrl'
     navigator.mediaSession.metadata = new MediaMetadata({
       title: metadata.title || 'Аудио разбор',
       artist: metadata.artist || 'Reader Bot',

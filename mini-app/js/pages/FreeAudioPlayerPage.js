@@ -584,9 +584,9 @@ class FreeAudioPlayerPage {
         
         // Wait for audio to be ready before seeking
         const audio = window.audioService.audio;
-        const HAVE_CURRENT_DATA = 2; // HTMLMediaElement.HAVE_CURRENT_DATA
+        const METADATA_LOAD_TIMEOUT_MS = 5000;
         
-        if (audio.readyState >= HAVE_CURRENT_DATA) {
+        if (audio.readyState >= audio.HAVE_CURRENT_DATA) {
           window.audioService.seekTo(positionToSeek);
         } else {
           // If not ready yet, wait for loadedmetadata event
@@ -605,7 +605,7 @@ class FreeAudioPlayerPage {
             if (audio.readyState > 0) {
               window.audioService.seekTo(positionToSeek);
             }
-          }, 5000);
+          }, METADATA_LOAD_TIMEOUT_MS);
         }
       }
     } catch (error) {
