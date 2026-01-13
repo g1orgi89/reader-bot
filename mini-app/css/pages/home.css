@@ -1296,8 +1296,7 @@ body.dark-theme {
     color: var(--primary-color, #D2452C);
 }
 
-.home-status-editor-btn.save:hover,
-.home-status-editor-btn.cancel:hover,
+.home-status-editor-btn:hover,
 .home-status-save:hover,
 .home-status-cancel:hover,
 .home-header-status-editor-btn:hover {
