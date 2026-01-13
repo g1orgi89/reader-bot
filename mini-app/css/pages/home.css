@@ -1217,7 +1217,20 @@ body.dark-theme {
     transform: scale(0.95);
 }
 
-.home-status-card-text {
+/* Real user status - larger, primary color, higher opacity */
+.home-status-text {
+    font-size: var(--font-size-sm);
+    line-height: 1.25;
+    color: var(--text-primary);
+    opacity: 0.95;
+    font-style: italic;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Placeholder status - smaller, secondary color, lower opacity */
+.home-status-placeholder {
     font-size: var(--font-size-xs);
     line-height: 1.25;
     color: var(--text-secondary);
@@ -1226,16 +1239,6 @@ body.dark-theme {
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
-}
-
-/* Actual status text - primary color */
-.home-status-card-text:not(.placeholder) {
-    color: var(--text-primary);
-}
-
-.home-status-card-text.placeholder {
-    color: var(--text-secondary, #666666);
-    opacity: 0.6;
 }
 
 /* Status editor within card */
@@ -1269,6 +1272,7 @@ body.dark-theme {
     align-items: center;
     gap: 8px;
     margin-left: 4px;
+    flex-shrink: 0;
 }
 
 .home-status-editor-btns {
