@@ -519,7 +519,7 @@ class ReaderApp {
         // === ONBOARDING STABILITY START ===
         // Определяем стартовый маршрут ДО инициализации роутера
         // чтобы избежать гонки /home → /onboarding
-        let initialRoute = '/home'; // Changed default from /home to /catalog
+        let initialRoute = '/home'; // дефолт: главная
         let onboardingCheckCompleted = false;
         
         try {
@@ -552,7 +552,7 @@ class ReaderApp {
                             isOnboardingComplete: true
                         });
                     }
-                    console.log('🏠 STABILITY: API показал онбординг завершен, можно /catalog');
+                    console.log('🏠 STABILITY: API показал онбординг завершен, можно /home');
                     
                     // === DEEPLINK ROUTING ===
                     // If we have a pending deeplink and onboarding is complete, use it as initial route
@@ -572,7 +572,7 @@ class ReaderApp {
                             initialRoute = rawHash; // Use full hash including query params
                             console.log(`🔗 Using explicit hash route: ${initialRoute}`);
                         } else {
-                            console.log(`📍 No explicit route, defaulting to /catalog`);
+                            console.log(`📍 No explicit route, defaulting to /home`);
                         }
                     }
                 }

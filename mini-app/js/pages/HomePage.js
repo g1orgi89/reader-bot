@@ -613,7 +613,7 @@ class HomePage {
      */
     renderHomeStatusCard(user) {
         const status = user.status || '';
-        const displayText = status || 'Мысль дня';
+        const displayText = status || 'Поделитесь своей мыслью дня!';
         const isPlaceholder = !status;
         
         return `
@@ -644,7 +644,7 @@ class HomePage {
                     id="statusInput"
                     maxlength="80"
                     value="${currentStatus}"
-                    placeholder="Мысль дня"
+                    placeholder="Поделитесь своей мыслью дня!"
                     autocomplete="off"
                 />
                 <div class="home-status-actions">
@@ -1085,7 +1085,7 @@ class HomePage {
         
         const profile = this.state.get('user.profile') || {};
         const status = profile.status || '';
-        const displayText = status || 'Мысль дня';
+        const displayText = status || 'Поделитесь своей мыслью дня!';
         const isPlaceholder = !status;
         
         statusContainer.innerHTML = `
