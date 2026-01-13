@@ -26,8 +26,9 @@ const FREE_AUDIO_METADATA = {
     id: 'malenkii_princ',
     title: 'Разбор: «Маленький принц»',
     author: 'Антуан де Сент-Экзюпери',
-    description: 'Глубокий аудиоразбор по частям',
+    description: 'Этот разбор прослушало более 35.000 человек!',
     coverUrl: '/assets/book-covers/malenkii_princ.png',
+    playerCoverUrl: '/assets/audio-covers/malenkii_princ-player.jpg',
     isFree: true,
     tracks: [
       {
@@ -59,6 +60,32 @@ const FREE_AUDIO_METADATA = {
         id: 'malenkii_princ-06',
         title: 'Часть 6',
         file: 'malenkii_princ/06.mp3'
+      }
+    ]
+  },
+  'eat_pray_love': {
+    id: 'eat_pray_love',
+    title: 'Разбор фильма: «Ешь, молись, люби»',
+    author: 'Фильм',
+    description: 'Как найти своё предназначение?',
+    coverUrl: '/assets/book-covers/eat_pray_love.png',
+    playerCoverUrl: '/assets/audio-covers/eat_pray_love-player.jpg',
+    isFree: true,
+    tracks: [
+      {
+        id: 'eat_pray_love-01',
+        title: 'Часть 1',
+        file: 'eat_pray_love/01.mp3'
+      },
+      {
+        id: 'eat_pray_love-02',
+        title: 'Часть 2',
+        file: 'eat_pray_love/02.mp3'
+      },
+      {
+        id: 'eat_pray_love-03',
+        title: 'Часть 3',
+        file: 'eat_pray_love/03.mp3'
       }
     ]
   }
@@ -117,6 +144,7 @@ async function findById(audioId) {
           author: audio.author,
           description: audio.description,
           coverUrl: audio.coverUrl,
+          playerCoverUrl: audio.playerCoverUrl,
           isFree: true,
           tracks: audio.tracks
         };
@@ -130,6 +158,7 @@ async function findById(audioId) {
         description: audio.description,
         durationSec: audio.durationSec,
         coverUrl: audio.coverUrl,
+        playerCoverUrl: audio.playerCoverUrl,
         audioUrl: `/media/free/${audio.audioFile}`,
         isFree: true
       };
@@ -174,9 +203,28 @@ async function findById(audioId) {
 async function isUnlocked(userId, audioId) {
   try {
     // Free content is always unlocked (including tracks from free containers)
-    if (audioId.startsWith('free-') || audioId.startsWith('malenkii_princ')) {
+    // Check if ID starts with 'free-' prefix
+    if (audioId.startsWith('free-')) {
       logger.info(`✅ Free audio ${audioId} is unlocked for all users`);
       return true;
+    }
+
+    // Check if it's a direct container ID in FREE_AUDIO_METADATA
+    if (FREE_AUDIO_METADATA[audioId]) {
+      logger.info(`✅ Free audio ${audioId} is unlocked for all users`);
+      return true;
+    }
+
+    // Check if it's a track ID from a free container (format: containerId-trackNumber)
+    for (const containerId in FREE_AUDIO_METADATA) {
+      const container = FREE_AUDIO_METADATA[containerId];
+      if (container.tracks) {
+        const track = container.tracks.find(t => t.id === audioId);
+        if (track) {
+          logger.info(`✅ Free audio ${audioId} is unlocked for all users`);
+          return true;
+        }
+      }
     }
 
     // For premium content, check entitlements

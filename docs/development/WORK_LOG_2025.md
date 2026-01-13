@@ -2507,3 +2507,79 @@ curl "http://localhost:3003/api/reader/audio/free-lpp/progress?userId=demo-user"
 ---
 
 <!-- Следующие записи добавляются ниже -->
+
+## 2025-01-13 - Добавление нового аудио контейнера и поддержки playerCoverUrl
+
+**Задача:** Расширение функциональности аудиоплеера
+
+**Затраченное время:** 2 часа
+
+### Выполненная работа
+
+#### 1. Добавлен новый бесплатный аудио контейнер "Ешь, молись, люби"
+- Создан контейнер `eat_pray_love` с тремя частями (01.mp3, 02.mp3, 03.mp3)
+- Заголовок: "Разбор фильма: «Ешь, молись, люби»"
+- Автор: "Фильм"
+- Описание: "Как найти своё предназначение?"
+- Обложка для каталога: `/assets/book-covers/eat_pray_love.png`
+- Обложка для плеера: `/assets/audio-covers/eat_pray_love-player.jpg`
+
+#### 2. Обновлено описание контейнера "Маленький принц"
+- Изменено описание с "Глубокий аудиоразбор по частям" на "Этот разбор прослушало более 35.000 человек!"
+
+#### 3. Внедрена поддержка отдельной обложки для плеера (playerCoverUrl)
+- Добавлено поле `playerCoverUrl` в метаданные аудио контейнеров
+- Позволяет использовать разные изображения для каталога (coverUrl) и плеера (playerCoverUrl)
+- Плеер использует playerCoverUrl, если он доступен, иначе fallback на coverUrl
+
+#### 4. Улучшена проверка доступа к бесплатным аудио
+- Функция `isUnlocked()` теперь проверяет FREE_AUDIO_METADATA динамически
+- Убран хардкод на 'malenkii_princ', теперь все контейнеры из FREE_AUDIO_METADATA автоматически считаются бесплатными
+
+### Файлы изменены
+
+**Сервер:**
+- `server/services/audio/audioService.js`:
+  - Обновлен FREE_AUDIO_METADATA с новым контейнером eat_pray_love
+  - Добавлено поле playerCoverUrl для malenkii_princ и eat_pray_love
+  - Функция findById() теперь возвращает playerCoverUrl
+  - Функция isUnlocked() использует динамическую проверку по FREE_AUDIO_METADATA
+
+**Фронтенд:**
+- `mini-app/js/pages/FreeAudioPlayerPage.js`:
+  - Рендер изображения плеера использует playerCoverUrl || coverUrl
+  - AudioService.play() получает правильную обложку для Media Session API
+
+**Инфраструктура:**
+- Создана директория `mini-app/assets/audio-covers/` для хранения крупных обложек плеера
+
+### Технические детали
+
+**Структура данных:**
+```javascript
+{
+  id: 'eat_pray_love',
+  title: 'Разбор фильма: «Ешь, молись, люби»',
+  author: 'Фильм',
+  description: 'Как найти своё предназначение?',
+  coverUrl: '/assets/book-covers/eat_pray_love.png',        // Каталог
+  playerCoverUrl: '/assets/audio-covers/eat_pray_love-player.jpg',  // Плеер
+  isFree: true,
+  tracks: [...]
+}
+```
+
+**Backward compatibility:**
+- Старые контейнеры без playerCoverUrl продолжают работать (fallback на coverUrl)
+- CSS не изменялся, используется та же структура разметки
+- Production конфигурации не затронуты
+
+### Следующие шаги
+
+1. ✅ Загрузить изображения обложек в соответствующие директории
+2. ⏳ Загрузить аудиофайлы eat_pray_love на сервер в /srv/reader-audio/free/eat_pray_love/
+3. ⏳ Протестировать на dev.unibotz.com
+4. ⏳ Проверить Media Session API с новыми обложками
+5. ⏳ Deploy на production
+
+---
