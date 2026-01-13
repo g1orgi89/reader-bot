@@ -46,7 +46,7 @@ class CatalogPage {
         
         // Состояние фильтров (14 категорий + ВСЕ)
         // Set initial filter from query parameters
-        this.activeFilter = this.query.category ? this.mapQueryCategoryToFilter(this.query.category) : 'ПАКЕТЫ';
+        this.activeFilter = this.query.category ? this.mapQueryCategoryToFilter(this.query.category) : 'ВСЕ';
         this.searchQuery = '';
         this.showSearch = false;
         
@@ -768,7 +768,7 @@ class CatalogPage {
      */
     renderFilterTabs() {
         const tabs = ['ПАКЕТЫ', 'ВСЕ', ...CATALOG_CATEGORIES];
-        const active = this.activeFilter || 'ПАКЕТЫ';
+        const active = this.activeFilter || 'ВСЕ';
         return `
             <div class="filter-tabs">
                 ${tabs.map(tab => `

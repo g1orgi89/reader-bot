@@ -1182,9 +1182,6 @@ class ReportsPage {
                 ${reportHeader}
                 ${aiAnalysis}
                 ${personalGrowth}
-                ${recommendations}
-                ${booksSection}
-                // ${offerSection}
             `;
         }
 
