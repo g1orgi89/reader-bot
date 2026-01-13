@@ -335,7 +335,7 @@ class FreeAudioPlayerPage {
       <div class="audio-player">
         <!-- Cover Art -->
         <div class="player-cover">
-          <img src="${this.audioMetadata.coverUrl}" 
+          <img src="${this.audioMetadata.playerCoverUrl || this.audioMetadata.coverUrl}" 
                alt="${escapeHtml(this.audioMetadata.title)}"
                onerror="this.src='/assets/audio/default-cover.jpg'">
         </div>
@@ -572,7 +572,7 @@ class FreeAudioPlayerPage {
         id: audioIdToPlay,
         title: this.getTrackTitle(),
         artist: this.audioMetadata.author,
-        coverUrl: this.audioMetadata.coverUrl,
+        cover: this.audioMetadata.playerCoverUrl || this.audioMetadata.coverUrl,
         url: streamUrlResponse.url
       }, this.api);
 
