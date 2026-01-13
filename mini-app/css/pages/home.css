@@ -1102,8 +1102,7 @@ body.dark-theme {
     color: var(--primary-color);
 }
 
-.home-header-status-editor-btn.save:hover,
-.home-header-status-editor-btn.cancel:hover {
+.home-header-status-editor-btn:hover {
     opacity: 0.8;
 }
 
@@ -1217,25 +1216,28 @@ body.dark-theme {
     transform: scale(0.95);
 }
 
-.home-status-card-text {
-    font-size: var(--font-size-xs);
+/* Real status text - larger and more prominent */
+.home-status-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    opacity: 0.95;
     line-height: 1.25;
-    color: var(--text-secondary);
-    opacity: 0.9;
     font-style: italic;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
 
-/* Actual status text - primary color */
-.home-status-card-text:not(.placeholder) {
-    color: var(--text-primary);
-}
-
-.home-status-card-text.placeholder {
+/* Placeholder "Мысль дня" - smaller and muted */
+.home-status-placeholder {
+    font-size: var(--font-size-xs);
     color: var(--text-secondary, #666666);
-    opacity: 0.6;
+    opacity: 0.9;
+    line-height: 1.25;
+    font-style: italic;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 /* Status editor within card */
@@ -1264,13 +1266,7 @@ body.dark-theme {
 }
 
 /* Compact action container for status edit buttons */
-.home-status-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: 4px;
-}
-
+.home-status-actions,
 .home-status-editor-btns {
     display: inline-flex;
     align-items: center;
@@ -1279,6 +1275,7 @@ body.dark-theme {
     flex-shrink: 0;
 }
 
+/* Compact status edit buttons (✔ / ✖) - ~18x18px, opacity ~0.6 */
 .home-status-editor-btn,
 .home-status-save,
 .home-status-cancel,
@@ -1298,8 +1295,7 @@ body.dark-theme {
     color: var(--primary-color, #D2452C);
 }
 
-.home-status-editor-btn.save:hover,
-.home-status-editor-btn.cancel:hover,
+.home-status-editor-btn:hover,
 .home-status-save:hover,
 .home-status-cancel:hover,
 .home-header-status-editor-btn:hover {

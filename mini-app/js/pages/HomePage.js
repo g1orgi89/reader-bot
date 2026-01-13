@@ -613,8 +613,9 @@ class HomePage {
      */
     renderHomeStatusCard(user) {
         const status = user.status || '';
-        const displayText = status || 'Добавьте свою мысль дня...';
+        const displayText = status || 'Мысль дня';
         const isPlaceholder = !status;
+        const cssClass = isPlaceholder ? 'home-status-placeholder' : 'home-status-text';
         
         return `
             <div class="home-status-card">
@@ -623,7 +624,7 @@ class HomePage {
                     <button class="home-status-card-edit-btn" id="statusEditBtn" aria-label="Редактировать статус">✏️</button>
                 </div>
                 <div id="statusContainer">
-                    <div class="home-status-card-text ${isPlaceholder ? 'placeholder' : ''}" id="statusDisplay">
+                    <div class="${cssClass}" id="statusDisplay">
                         ${displayText}
                     </div>
                 </div>
@@ -647,11 +648,11 @@ class HomePage {
                     placeholder="Мысль дня"
                     autocomplete="off"
                 />
-                <div class="home-status-editor-btns">
-                    <button class="home-status-editor-btn save" id="statusSaveBtn" aria-label="Сохранить">
+                <div class="home-status-actions">
+                    <button class="home-status-editor-btn home-status-save" id="statusSaveBtn" aria-label="Сохранить">
                         ✔
                     </button>
-                    <button class="home-status-editor-btn cancel" id="statusCancelBtn" aria-label="Отмена">
+                    <button class="home-status-editor-btn home-status-cancel" id="statusCancelBtn" aria-label="Отмена">
                         ✖
                     </button>
                 </div>
@@ -1055,11 +1056,12 @@ class HomePage {
         
         const profile = this.state.get('user.profile') || {};
         const status = profile.status || '';
-        const displayText = status || 'Добавьте свою мысль дня...';
+        const displayText = status || 'Мысль дня';
         const isPlaceholder = !status;
+        const cssClass = isPlaceholder ? 'home-status-placeholder' : 'home-status-text';
         
         statusContainer.innerHTML = `
-            <div class="home-status-card-text ${isPlaceholder ? 'placeholder' : ''}" id="statusDisplay">
+            <div class="${cssClass}" id="statusDisplay">
                 ${displayText}
             </div>
         `;
