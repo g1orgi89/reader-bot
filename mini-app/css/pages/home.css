@@ -1216,7 +1216,11 @@ body.dark-theme {
     transform: scale(0.95);
 }
 
-.home-status-card-text {
+/* Real status text - larger and more prominent */
+.home-status-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    opacity: 0.95;
     line-height: 1.25;
     font-style: italic;
     white-space: normal;
@@ -1224,20 +1228,16 @@ body.dark-theme {
     word-break: break-word;
 }
 
-/* Real status text - larger and more prominent */
-.home-status-text,
-.home-status-card-text:not(.placeholder) {
-    font-size: var(--font-size-sm);
-    color: var(--text-primary);
-    opacity: 0.95;
-}
-
 /* Placeholder "Мысль дня" - smaller and muted */
-.home-status-placeholder,
-.home-status-card-text.placeholder {
+.home-status-placeholder {
     font-size: var(--font-size-xs);
     color: var(--text-secondary, #666666);
     opacity: 0.9;
+    line-height: 1.25;
+    font-style: italic;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 /* Status editor within card */
