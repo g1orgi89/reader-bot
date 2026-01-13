@@ -2583,3 +2583,110 @@ curl "http://localhost:3003/api/reader/audio/free-lpp/progress?userId=demo-user"
 5. ⏳ Deploy на production
 
 ---
+
+## 2026-01-13 - UI Fixes: Home, Reports, Catalog Improvements
+
+### Изменения
+
+**Home Page:**
+- Заменена иконка меню "⋮" на стилизованную текстовую кнопку "Меню"
+  - Используется дизайн-система приложения (btn btn-primary btn-sm)
+  - Терракотовый цвет (--primary-color) с hover эффектами
+  - Haptic feedback при нажатии
+  - Сохранена интеграция с TopMenu
+- Изменена навигация при клике на аватар с `/settings` на `/profile?user=me`
+- Сохранены все ранее согласованные изменения (размер шрифта статуса, компактные кнопки редактирования, меньший размер текста "(подряд)" в прогрессе)
+
+**Reports Page (Monthly View):**
+- Добавлена санитизация причин рекомендаций - удаляются строки начинающиеся с "//"
+  - Фильтрация применяется к полю `reasoning` в рекомендациях
+  - Предотвращает отображение технических комментариев пользователям
+- Удалены промо-секции в месячных отчётах
+  - Секции с рекомендуемыми книгами не отображаются в Monthly view
+  - Секции со специальными предложениями не отображаются в Monthly view
+  - Выполнено согласно требованиям UX
+- Исправлена навигация при клике на рекомендацию
+  - Добавлен метод `handleRecommendationClick(bookSlug)`
+  - Навигация на `/catalog?filter=all&highlight=${bookSlug}`
+  - Применен haptic feedback
+
+**Catalog Page:**
+- Добавлена обработка параметра `filter=all` в URL
+  - При переходе с `filter=all` активируется таб "ВСЕ"
+  - Парсинг параметров выполняется в конструкторе и в `onShow()`
+- Улучшена обработка параметра `highlight`
+  - Применение highlight после полной загрузки каталога
+  - Повторный рендер при наличии новых параметров filter/highlight
+  
+### Файлы изменены
+
+**Frontend:**
+- `mini-app/js/pages/HomePage.js`:
+  - `renderUserHeader()` - заменён текст кнопки меню на "Меню", добавлены классы btn btn-primary btn-sm
+  - `handleAvatarClick()` - изменён путь навигации с `/settings` на `/profile?user=me`
+  
+- `mini-app/css/pages/home.css`:
+  - `.home-header-menu-btn` - обновлены стили для текстовой кнопки с терракотовым фоном
+  - Добавлены hover и active состояния согласно дизайн-системе
+  
+- `mini-app/js/pages/ReportsPage.js`:
+  - `renderRecommendations()` - добавлена санитизация `reasoning` (удаление строк с "//")
+  - `renderRecommendations()` - изменён link на button с onclick для навигации
+  - `renderMonthlyReportView()` - удалены секции с книжными рекомендациями и промо
+  - Добавлен метод `handleRecommendationClick()` для навигации в каталог
+  
+- `mini-app/js/pages/CatalogPage.js`:
+  - Конструктор - добавлена обработка `query.filter === 'all'`
+  - `onShow()` - добавлен парсинг query параметров при показе страницы
+  - Поддержка динамического изменения activeFilter и highlight
+
+### Технические детали
+
+**Санитизация рекомендаций:**
+```javascript
+let sanitizedReasoning = '';
+if (showReasoning) {
+    sanitizedReasoning = rec.reasoning
+        .split('\n')
+        .filter(line => !line.trim().startsWith('//'))
+        .join('\n')
+        .trim();
+}
+```
+
+**Навигация с filter=all:**
+```javascript
+if (currentQuery.filter === 'all') {
+    this.activeFilter = 'ВСЕ';
+}
+```
+
+**Стили кнопки меню:**
+```css
+.home-header-menu-btn {
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    font-weight: var(--font-weight-semibold);
+    /* ... other design system styles */
+}
+```
+
+### Проверено
+
+- ✅ Кнопка "Меню" отображается с правильными стилями (терракотовый фон, белый текст)
+- ✅ Haptic feedback работает при клике на кнопку меню
+- ✅ Клик по аватару открывает `/profile?user=me`
+- ✅ Рекомендации в месячных отчётах не содержат строк начинающихся с "//"
+- ✅ Промо-секции не отображаются в месячных отчётах
+- ✅ Клик по рекомендации ведёт на `/catalog?filter=all&highlight=...`
+- ✅ Каталог активирует таб "ВСЕ" при `filter=all`
+- ✅ Highlight применяется после загрузки каталога
+- ✅ Переменные бренда в variables.css не изменены
+
+### Следующие шаги
+
+1. ⏳ Тестирование UI на реальных устройствах
+2. ⏳ Проверка навигации между страницами
+3. ⏳ Тестирование на разных темах (светлая/тёмная)
+
+---

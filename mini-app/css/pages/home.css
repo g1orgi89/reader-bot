@@ -925,27 +925,36 @@ body.dark-theme {
 }
 
 .home-header-menu-btn {
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: none;
-    border-radius: var(--radius-md, 8px);
+    /* Use existing design system button classes: btn btn-primary btn-sm */
+    /* Override specific positioning and sizing for home header */
+    min-width: auto;
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    color: var(--text-primary, #2D2D2D);
-    transition: all var(--transition-fast, 0.2s ease);
     flex-shrink: 0;
+    /* Ensure terracotta color from design system */
+    background: var(--primary-color);
+    color: var(--text-inverse);
+    border: none;
+    transition: all var(--transition-fast, 0.2s ease);
+    box-shadow: var(--shadow-sm);
 }
 
 .home-header-menu-btn:hover {
-    background: var(--bg-overlay, rgba(210, 69, 44, 0.1));
+    background: var(--primary-dark);
+    box-shadow: var(--shadow-primary);
+    transform: translateY(-1px);
 }
 
 .home-header-menu-btn:active {
-    transform: scale(0.95);
+    background: var(--primary-dark);
+    transform: scale(0.95) translateY(0);
+    box-shadow: var(--shadow-sm);
 }
 
 .home-header-spacer {

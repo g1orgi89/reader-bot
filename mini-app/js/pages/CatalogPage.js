@@ -46,7 +46,14 @@ class CatalogPage {
         
         // Состояние фильтров (14 категорий + ВСЕ)
         // Set initial filter from query parameters
-        this.activeFilter = this.query.category ? this.mapQueryCategoryToFilter(this.query.category) : 'ПАКЕТЫ';
+        // ✅ НОВОЕ: Handle filter=all query parameter
+        if (this.query.filter === 'all') {
+            this.activeFilter = 'ВСЕ';
+        } else if (this.query.category) {
+            this.activeFilter = this.mapQueryCategoryToFilter(this.query.category);
+        } else {
+            this.activeFilter = 'ПАКЕТЫ';
+        }
         this.searchQuery = '';
         this.showSearch = false;
         
@@ -1099,6 +1106,21 @@ class CatalogPage {
      */
     onShow() {
         console.log('📚 CatalogPage: onShow - БЕЗ ШАПКИ!');
+        
+        // ✅ НОВОЕ: Parse query parameters to update filter and highlight
+        const currentQuery = this.app.initialState?.query || {};
+        
+        // Handle filter=all query parameter
+        if (currentQuery.filter === 'all') {
+            this.activeFilter = 'ВСЕ';
+        } else if (currentQuery.category) {
+            this.activeFilter = this.mapQueryCategoryToFilter(currentQuery.category);
+        }
+        
+        // Handle highlight parameter
+        if (currentQuery.highlight && !this.highlightApplied) {
+            this.pendingHighlight = currentQuery.highlight;
+        }
       
         // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
         if (!this.catalogLoaded) {
@@ -1140,6 +1162,11 @@ class CatalogPage {
                 const existingTopWeekData = this.state.get('catalog.topWeekIds');
                 if (existingTopWeekData && existingTopWeekData.ids) {
                     this.topWeekIds = existingTopWeekData.ids;
+                }
+                
+                // Re-render to apply new filter/highlight
+                if (currentQuery.filter === 'all' || currentQuery.highlight) {
+                    this.rerender();
                 }
             }
         }

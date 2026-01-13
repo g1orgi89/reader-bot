@@ -1093,89 +1093,14 @@ class ReportsPage {
         ` : '';
         
         // ✅ FIX: Рекомендуемые книги - теперь как в еженедельных отчётах с возможностью перехода
-        const bookSuggestions = report.analysis?.bookSuggestions || [];
+        // ✅ НОВОЕ: Do NOT render promo sections in Monthly view
         let booksSection = '';
         
-        if (bookSuggestions.length > 0) {
-            // Получаем каталог книг для поиска slug
-            let catalogBooks = [];
-            if (this.app?.state?.get && typeof this.app.state.get === 'function') {
-                catalogBooks = this.app.state.get('books') || [];
-            } else if (this.app?.state?.books) {
-                catalogBooks = this.app.state.books;
-            }
+        // Monthly reports should not show book suggestions/promo sections
+        // This follows the requirement to not render promo sections in Monthly view
             
-            booksSection = `
-                <div class="promo-section">
-                    <div class="promo-title">🎯 Рекомендуемые книги</div>
-                    <div class="promo-list">
-                        ${bookSuggestions.map(bookItem => {
-                            // ✅ FIX: Поддержка обоих форматов - строка и объект
-                            let title = '';
-                            let author = '';
-                            
-                            if (typeof bookItem === 'string') {
-                                // Старый формат: строка "Название (Автор)"
-                                title = bookItem;
-                                const match = bookItem.match(/^['\"]?(.+?)['\"]?\s*\(([^)]+)\)$/);
-                                if (match) {
-                                    title = match[1].trim();
-                                    author = match[2].trim();
-                                }
-                            } else if (typeof bookItem === 'object' && bookItem !== null) {
-                                // Новый формат: объект { title, author, ... }
-                                title = bookItem.title || bookItem.name || '';
-                                author = bookItem.author || '';
-                            }
-                            
-                            // Если не удалось извлечь title - пропускаем
-                            if (!title) {
-                                console.warn('⚠️ Не удалось извлечь название книги:', bookItem);
-                                return '';
-                            }
-                            
-                            // Ищем книгу в каталоге для получения slug
-                            let bookSlug = '';
-                            if (catalogBooks.length > 0) {
-                                const found = catalogBooks.find(book => 
-                                    book.title && title && 
-                                    book.title.toLowerCase().includes(title.toLowerCase().substring(0, 20))
-                                );
-                                if (found && found.bookSlug) {
-                                    bookSlug = found.bookSlug;
-                                }
-                            }
-                            
-                            // Если не нашли - генерируем fallback slug
-                            if (!bookSlug) {
-                                bookSlug = this.generateFallbackSlug(title);
-                            }
-                            
-                            return `
-                                <div class="promo-book">
-                                    <div class="promo-book-title">${this.escapeHtml(title)}</div>
-                                    ${author ? `<div class="promo-book-author">${this.escapeHtml(author)}</div>` : ''}
-                                    <a class="promo-book-link" href="#/catalog?highlight=${bookSlug}">Подробнее в каталоге</a>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        }
-            
-            // Специальное предложение
-            const offer = report.specialOffer;
-            const offerSection = offer && offer.discount ? `
-                <div class="promo-section">
-                    <div class="promo-title">🎁 Специальное предложение</div>
-                    <div class="promo-text">
-                        Скидка ${offer.discount}% на разборы книг!
-                        ${offer.promoCode ? `<br>Промокод: <strong>${offer.promoCode}</strong>` : ''}
-                        ${offer.validUntil ? `<br>Действует до: ${new Date(offer.validUntil).toLocaleDateString('ru-RU')}` : ''}
-                    </div>
-                </div>
-            ` : '';
+            // Специальное предложение - REMOVED for Monthly view
+            const offerSection = '';
             
             return `
                 ${backButton}
@@ -1184,7 +1109,7 @@ class ReportsPage {
                 ${personalGrowth}
                 ${recommendations}
                 ${booksSection}
-                // ${offerSection}
+                ${offerSection}
             `;
         }
 
@@ -1666,17 +1591,27 @@ class ReportsPage {
                                 rec.reasoning.trim() !== rec.description?.trim() &&
                                 rec.reasoning.trim() !== rec.title?.trim();
 
+                            // ✅ НОВОЕ: Sanitize reasoning to remove stray leading "//" lines
+                            let sanitizedReasoning = '';
+                            if (showReasoning) {
+                                sanitizedReasoning = rec.reasoning
+                                    .split('\n')
+                                    .filter(line => !line.trim().startsWith('//'))
+                                    .join('\n')
+                                    .trim();
+                            }
+
                             // ✅ НОВОЕ: Форматируем цену с BYN и RUB для отчётов
                             const priceDisplay = rec.priceByn ? this.formatPriceReport(rec.priceByn, rec.title) : '';
 
                             return `
-                                <div class="promo-book">
+                                <div class="promo-book" data-book-slug="${rec.bookSlug || ''}">
                                     <div class="promo-book-title">${window.escapeHtml ? window.escapeHtml(rec.title) : rec.title}</div>
                                     ${rec.author ? `<div class="promo-book-author">${window.escapeHtml ? window.escapeHtml(rec.author) : rec.author}</div>` : ""}
                                     <div class="promo-book-desc">${window.escapeHtml ? window.escapeHtml(rec.description) : rec.description}</div>
-                                    ${showReasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(rec.reasoning) : rec.reasoning}</div>` : ""}
+                                    ${sanitizedReasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(sanitizedReasoning) : sanitizedReasoning}</div>` : ""}
                                     ${priceDisplay ? `<div class="promo-book-price">Цена: <b>${priceDisplay}</b></div>` : ""}
-                                    <a class="promo-book-link" href="#/catalog?highlight=${rec.bookSlug}">Подробнее</a>
+                                    <button class="promo-book-link" onclick="window.reportsPage.handleRecommendationClick('${rec.bookSlug || ''}')">Подробнее</button>
                                 </div>
                             `;
                         }).join('')}
@@ -1864,6 +1799,32 @@ class ReportsPage {
             console.warn('⚠️ Ошибка тихого refresh (не критично):', error);
             // При ошибке тихого refresh не показываем пользователю ошибку
             // Просто логируем и продолжаем показывать кэшированные данные
+        }
+    }
+    
+    /**
+     * 🎯 Обработчик клика по рекомендации
+     * Navigates to Catalog with filter=all and highlight
+     */
+    handleRecommendationClick(bookSlug) {
+        if (!bookSlug) {
+            console.warn('⚠️ handleRecommendationClick: bookSlug is empty');
+            return;
+        }
+        
+        console.log('🎯 ReportsPage: Navigate to catalog with highlight:', bookSlug);
+        
+        // Haptic feedback
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('light');
+        }
+        
+        // Navigate to catalog with filter=all and highlight
+        if (this.app && this.app.router) {
+            this.app.router.navigate(`/catalog?filter=all&highlight=${bookSlug}`);
+        } else {
+            // Fallback using window.location
+            window.location.hash = `#/catalog?filter=all&highlight=${bookSlug}`;
         }
     }
     

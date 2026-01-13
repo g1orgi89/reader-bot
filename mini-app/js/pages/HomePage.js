@@ -602,7 +602,7 @@ class HomePage {
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
                 </div>
                 <div class="home-header-spacer"></div>
-                <button class="home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">⋮</button>
+                <button class="btn btn-primary btn-sm home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">Меню</button>
             </div>
         `;
     }
@@ -1070,13 +1070,13 @@ class HomePage {
 
     
     /**
-     * 👤 Обработчик клика по аватару (навигация в настройки)
-     * 🔧 NEW: Navigate to /settings when avatar is clicked
+     * 👤 Обработчик клика по аватару (навигация в профиль)
+     * 🔧 Navigate to /profile?user=me when avatar is clicked
      */
     handleAvatarClick() {
         this.telegram.hapticFeedback('light');
         if (this.app && this.app.router) {
-            this.app.router.navigate('/settings');
+            this.app.router.navigate('/profile?user=me');
         }
     }
     
