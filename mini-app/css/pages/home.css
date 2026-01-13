@@ -926,7 +926,7 @@ body.dark-theme {
 
 .home-header-menu-btn {
     height: 40px;
-    padding: 0 var(--spacing-md, 16px);
+    padding: 6px 12px;
     background: var(--surface);
     border: 1px solid var(--primary-color);
     border-radius: var(--radius-md, 8px);
@@ -1005,23 +1005,22 @@ body.dark-theme {
     white-space: normal; /* Разрешаем перенос на новые строки */
     overflow-wrap: anywhere;
     word-break: break-word;
-    font-style: italic;
 }
 
-/* Реальный статус - larger, primary color, higher opacity, normal style */
+/* Реальный статус - larger, primary color, higher opacity, italic */
 .home-header-status:not(.placeholder) {
     font-size: var(--font-size-sm);
     color: var(--text-primary);
     opacity: 0.95;
-    font-style: normal;
+    font-style: italic;
 }
 
-/* Плейсхолдер - smaller, secondary color, italic */
+/* Плейсхолдер - smaller, secondary color, normal style */
 .home-header-status.placeholder {
     font-size: var(--font-size-xs);
     color: var(--text-secondary);
     opacity: 0.9;
-    font-style: italic;
+    font-style: normal;
 }
 
 .home-header-status-edit-btn {
@@ -1227,25 +1226,25 @@ body.dark-theme {
     transform: scale(0.95);
 }
 
-/* Real user status - larger, primary color, higher opacity */
+/* Real user status - larger, primary color, higher opacity, italic */
 .home-status-text {
     font-size: var(--font-size-sm);
     line-height: 1.25;
     color: var(--text-primary);
     opacity: 0.95;
-    font-style: normal;
+    font-style: italic;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
 
-/* Placeholder status - smaller, secondary color, lower opacity, italic */
+/* Placeholder status - smaller, secondary color, lower opacity, normal */
 .home-status-placeholder {
     font-size: var(--font-size-xs);
     line-height: 1.25;
     color: var(--text-secondary);
     opacity: 0.9;
-    font-style: italic;
+    font-style: normal;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
