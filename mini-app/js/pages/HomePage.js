@@ -613,7 +613,7 @@ class HomePage {
      */
     renderHomeStatusCard(user) {
         const status = user.status || '';
-        const displayText = status || 'Добавьте свою мысль дня...';
+        const displayText = status || 'Мысль дня';
         const isPlaceholder = !status;
         
         return `
@@ -648,10 +648,10 @@ class HomePage {
                     autocomplete="off"
                 />
                 <div class="home-status-actions">
-                    <button class="home-status-editor-btn save" id="statusSaveBtn" aria-label="Сохранить">
+                    <button class="home-status-editor-btn home-status-save" id="statusSaveBtn" aria-label="Сохранить">
                         ✔
                     </button>
-                    <button class="home-status-editor-btn cancel" id="statusCancelBtn" aria-label="Отмена">
+                    <button class="home-status-editor-btn home-status-cancel" id="statusCancelBtn" aria-label="Отмена">
                         ✖
                     </button>
                 </div>
@@ -896,10 +896,40 @@ class HomePage {
      * 📱 Навешивание обработчиков событий
      */
     attachEventListeners() {
-        // 🔧 NEW: Home header avatar button (navigate to settings)
+        // 🔧 NEW: Home header avatar button (navigate to profile)
         const avatarBtn = document.getElementById('homeHeaderAvatar');
         if (avatarBtn) {
-            avatarBtn.addEventListener('click', () => this.handleAvatarClick());
+            avatarBtn.addEventListener('click', () => this.handleProfileNavigation());
+        }
+        
+        // 🔧 NEW: Home header name (navigate to profile)
+        const headerName = document.querySelector('.home-header-name');
+        if (headerName) {
+            headerName.style.cursor = 'pointer';
+            headerName.addEventListener('click', () => this.handleProfileNavigation());
+            headerName.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.handleProfileNavigation();
+                }
+            });
+            headerName.setAttribute('tabindex', '0');
+            headerName.setAttribute('role', 'button');
+        }
+        
+        // 🔧 NEW: Home header username (navigate to profile)
+        const headerUsername = document.querySelector('.home-header-username');
+        if (headerUsername) {
+            headerUsername.style.cursor = 'pointer';
+            headerUsername.addEventListener('click', () => this.handleProfileNavigation());
+            headerUsername.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.handleProfileNavigation();
+                }
+            });
+            headerUsername.setAttribute('tabindex', '0');
+            headerUsername.setAttribute('role', 'button');
         }
         
         // 🔧 NEW: Home header menu button (open TopMenu)
@@ -1055,7 +1085,7 @@ class HomePage {
         
         const profile = this.state.get('user.profile') || {};
         const status = profile.status || '';
-        const displayText = status || 'Добавьте свою мысль дня...';
+        const displayText = status || 'Мысль дня';
         const isPlaceholder = !status;
         
         statusContainer.innerHTML = `
@@ -1070,13 +1100,15 @@ class HomePage {
 
     
     /**
-     * 👤 Обработчик клика по аватару (навигация в настройки)
-     * 🔧 NEW: Navigate to /settings when avatar is clicked
+     * 👤 Обработчик навигации в профиль (заменяет старый handleAvatarClick)
+     * 🔧 NEW: Navigate to /profile?user=me when avatar, name, or username is clicked
      */
-    handleAvatarClick() {
-        this.telegram.hapticFeedback('light');
+    handleProfileNavigation() {
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('light');
+        }
         if (this.app && this.app.router) {
-            this.app.router.navigate('/settings');
+            this.app.router.navigate('/profile?user=me');
         }
     }
     

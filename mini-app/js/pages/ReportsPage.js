@@ -1113,6 +1113,7 @@ class ReportsPage {
                             // ✅ FIX: Поддержка обоих форматов - строка и объект
                             let title = '';
                             let author = '';
+                            let reason = '';
                             
                             if (typeof bookItem === 'string') {
                                 // Старый формат: строка "Название (Автор)"
@@ -1123,9 +1124,25 @@ class ReportsPage {
                                     author = match[2].trim();
                                 }
                             } else if (typeof bookItem === 'object' && bookItem !== null) {
-                                // Новый формат: объект { title, author, ... }
+                                // Новый формат: объект { title, author, reason, ... }
                                 title = bookItem.title || bookItem.name || '';
                                 author = bookItem.author || '';
+                                reason = bookItem.reason || bookItem.reasoning || '';
+                                
+                                // ✅ Sanitize reason: split by newline, strip leading //, trim, drop empty, join
+                                if (reason) {
+                                    reason = reason
+                                        .split(/\n/)
+                                        .map(line => {
+                                            let cleaned = line.trim();
+                                            if (cleaned.startsWith('//')) {
+                                                cleaned = cleaned.substring(2).trim();
+                                            }
+                                            return cleaned;
+                                        })
+                                        .filter(line => line.length > 0)
+                                        .join(' ');
+                                }
                             }
                             
                             // Если не удалось извлечь title - пропускаем
@@ -1152,10 +1169,11 @@ class ReportsPage {
                             }
                             
                             return `
-                                <div class="promo-book">
+                                <div class="promo-book" onclick="window.reportsPage.navigateToCatalog('${bookSlug}')">
                                     <div class="promo-book-title">${this.escapeHtml(title)}</div>
                                     ${author ? `<div class="promo-book-author">${this.escapeHtml(author)}</div>` : ''}
-                                    <a class="promo-book-link" href="#/catalog?highlight=${bookSlug}">Подробнее в каталоге</a>
+                                    ${reason ? `<div class="promo-book-reason">${this.escapeHtml(reason)}</div>` : ''}
+                                    <div class="promo-book-link">Подробнее в каталоге</div>
                                 </div>
                             `;
                         }).join('')}
@@ -1164,24 +1182,13 @@ class ReportsPage {
             `;
         }
             
-            // Специальное предложение
-            const offer = report.specialOffer;
-            const offerSection = offer && offer.discount ? `
-                <div class="promo-section">
-                    <div class="promo-title">🎁 Специальное предложение</div>
-                    <div class="promo-text">
-                        Скидка ${offer.discount}% на разборы книг!
-                        ${offer.promoCode ? `<br>Промокод: <strong>${offer.promoCode}</strong>` : ''}
-                        ${offer.validUntil ? `<br>Действует до: ${new Date(offer.validUntil).toLocaleDateString('ru-RU')}` : ''}
-                    </div>
-                </div>
-            ` : '';
-            
             return `
                 ${backButton}
                 ${reportHeader}
                 ${aiAnalysis}
                 ${personalGrowth}
+                ${recommendations}
+                ${booksSection}
             `;
         }
 
@@ -1308,6 +1315,19 @@ class ReportsPage {
             // Скроллим наверх
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+    
+    /**
+     * 📚 Навигация в каталог с фильтром и подсветкой
+     * @param {string} slug - Slug книги для подсветки
+     */
+    navigateToCatalog(slug) {
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+            this.telegram.hapticFeedback('light');
+        }
+        if (this.app && this.app.router) {
+            this.app.router.navigate(`/catalog?filter=all&highlight=${slug}`);
+        }
+    }
     
     /**
      * 📅 ВЫЧИСЛЕНИЕ ДАТЫ СЛЕДУЮЩЕГО ВОСКРЕСЕНЬЯ
