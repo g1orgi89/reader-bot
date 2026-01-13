@@ -623,7 +623,7 @@ class HomePage {
                     <button class="home-status-card-edit-btn" id="statusEditBtn" aria-label="Редактировать статус">✏️</button>
                 </div>
                 <div id="statusContainer">
-                    <div class="home-status-card-text ${isPlaceholder ? 'placeholder' : ''}" id="statusDisplay">
+                    <div class="${isPlaceholder ? 'home-status-placeholder' : 'home-status-text'}" id="statusDisplay">
                         ${displayText}
                     </div>
                 </div>
@@ -647,7 +647,7 @@ class HomePage {
                     placeholder="Мысль дня"
                     autocomplete="off"
                 />
-                <div class="home-status-editor-btns">
+                <div class="home-status-actions">
                     <button class="home-status-editor-btn save" id="statusSaveBtn" aria-label="Сохранить">
                         ✔
                     </button>
@@ -1059,7 +1059,7 @@ class HomePage {
         const isPlaceholder = !status;
         
         statusContainer.innerHTML = `
-            <div class="home-status-card-text ${isPlaceholder ? 'placeholder' : ''}" id="statusDisplay">
+            <div class="${isPlaceholder ? 'home-status-placeholder' : 'home-status-text'}" id="statusDisplay">
                 ${displayText}
             </div>
         `;
