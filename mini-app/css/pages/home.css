@@ -955,6 +955,49 @@ body.dark-theme {
     transform: scale(0.98);
 }
 
+/* ============================================================================
+   🔧 HIGH-SPECIFICITY ID OVERRIDE FOR HOME HEADER MENU BUTTON
+   Ensures pages/home.css wins over components/navigation.css
+   ============================================================================ */
+
+#homeHeaderMenuBtn {
+  box-sizing: border-box;
+  width: auto;
+  height: auto;
+  min-height: 40px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-md);
+  color: var(--primary-color);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition:
+    box-shadow var(--transition-fast, 0.2s),
+    transform var(--transition-fast, 0.2s);
+}
+
+#homeHeaderMenuBtn:hover {
+  box-shadow:
+    inset 0 0 0 9999px var(--bg-overlay, rgba(210, 69, 44, 0.08)),
+    inset 0 0 10px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+}
+
+#homeHeaderMenuBtn:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 9999px var(--bg-overlay, rgba(210, 69, 44, 0.10)),
+    inset 0 0 10px var(--shadow-color-strong, rgba(210, 69, 44, 0.18));
+}
+
+#homeHeaderMenuBtn:active {
+  transform: scale(0.98);
+}
+
 .home-header-spacer {
     flex: 1;
 }
