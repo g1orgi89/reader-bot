@@ -1228,7 +1228,7 @@ body.dark-theme {
     word-break: break-word;
 }
 
-/* Placeholder status - smaller, secondary color, lower opacity */
+/* Placeholder status - smaller, secondary color, lower opacity, italic */
 .home-status-placeholder {
     font-size: var(--font-size-xs);
     line-height: 1.25;
