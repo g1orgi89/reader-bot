@@ -519,7 +519,7 @@ class ReaderApp {
         // === ONBOARDING STABILITY START ===
         // Определяем стартовый маршрут ДО инициализации роутера
         // чтобы избежать гонки /home → /onboarding
-        let initialRoute = '/catalog'; // Changed default from /home to /catalog
+        let initialRoute = '/home'; // Changed default from /home to /catalog
         let onboardingCheckCompleted = false;
         
         try {
