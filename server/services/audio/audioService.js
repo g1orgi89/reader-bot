@@ -28,7 +28,7 @@ const FREE_AUDIO_METADATA = {
     author: 'Антуан де Сент-Экзюпери',
     description: 'Этот разбор прослушало более 35.000 человек!',
     coverUrl: '/assets/book-covers/malenkii_princ.png',
-    playerCoverUrl: '/assets/audio-covers/malenkii_princ-player.jpg',
+    playerCoverUrl: '/assets/audio-covers/malenkii_princ-player.png',
     isFree: true,
     tracks: [
       {
