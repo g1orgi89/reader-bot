@@ -63,32 +63,19 @@ const FREE_AUDIO_METADATA = {
       }
     ]
   },
-  'eat_pray_love': {
+  eat_pray_love: {
     id: 'eat_pray_love',
     title: 'Разбор фильма: «Ешь, молись, люби»',
     author: 'Фильм',
     description: 'Как найти своё предназначение?',
     coverUrl: '/assets/book-covers/eat_pray_love.png',
-    playerCoverUrl: '/assets/audio-covers/eat_pray_love-player.jpg',
+    playerCoverUrl: '/assets/audio-covers/eat_pray_love-player.png',
     isFree: true,
     tracks: [
-      {
-        id: 'eat_pray_love-01',
-        title: 'Часть 1',
-        file: 'eat_pray_love/01.mp3'
-      },
-      {
-        id: 'eat_pray_love-02',
-        title: 'Часть 2',
-        file: 'eat_pray_love/02.mp3'
-      },
-      {
-        id: 'eat_pray_love-03',
-        title: 'Часть 3',
-        file: 'eat_pray_love/03.mp3'
-      }
+      { id: 'eat_pray_love-01', title: 'Полный аудиоразбор', file: 'eat_pray_love/01.mp3' }
     ]
   }
+  
   // More free audios can be added here
 };
 
