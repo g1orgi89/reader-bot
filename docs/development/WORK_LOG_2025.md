@@ -56,6 +56,76 @@
 
 ## 📝 ЗАПИСИ
 
+## 2026-01-13 - UI Improvements: Menu Button, Status Editor, and Catalog Navigation
+
+**Задача:** Replace top menu icon with text button, improve status editor styling, sanitize recommendation reasons, enhance catalog navigation  
+**Фактически затрачено:** 1 час
+
+### Изменения
+
+**Home Page (`mini-app/css/pages/home.css` + `mini-app/js/pages/HomePage.js`):**
+1. ✅ Replaced "…" icon with terracotta text button "Меню"
+   - Uses existing design system classes: `btn btn-primary btn-sm`
+   - Ensures terracotta color from `variables.css` (`--primary-color: #D2452C`)
+   - Added haptic feedback on click
+   - Kept class name `home-header-menu-btn` for TopMenu binding compatibility
+2. ✅ Made status font smaller than placeholder "Мысль дня"
+   - Changed `.home-status-card-text` from `font-size: var(--font-size-sm, 14px)` to `font-size: var(--font-size-xs, 13px)`
+3. ✅ Confirmed ✔/✖ buttons already compact (~18px) with opacity ~0.6
+   - `.home-status-editor-btn` already has `width: 18px; height: 18px; opacity: 0.6;`
+4. ✅ Confirmed "(подряд)" text already smaller in progress section
+   - Already using inline style `font-size: 10px` in progress label
+5. ✅ Updated name/username/avatar to navigate to `/profile?user=me`
+   - Changed `handleAvatarClick()` from `/settings` to `/profile?user=me`
+   - Added click handler for `.home-header-info` (name/username container)
+   - Added cursor pointer style to info container
+
+**Reports Page (`mini-app/js/pages/ReportsPage.js`):**
+1. ✅ Sanitized recommendation reasons to remove stray leading "//"
+   - Added filtering in `renderRecommendations()` to remove lines starting with "//"
+   - Applied to `rec.reasoning` before display
+2. ✅ Removed promo sections in Monthly view
+   - Added early return `if (this.activeTab === 'monthly') return '';` in `renderRecommendations()`
+3. ✅ Updated recommendations to navigate to `/catalog?filter=all&highlight=...`
+   - Changed link from `#/catalog?highlight=${rec.bookSlug}` to `#/catalog?filter=all&highlight=${rec.bookSlug}`
+
+**Catalog Page (`mini-app/js/pages/CatalogPage.js`):**
+1. ✅ Parse query on show for `filter=all`
+   - Added URLSearchParams parsing in `onShow()`
+   - Detects `filter=all` query parameter
+2. ✅ Activate "All" tab when filter=all in query
+   - Sets `this.activeFilter = 'ВСЕ'` when `filter=all` is present
+3. ✅ Apply highlight after render when present in query
+   - Stored `highlightParam` in `this.pendingHighlight`
+   - Resets `this.highlightApplied = false` for re-application
+   - Triggers rerender when query params change on already loaded data
+
+### Технические детали
+
+**Design System Compliance:**
+- No changes to `mini-app/css/variables.css` brand variables
+- Used existing `btn`, `btn-primary`, `btn-sm` classes from `buttons.css`
+- Terracotta color (`--primary-color: #D2452C`) applied automatically via design system
+
+**Router/TopMenu Integration:**
+- Kept `home-header-menu-btn` class name for TopMenu binding
+- Menu button calls `this.app.showTopMenu()` via existing handler
+- No changes to Router or TopMenu components
+
+**Code Quality:**
+- Vanilla JS + CSS only (no frameworks)
+- Maintained existing patterns and conventions
+- Added helpful console.log statements for debugging
+
+### Результат
+
+✅ Menu button now clearly labeled "Меню" in terracotta color  
+✅ Status text properly sized relative to placeholder  
+✅ Profile navigation works from avatar, name, and username  
+✅ Recommendations show clean reasons without "//" artifacts  
+✅ Monthly reports don't show promo sections  
+✅ Catalog properly handles filter=all and highlight from query params  
+
 ## 2025-12-25 - ProfileModal Stability Fixes: Close Behavior, Stats Loading, Image Error Handling
 
 **Задача:** Стабилизировать модалку профиля, устранить глобальный onerror крэш, правильная загрузка счётчиков для «своего» профиля, автозакрытие модалок при навигации  

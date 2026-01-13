@@ -1099,6 +1099,23 @@ class CatalogPage {
      */
     onShow() {
         console.log('📚 CatalogPage: onShow - БЕЗ ШАПКИ!');
+        
+        // ✅ NEW: Parse query parameters for filter and highlight
+        const urlParams = new URLSearchParams(window.location.search);
+        const filterParam = urlParams.get('filter');
+        const highlightParam = urlParams.get('highlight');
+        
+        // ✅ NEW: If filter=all, activate "All" tab
+        if (filterParam === 'all') {
+            console.log('🎯 CatalogPage: Setting filter to "ВСЕ" from query parameter');
+            this.activeFilter = 'ВСЕ';
+        }
+        
+        // ✅ NEW: Store highlight for later application
+        if (highlightParam) {
+            this.pendingHighlight = highlightParam;
+            this.highlightApplied = false;
+        }
       
         // ✅ ИСПРАВЛЕНО: Умная загрузка как в HomePage
         if (!this.catalogLoaded) {
@@ -1140,6 +1157,11 @@ class CatalogPage {
                 const existingTopWeekData = this.state.get('catalog.topWeekIds');
                 if (existingTopWeekData && existingTopWeekData.ids) {
                     this.topWeekIds = existingTopWeekData.ids;
+                }
+                
+                // ✅ NEW: If we have query params but data is already loaded, rerender to apply changes
+                if (filterParam === 'all' || highlightParam) {
+                    this.rerender();
                 }
             }
         }

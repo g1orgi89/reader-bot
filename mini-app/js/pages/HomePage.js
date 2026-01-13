@@ -597,12 +597,12 @@ class HomePage {
                 <button class="home-header-avatar-large" id="homeHeaderAvatar" aria-label="Профиль">
                     ${this.renderUserAvatar(user.avatarUrl, initials)}
                 </button>
-                <div class="home-header-info">
+                <div class="home-header-info" id="homeHeaderInfo" style="cursor: pointer;">
                     <div class="home-header-name">${name || 'Пользователь'}</div>
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
                 </div>
                 <div class="home-header-spacer"></div>
-                <button class="home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">⋮</button>
+                <button class="btn btn-primary btn-sm home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">Меню</button>
             </div>
         `;
     }
@@ -896,10 +896,16 @@ class HomePage {
      * 📱 Навешивание обработчиков событий
      */
     attachEventListeners() {
-        // 🔧 NEW: Home header avatar button (navigate to settings)
+        // 🔧 NEW: Home header avatar button (navigate to profile)
         const avatarBtn = document.getElementById('homeHeaderAvatar');
         if (avatarBtn) {
             avatarBtn.addEventListener('click', () => this.handleAvatarClick());
+        }
+        
+        // 🔧 NEW: Home header info (name/username) - navigate to profile
+        const headerInfo = document.getElementById('homeHeaderInfo');
+        if (headerInfo) {
+            headerInfo.addEventListener('click', () => this.handleAvatarClick());
         }
         
         // 🔧 NEW: Home header menu button (open TopMenu)
@@ -1070,13 +1076,13 @@ class HomePage {
 
     
     /**
-     * 👤 Обработчик клика по аватару (навигация в настройки)
-     * 🔧 NEW: Navigate to /settings when avatar is clicked
+     * 👤 Обработчик клика по аватару (навигация в профиль)
+     * Navigate to /profile?user=me when avatar is clicked
      */
     handleAvatarClick() {
         this.telegram.hapticFeedback('light');
         if (this.app && this.app.router) {
-            this.app.router.navigate('/settings');
+            this.app.router.navigate('/profile?user=me');
         }
     }
     
