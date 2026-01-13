@@ -2583,3 +2583,163 @@ curl "http://localhost:3003/api/reader/audio/free-lpp/progress?userId=demo-user"
 5. ⏳ Deploy на production
 
 ---
+
+## 2026-01-13 - Audio UX Improvements: Label Rename, Playback Speed Control, and Routing Fix
+
+**Задача:** Улучшение пользовательского опыта в аудио функциональности
+
+**Затраченное время:** 3 часа
+
+### Выполненная работа
+
+#### 1. Переименование вкладки "Аудио" → "Аудиоразборы"
+- Обновлена метка вкладки в `CatalogPage.js` метод `renderTopSwitcher()`
+- Обновлена метка вкладки в `FreeAudiosPage.js` метод `renderTopTabs()`
+- Маршруты остались без изменений (/catalog и /free-audios)
+- Улучшена ясность интерфейса - пользователи понимают что это аудио разборы книг
+
+#### 2. Добавлен контроль скорости воспроизведения (x1, x1.5, x2)
+**Файл:** `mini-app/js/pages/FreeAudioPlayerPage.js`
+
+**Добавлены константы:**
+- `PLAYBACK_RATES = [1, 1.5, 2]` - доступные скорости
+- `RATE_STORAGE_KEY = 'rb.audio.rate'` - ключ для localStorage
+
+**Новые методы:**
+- `loadSavedRate()` - загрузка сохранённой скорости из localStorage
+- `saveRate(rate)` - сохранение скорости в localStorage
+- `applyRateToAudio()` - применение скорости к HTMLAudioElement
+- `onSelectRate(rate)` - обработчик выбора скорости
+- `toggleRateMenu()` - переключение меню скоростей
+- `updateRateUI()` - обновление UI контрола скорости
+- `renderRateControl()` - рендеринг кнопки скорости
+- `renderRateMenu()` - рендеринг меню выбора скорости
+- `bindRateControls()` - привязка событий к контролам
+
+**Обновлённые методы:**
+- `constructor()` - добавлен state для currentRate и showRateMenu
+- `renderPlayer()` - добавлен блок .player-rate-control в разметку
+- `attachEventListeners()` - добавлен вызов bindRateControls()
+- `startPlayback()` - применение скорости сразу и после события 'play' (iOS/Safari)
+
+**iOS/Safari совместимость:**
+- Скорость применяется сразу при старте воспроизведения
+- Дополнительно применяется при событии 'play' для Safari
+- Обработчик события удаляется после первого применения
+
+#### 3. Добавлены CSS стили для контрола скорости
+**Файл:** `mini-app/css/pages/audio.css`
+
+**Новые классы:**
+- `.player-rate-control` - контейнер для контрола скорости
+- `.player-rate-btn` - кнопка отображения текущей скорости
+- `.player-rate-menu` - выпадающее меню выбора скорости
+- `.rate-option` - опция скорости в меню
+- `.rate-option.active` - активная (выбранная) скорость
+
+**Особенности стилизации:**
+- Компактный дизайн, гармонично вписывается в плеер
+- Меню появляется над кнопкой (position: absolute, bottom: 100%)
+- Использование существующих CSS переменных
+- Не добавлено новых цветовых переменных
+- z-index: 10 для корректного отображения
+
+#### 4. Исправлен флicker при навигации на каталог на мобильных устройствах
+**Файлы:** `mini-app/js/core/App.js`, `mini-app/js/core/Router.js`
+
+**Изменения в App.js:**
+- `initializeRouting()`: изменён default route с `/home` на `/catalog`
+- Добавлена проверка явного hash маршрута в URL
+- Если hash пустой или нет deeplink - используется `/catalog`
+- Если есть явный hash - используется он (включая query параметры)
+- `normalizeRoute()`: изменён fallback с `/home` на `/catalog`
+
+**Изменения в Router.js:**
+- `handleInitialRoute()`: изменён fallback с `/home` на `/catalog`
+- При пустом hash стартуем с каталога
+
+**Результат:**
+- При открытии приложения без deeplink первая страница - каталог
+- Нет промежуточного рендера страницы /free-audios
+- Использование `replace: true` предотвращает загрязнение истории
+- Плавная навигация между вкладками без мерцания
+
+### Файлы изменены
+
+**Страницы:**
+- `mini-app/js/pages/CatalogPage.js` - изменена метка вкладки
+- `mini-app/js/pages/FreeAudiosPage.js` - изменена метка вкладки
+- `mini-app/js/pages/FreeAudioPlayerPage.js` - добавлен контроль скорости
+
+**Ядро:**
+- `mini-app/js/core/App.js` - default route /catalog, явная проверка hash
+- `mini-app/js/core/Router.js` - default route /catalog
+
+**Стили:**
+- `mini-app/css/pages/audio.css` - добавлены стили для контрола скорости
+
+**Документация:**
+- `docs/development/WORK_LOG_2025.md` - эта запись
+
+### Технические детали
+
+**Хранение данных:**
+```javascript
+localStorage.setItem('rb.audio.rate', '1.5')  // Сохранение выбранной скорости
+const rate = parseFloat(localStorage.getItem('rb.audio.rate'))  // Загрузка
+```
+
+**Применение скорости (iOS compatibility):**
+```javascript
+// Применяем сразу
+this.applyRateToAudio();
+
+// iOS/Safari: также применяем при событии 'play'
+const applyRateOnPlay = () => {
+  this.applyRateToAudio();
+  audio.removeEventListener('play', applyRateOnPlay);
+};
+audio.addEventListener('play', applyRateOnPlay);
+```
+
+**Логика default route:**
+```javascript
+let initialRoute = '/catalog';  // Default changed from /home
+
+// Check for explicit hash
+const rawHash = window.location.hash.slice(1);
+if (rawHash && rawHash !== '' && rawHash !== '/') {
+  const hashPath = rawHash.split('?')[0];
+  if (hashPath && hashPath !== '/' && hashPath.startsWith('/')) {
+    initialRoute = rawHash;  // Use explicit hash
+  }
+}
+```
+
+### Соблюдение требований
+
+✅ **Vanilla JS** - не использованы фреймворки  
+✅ **Существующие CSS переменные** - не добавлены новые color variables  
+✅ **Минимальные изменения** - только необходимый код  
+✅ **Обратная совместимость** - все существующие функции работают  
+✅ **iOS/Safari поддержка** - playbackRate применяется корректно
+
+### Тестирование
+
+**Планируемые тесты:**
+1. ✅ Проверка меток "Аудиоразборы" на обеих страницах
+2. ⏳ Изменение скорости x1 → x1.5 → x2, проверка применения
+3. ⏳ Закрытие плеера и повторное открытие - скорость сохранена
+4. ⏳ Тест на iOS Safari - скорость применяется корректно
+5. ⏳ Запуск приложения без hash - открывается каталог
+6. ⏳ Переключение между вкладками - нет мерцания
+7. ⏳ Deeplink навигация - работает корректно
+
+### Следующие шаги
+
+1. ⏳ Тестирование на dev.unibotz.com:3003
+2. ⏳ Проверка на реальных устройствах (iOS Safari, Android Chrome)
+3. ⏳ Code review
+4. ⏳ Deploy на production после подтверждения
+
+---

@@ -3,6 +3,10 @@
  * @file mini-app/js/pages/FreeAudioPlayerPage.js
  */
 
+// Playback rate constants
+const PLAYBACK_RATES = [1, 1.5, 2];
+const RATE_STORAGE_KEY = 'rb.audio.rate';
+
 class FreeAudioPlayerPage {
   constructor(app) {
     this.app = app;
@@ -32,6 +36,10 @@ class FreeAudioPlayerPage {
       currentPosition: 0,
       duration: 0
     };
+
+    // Playback rate state
+    this.currentRate = this.loadSavedRate();
+    this.showRateMenu = false;
 
     // Bound handler for audio service updates
     this.handleAudioUpdate = this.handleAudioUpdate.bind(this);
@@ -243,6 +251,169 @@ class FreeAudioPlayerPage {
   }
 
   /**
+   * Load saved playback rate from localStorage
+   * @returns {number} - Saved rate or default 1
+   */
+  loadSavedRate() {
+    try {
+      const saved = localStorage.getItem(RATE_STORAGE_KEY);
+      if (saved) {
+        const rate = parseFloat(saved);
+        if (PLAYBACK_RATES.includes(rate)) {
+          return rate;
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to load saved rate:', e);
+    }
+    return 1;
+  }
+
+  /**
+   * Save playback rate to localStorage
+   * @param {number} rate - Rate to save
+   */
+  saveRate(rate) {
+    try {
+      localStorage.setItem(RATE_STORAGE_KEY, rate.toString());
+      console.log('✅ Saved playback rate:', rate);
+    } catch (e) {
+      console.warn('⚠️ Failed to save rate:', e);
+    }
+  }
+
+  /**
+   * Apply playback rate to audio element
+   * Handles iOS/Safari quirks where playbackRate must be set after play starts
+   */
+  applyRateToAudio() {
+    const audio = window.audioService?.audio;
+    if (!audio) return;
+
+    try {
+      // Set playback rate
+      audio.playbackRate = this.currentRate;
+      console.log('✅ Applied playback rate:', this.currentRate);
+    } catch (e) {
+      console.warn('⚠️ Failed to apply playback rate:', e);
+    }
+  }
+
+  /**
+   * Handle rate selection
+   * @param {number} rate - Selected rate
+   */
+  onSelectRate(rate) {
+    if (!PLAYBACK_RATES.includes(rate)) return;
+
+    this.currentRate = rate;
+    this.saveRate(rate);
+    this.applyRateToAudio();
+    this.showRateMenu = false;
+
+    // Update UI
+    this.updateRateUI();
+
+    // Haptic feedback
+    if (this.telegram?.hapticFeedback) {
+      this.telegram.hapticFeedback('light');
+    }
+
+    console.log('🎵 Playback rate changed to:', rate);
+  }
+
+  /**
+   * Toggle rate menu visibility
+   */
+  toggleRateMenu() {
+    this.showRateMenu = !this.showRateMenu;
+    this.updateRateUI();
+
+    if (this.telegram?.hapticFeedback) {
+      this.telegram.hapticFeedback('light');
+    }
+  }
+
+  /**
+   * Update rate control UI
+   */
+  updateRateUI() {
+    const rateBtn = document.querySelector('.player-rate-btn');
+    const rateMenu = document.querySelector('.player-rate-menu');
+
+    if (rateBtn) {
+      rateBtn.textContent = `Скорость ${this.currentRate}x`;
+    }
+
+    if (rateMenu) {
+      rateMenu.style.display = this.showRateMenu ? 'flex' : 'none';
+      
+      // Update active state
+      const menuItems = rateMenu.querySelectorAll('.rate-option');
+      menuItems.forEach(item => {
+        const rate = parseFloat(item.dataset.rate);
+        item.classList.toggle('active', rate === this.currentRate);
+      });
+    }
+  }
+
+  /**
+   * Render rate control button
+   */
+  renderRateControl() {
+    return `
+      <button class="player-rate-btn" title="Скорость воспроизведения">
+        Скорость ${this.currentRate}x
+      </button>
+    `;
+  }
+
+  /**
+   * Render rate menu
+   */
+  renderRateMenu() {
+    return `
+      <div class="player-rate-menu" style="display: ${this.showRateMenu ? 'flex' : 'none'}">
+        ${PLAYBACK_RATES.map(rate => `
+          <button class="rate-option ${rate === this.currentRate ? 'active' : ''}" 
+                  data-rate="${rate}">
+            ${rate}x
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  /**
+   * Bind rate control events
+   */
+  bindRateControls() {
+    const rateBtn = document.querySelector('.player-rate-btn');
+    if (rateBtn) {
+      rateBtn.addEventListener('click', () => {
+        this.toggleRateMenu();
+      });
+    }
+
+    const rateOptions = document.querySelectorAll('.rate-option');
+    rateOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        const rate = parseFloat(option.dataset.rate);
+        this.onSelectRate(rate);
+      });
+    });
+
+    // Close menu on outside click
+    document.addEventListener('click', (e) => {
+      const rateControl = document.querySelector('.player-rate-control');
+      if (rateControl && !rateControl.contains(e.target) && this.showRateMenu) {
+        this.showRateMenu = false;
+        this.updateRateUI();
+      }
+    });
+  }
+
+  /**
    * Render page
    */
   render() {
@@ -378,6 +549,12 @@ class FreeAudioPlayerPage {
           </button>
         </div>
 
+        <!-- Rate Control -->
+        <div class="player-rate-control">
+          ${this.renderRateControl()}
+          ${this.renderRateMenu()}
+        </div>
+
         <!-- Back Button -->
         <div class="player-footer">
           <button class="btn-back-to-list">← Вернуться к списку</button>
@@ -485,6 +662,9 @@ class FreeAudioPlayerPage {
 
     // Track selection buttons
     this.attachTrackEvents();
+
+    // Rate control buttons
+    this.bindRateControls();
   }
 
   /**
@@ -576,6 +756,19 @@ class FreeAudioPlayerPage {
         url: streamUrlResponse.url
       }, this.api);
 
+      // Get audio element for rate and position handling
+      const audio = window.audioService.audio;
+
+      // Apply playback rate immediately (works on most browsers)
+      this.applyRateToAudio();
+
+      // iOS/Safari compatibility: also apply rate after 'play' event
+      const applyRateOnPlay = () => {
+        this.applyRateToAudio();
+        audio.removeEventListener('play', applyRateOnPlay);
+      };
+      audio.addEventListener('play', applyRateOnPlay);
+
       // Apply initial position if available (only on first play)
       if (this._initialPositionSec !== null && this._initialPositionSec > 0) {
         console.log(`🎵 FreeAudioPlayerPage: Seeking to initial position ${this._initialPositionSec}s`);
@@ -583,7 +776,6 @@ class FreeAudioPlayerPage {
         this._initialPositionSec = null; // Clear immediately to prevent re-seeking
         
         // Wait for audio to be ready before seeking
-        const audio = window.audioService.audio;
         const METADATA_LOAD_TIMEOUT_MS = 5000;
         
         if (audio.readyState >= audio.HAVE_CURRENT_DATA) {

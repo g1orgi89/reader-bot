@@ -22,7 +22,7 @@ class FreeAudiosPage {
     return `
       <div class="tabs">
         <button class="tab ${isCatalog ? 'active' : ''}" data-href="/catalog">Каталог</button>
-        <button class="tab ${!isCatalog ? 'active' : ''}" data-href="/free-audios">Аудио</button>
+        <button class="tab ${!isCatalog ? 'active' : ''}" data-href="/free-audios">Аудиоразборы</button>
       </div>
     `;
   }

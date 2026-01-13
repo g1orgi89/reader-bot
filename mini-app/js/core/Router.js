@@ -284,8 +284,8 @@ class AppRouter {
             // Pass the full hash including query parameters to navigate
             this.navigate(rawHash, { replace: true });
         } else {
-            // Если hash пустой — стартуем с главной
-            this.navigate('/home', { replace: true });
+            // Если hash пустой — стартуем с каталога
+            this.navigate('/catalog', { replace: true });
         }
     }
     

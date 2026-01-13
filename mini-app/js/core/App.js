@@ -519,7 +519,7 @@ class ReaderApp {
         // === ONBOARDING STABILITY START ===
         // Определяем стартовый маршрут ДО инициализации роутера
         // чтобы избежать гонки /home → /onboarding
-        let initialRoute = '/home';
+        let initialRoute = '/catalog'; // Changed default from /home to /catalog
         let onboardingCheckCompleted = false;
         
         try {
@@ -552,7 +552,7 @@ class ReaderApp {
                             isOnboardingComplete: true
                         });
                     }
-                    console.log('🏠 STABILITY: API показал онбординг завершен, можно /home');
+                    console.log('🏠 STABILITY: API показал онбординг завершен, можно /catalog');
                     
                     // === DEEPLINK ROUTING ===
                     // If we have a pending deeplink and onboarding is complete, use it as initial route
@@ -564,6 +564,22 @@ class ReaderApp {
                         }
                         // Clear pending deeplink since we're using it as initial route
                         this._pendingDeeplink = null;
+                    } else {
+                        // Check if there's an explicit hash route
+                        const rawHash = window.location.hash.slice(1);
+                        if (rawHash && rawHash !== '' && rawHash !== '/') {
+                            // Extract path without query params
+                            const hashPath = rawHash.split('?')[0];
+                            // Only use hash if it's a valid route (not empty or just '/')
+                            if (hashPath && hashPath !== '/' && hashPath.startsWith('/')) {
+                                initialRoute = rawHash; // Use full hash including query params
+                                console.log(`🔗 Using explicit hash route: ${initialRoute}`);
+                            } else {
+                                console.log(`📍 No explicit route, defaulting to /catalog`);
+                            }
+                        } else {
+                            console.log(`📍 No hash route, defaulting to /catalog`);
+                        }
                     }
                 }
             } else {
@@ -643,10 +659,10 @@ class ReaderApp {
     }
 
     normalizeRoute(route) {
-        if (!route || typeof route !== 'string') return '/home';
+        if (!route || typeof route !== 'string') return '/catalog';
         let normalized = route.replace(/^#+/, '');
         if (!normalized.startsWith('/')) normalized = '/' + normalized;
-        if (normalized === '/' || normalized === '') normalized = '/home';
+        if (normalized === '/' || normalized === '') normalized = '/catalog';
         return normalized;
     }
 
