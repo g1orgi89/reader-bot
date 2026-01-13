@@ -314,7 +314,7 @@ class HomePage {
                 // Show actual data with smooth transition - ensure touch-friendly sizes
                 const newContent = [
                     { label: 'За неделю', value: stats.weeklyQuotes ?? '—' },
-                    { label: 'Серия (дней подряд)', value: stats.currentStreak ?? '—' },
+                    { label: 'Серия <span style="font-size: 10px;">(дней подряд)</span>', value: stats.currentStreak ?? '—' },
                     { label: 'Любимый автор', value: stats.favoriteAuthor || '—' }
                 ].map(item => `
                     <div class="stat-card fade-in" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;">
@@ -644,7 +644,7 @@ class HomePage {
                     id="statusInput"
                     maxlength="80"
                     value="${currentStatus}"
-                    placeholder="Добавьте свою мысль дня..."
+                    placeholder="Мысль дня"
                     autocomplete="off"
                 />
                 <div class="home-status-editor-btns">
