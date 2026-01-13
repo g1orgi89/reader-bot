@@ -999,6 +999,24 @@ class AppRouter {
         
         return query;
     }
+
+    /**
+     * 🔍 Check if there's an explicit route in the URL hash
+     * Used to prevent default routing when user has a specific destination
+     * @returns {boolean} - True if there's a valid explicit route
+     */
+    hasExplicitRoute() {
+        const rawHash = window.location.hash.slice(1);
+        if (!rawHash || rawHash === '' || rawHash === '/') {
+            return false;
+        }
+        
+        // Extract path without query params
+        const hashPath = rawHash.split('?')[0];
+        
+        // Check if it's a valid route (not empty or just '/')
+        return hashPath && hashPath !== '/' && hashPath.startsWith('/');
+    }
 }
 
 // Экспорт для использования в других модулях
