@@ -674,9 +674,24 @@ class CatalogPage {
     
     /**
      * 🎚️ TOP TABS (Каталог | Аудио) - Using .tabs/.tab from diary.css
+     * ✅ FIX: Use router.currentRoute to avoid reading stale window.location.hash
+     * This prevents the brief flash of the wrong tab during navigation
      */
     renderTopSwitcher() {
-        const normalized = this.app?.router?.normalizePath?.(window.location.hash.slice(1)) || '/catalog';
+        // ✅ FIX: Prioritize router.currentRoute over window.location.hash
+        // This ensures the active tab reflects the route being navigated to,
+        // not the stale hash from the previous page
+        let normalized = '/catalog';
+        
+        if (this.app?.router?.currentRoute) {
+            // Use router's current route (set before render)
+            normalized = this.app.router.currentRoute;
+        } else {
+            // Fallback to hash only if router.currentRoute is not available
+            const hash = window.location.hash.slice(1);
+            normalized = this.app?.router?.normalizePath?.(hash) || '/catalog';
+        }
+        
         const isCatalog = normalized === '/catalog';
         return `
             <div class="tabs">

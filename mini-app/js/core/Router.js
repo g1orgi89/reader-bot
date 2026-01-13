@@ -367,6 +367,12 @@ class AppRouter {
             // Устанавливаем флаг навигации
             this.isNavigating = true;
             
+            // ✅ FIX: Set currentRoute BEFORE rendering to prevent flicker in top tabs
+            // This ensures components can read the correct route during render()
+            this.currentRoute = normalizedPath;
+            this.currentQuery = query;
+            this.currentRouteKey = targetKey;
+            
             // Close all active modals before navigation to prevent them from hanging
             if (this.app && typeof this.app.closeActiveModals === 'function') {
                 this.app.closeActiveModals();
@@ -487,10 +493,8 @@ class AppRouter {
             // Обновляем UI
             this.updateUI(route);
             
-            // Сохраняем текущий маршрут, query и route key
-            this.currentRoute = normalizedPath;
-            this.currentQuery = query;
-            this.currentRouteKey = targetKey; // Update current route key for guards
+            // Note: currentRoute, currentQuery, and currentRouteKey are already set earlier
+            // before rendering to prevent flicker in top tabs
             
             // Анимация входа для новой страницы
             await this.animatePageEnter();
@@ -998,6 +1002,31 @@ class AppRouter {
         }
         
         return query;
+    }
+
+    /**
+     * 🔍 Check if there is an explicit route in URL (hash or pathname)
+     * @returns {boolean} - True if there's a real route (not empty/root)
+     */
+    hasExplicitRoute() {
+        // Check hash route
+        const rawHash = window.location.hash.slice(1);
+        if (rawHash && rawHash !== '' && rawHash !== '/') {
+            // Extract path without query params
+            const hashPath = rawHash.split('?')[0];
+            // Valid if it's a non-empty path that starts with /
+            if (hashPath && hashPath !== '/' && hashPath.startsWith('/')) {
+                return true;
+            }
+        }
+        
+        // Check pathname (for non-hash routing scenarios, though we use hash routing)
+        const pathname = window.location.pathname;
+        if (pathname && pathname !== '/' && pathname !== '') {
+            return true;
+        }
+        
+        return false;
     }
 }
 
