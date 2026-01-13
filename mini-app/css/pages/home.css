@@ -1102,8 +1102,7 @@ body.dark-theme {
     color: var(--primary-color);
 }
 
-.home-header-status-editor-btn.save:hover,
-.home-header-status-editor-btn.cancel:hover {
+.home-header-status-editor-btn:hover {
     opacity: 0.8;
 }
 
