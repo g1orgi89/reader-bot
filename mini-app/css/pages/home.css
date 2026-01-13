@@ -1223,7 +1223,6 @@ body.dark-theme {
     line-height: 1.25;
     color: var(--text-primary);
     opacity: 0.95;
-    font-style: italic;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
@@ -1268,14 +1267,6 @@ body.dark-theme {
 
 /* Compact action container for status edit buttons */
 .home-status-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: 4px;
-    flex-shrink: 0;
-}
-
-.home-status-editor-btns {
     display: inline-flex;
     align-items: center;
     gap: 8px;
