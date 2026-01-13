@@ -1652,6 +1652,11 @@ class ReportsPage {
         if (!this.weeklyReport) {
             return '';
         }
+        
+        // ✅ NEW: Don't render promo section in Monthly view
+        if (this.activeTab === 'monthly') {
+            return '';
+        }
 
         const recommendations = this.weeklyReport?.recommendations || [];
 
@@ -1661,10 +1666,20 @@ class ReportsPage {
                     <div class="promo-title">🎯 Специально для вас</div>
                     <div class="promo-list">
                         ${recommendations.map(rec => {
+                            // ✅ NEW: Sanitize reasoning to remove leading "//"
+                            let sanitizedReasoning = rec.reasoning || '';
+                            if (sanitizedReasoning) {
+                                sanitizedReasoning = sanitizedReasoning
+                                    .split('\n')
+                                    .filter(line => !line.trim().startsWith('//'))
+                                    .join('\n')
+                                    .trim();
+                            }
+                            
                             // Защита от дублирования description/reasoning
-                            const showReasoning = rec.reasoning && rec.reasoning.trim() !== '' &&
-                                rec.reasoning.trim() !== rec.description?.trim() &&
-                                rec.reasoning.trim() !== rec.title?.trim();
+                            const showReasoning = sanitizedReasoning && sanitizedReasoning.trim() !== '' &&
+                                sanitizedReasoning.trim() !== rec.description?.trim() &&
+                                sanitizedReasoning.trim() !== rec.title?.trim();
 
                             // ✅ НОВОЕ: Форматируем цену с BYN и RUB для отчётов
                             const priceDisplay = rec.priceByn ? this.formatPriceReport(rec.priceByn, rec.title) : '';
@@ -1674,9 +1689,9 @@ class ReportsPage {
                                     <div class="promo-book-title">${window.escapeHtml ? window.escapeHtml(rec.title) : rec.title}</div>
                                     ${rec.author ? `<div class="promo-book-author">${window.escapeHtml ? window.escapeHtml(rec.author) : rec.author}</div>` : ""}
                                     <div class="promo-book-desc">${window.escapeHtml ? window.escapeHtml(rec.description) : rec.description}</div>
-                                    ${showReasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(rec.reasoning) : rec.reasoning}</div>` : ""}
+                                    ${showReasoning ? `<div class="promo-book-reason">${window.escapeHtml ? window.escapeHtml(sanitizedReasoning) : sanitizedReasoning}</div>` : ""}
                                     ${priceDisplay ? `<div class="promo-book-price">Цена: <b>${priceDisplay}</b></div>` : ""}
-                                    <a class="promo-book-link" href="#/catalog?highlight=${rec.bookSlug}">Подробнее</a>
+                                    <a class="promo-book-link" href="#/catalog?filter=all&highlight=${rec.bookSlug}">Подробнее</a>
                                 </div>
                             `;
                         }).join('')}
