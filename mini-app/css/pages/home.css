@@ -925,8 +925,8 @@ body.dark-theme {
 }
 
 .home-header-menu-btn {
-    width: 40px;
     height: 40px;
+    padding: 0 var(--spacing-md, 16px);
     border: none;
     background: none;
     border-radius: var(--radius-md, 8px);
@@ -934,10 +934,12 @@ body.dark-theme {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    color: var(--text-primary, #2D2D2D);
+    font-size: var(--font-size-sm, 14px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--primary-color, #D2452C);
     transition: all var(--transition-fast, 0.2s ease);
     flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .home-header-menu-btn:hover {
@@ -1216,13 +1218,19 @@ body.dark-theme {
 }
 
 .home-status-card-text {
-    font-size: var(--font-size-sm, 14px);
-    line-height: 1.4;
-    color: var(--text-primary, #2D2D2D);
+    font-size: var(--font-size-xs);
+    line-height: 1.25;
+    color: var(--text-secondary);
+    opacity: 0.9;
     font-style: italic;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
+}
+
+/* Actual status text - primary color */
+.home-status-card-text:not(.placeholder) {
+    color: var(--text-primary);
 }
 
 .home-status-card-text.placeholder {
@@ -1271,7 +1279,10 @@ body.dark-theme {
     flex-shrink: 0;
 }
 
-.home-status-editor-btn {
+.home-status-editor-btn,
+.home-status-save,
+.home-status-cancel,
+.home-header-status-editor-btn {
     width: 18px;
     height: 18px;
     padding: 0;
@@ -1288,21 +1299,17 @@ body.dark-theme {
 }
 
 .home-status-editor-btn.save:hover,
-.home-status-editor-btn.cancel:hover {
+.home-status-editor-btn.cancel:hover,
+.home-status-save:hover,
+.home-status-cancel:hover,
+.home-header-status-editor-btn:hover {
     opacity: 0.8;
 }
 
-.home-status-editor-btn:active {
-    transform: scale(0.95);
-}
-
-.home-status-editor-btn.save:hover,
-.home-status-editor-btn.cancel:hover {
-    background: var(--bg-overlay, rgba(210, 69, 44, 0.1));
-    box-shadow: 0 0 8px rgba(210, 69, 44, 0.15);
-}
-
-.home-status-editor-btn:active {
+.home-status-editor-btn:active,
+.home-status-save:active,
+.home-status-cancel:active,
+.home-header-status-editor-btn:active {
     transform: scale(0.95);
 }
 
@@ -1321,4 +1328,9 @@ body.dark-theme {
   font-weight: var(--font-weight-normal);
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+/* === Progress section - compact text for "(дней подряд)" === */
+.progress-streak-suffix {
+  font-size: 10px;
 }
