@@ -1218,24 +1218,27 @@ body.dark-theme {
 }
 
 .home-status-card-text {
-    font-size: var(--font-size-xs);
     line-height: 1.25;
-    color: var(--text-secondary);
-    opacity: 0.9;
     font-style: italic;
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
 
-/* Actual status text - primary color */
+/* Real status text - larger and more prominent */
+.home-status-text,
 .home-status-card-text:not(.placeholder) {
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
+    opacity: 0.95;
 }
 
+/* Placeholder "Мысль дня" - smaller and muted */
+.home-status-placeholder,
 .home-status-card-text.placeholder {
+    font-size: var(--font-size-xs);
     color: var(--text-secondary, #666666);
-    opacity: 0.6;
+    opacity: 0.9;
 }
 
 /* Status editor within card */
@@ -1264,13 +1267,7 @@ body.dark-theme {
 }
 
 /* Compact action container for status edit buttons */
-.home-status-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: 4px;
-}
-
+.home-status-actions,
 .home-status-editor-btns {
     display: inline-flex;
     align-items: center;
@@ -1279,6 +1276,7 @@ body.dark-theme {
     flex-shrink: 0;
 }
 
+/* Compact status edit buttons (✔ / ✖) - ~18x18px, opacity ~0.6 */
 .home-status-editor-btn,
 .home-status-save,
 .home-status-cancel,
