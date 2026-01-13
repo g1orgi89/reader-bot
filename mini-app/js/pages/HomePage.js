@@ -602,7 +602,7 @@ class HomePage {
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
                 </div>
                 <div class="home-header-spacer"></div>
-                <button class="home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">⋮</button>
+                <button class="home-header-menu-btn" id="homeHeaderMenuBtn" aria-label="Меню">Меню</button>
             </div>
         `;
     }
