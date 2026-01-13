@@ -619,7 +619,7 @@ class HomePage {
         return `
             <div class="home-status-card">
                 <div class="home-status-card-header">
-                    <div class="home-status-card-title">#МЫСЛЬДНЯ</div>
+                    <div class="home-status-card-title">#мысль дня</div>
                     <button class="home-status-card-edit-btn" id="statusEditBtn" aria-label="Редактировать статус">✏️</button>
                 </div>
                 <div id="statusContainer">
