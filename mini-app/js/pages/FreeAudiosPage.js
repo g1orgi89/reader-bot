@@ -17,8 +17,11 @@ class FreeAudiosPage {
   }
 
   renderTopTabs() {
-    const normalized = this.app?.router?.normalizePath?.(window.location.hash.slice(1)) || '/free-audios';
-    const isCatalog = normalized === '/catalog';
+    // Use router.currentRoute as single source of truth to avoid flicker
+    const currentRoute = this.app?.router?.currentRoute || 
+                        this.app?.router?.normalizePath?.(window.location.hash.slice(1)) || 
+                        '/free-audios';
+    const isCatalog = currentRoute === '/catalog';
     return `
       <div class="tabs">
         <button class="tab ${isCatalog ? 'active' : ''}" data-href="/catalog">Каталог</button>

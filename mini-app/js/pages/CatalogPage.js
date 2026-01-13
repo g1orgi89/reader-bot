@@ -673,11 +673,14 @@ class CatalogPage {
     }
     
     /**
-     * 🎚️ TOP TABS (Каталог | Аудио) - Using .tabs/.tab from diary.css
+     * 🎚️ TOP TABS (Каталог | Аудиоразборы) - Using .tabs/.tab from diary.css
      */
     renderTopSwitcher() {
-        const normalized = this.app?.router?.normalizePath?.(window.location.hash.slice(1)) || '/catalog';
-        const isCatalog = normalized === '/catalog';
+        // Use router.currentRoute as single source of truth to avoid flicker
+        const currentRoute = this.app?.router?.currentRoute || 
+                            this.app?.router?.normalizePath?.(window.location.hash.slice(1)) || 
+                            '/catalog';
+        const isCatalog = currentRoute === '/catalog';
         return `
             <div class="tabs">
                 <button class="tab ${isCatalog ? 'active' : ''}" data-href="/catalog">Каталог</button>

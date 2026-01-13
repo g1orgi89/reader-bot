@@ -2595,6 +2595,8 @@ curl "http://localhost:3003/api/reader/audio/free-lpp/progress?userId=demo-user"
 #### 1. Переименование вкладки "Аудио" → "Аудиоразборы"
 - Обновлена метка вкладки в `CatalogPage.js` метод `renderTopSwitcher()`
 - Обновлена метка вкладки в `FreeAudiosPage.js` метод `renderTopTabs()`
+- **Улучшена логика активного состояния:** используется `router.currentRoute` как единственный источник истины вместо чтения `window.location.hash`
+- Это предотвращает мерцание при переключении вкладок
 - Маршруты остались без изменений (/catalog и /free-audios)
 - Улучшена ясность интерфейса - пользователи понимают что это аудио разборы книг
 
@@ -2657,6 +2659,7 @@ curl "http://localhost:3003/api/reader/audio/free-lpp/progress?userId=demo-user"
 **Изменения в Router.js:**
 - `handleInitialRoute()`: изменён fallback с `/home` на `/catalog`
 - При пустом hash стартуем с каталога
+- **Добавлен метод `hasExplicitRoute()`:** проверяет наличие явного маршрута в URL hash
 
 **Результат:**
 - При открытии приложения без deeplink первая страница - каталог
@@ -2667,8 +2670,8 @@ curl "http://localhost:3003/api/reader/audio/free-lpp/progress?userId=demo-user"
 ### Файлы изменены
 
 **Страницы:**
-- `mini-app/js/pages/CatalogPage.js` - изменена метка вкладки
-- `mini-app/js/pages/FreeAudiosPage.js` - изменена метка вкладки
+- `mini-app/js/pages/CatalogPage.js` - изменена метка вкладки, используется router.currentRoute
+- `mini-app/js/pages/FreeAudiosPage.js` - изменена метка вкладки, используется router.currentRoute
 - `mini-app/js/pages/FreeAudioPlayerPage.js` - добавлен контроль скорости
 
 **Ядро:**
