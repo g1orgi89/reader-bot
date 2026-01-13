@@ -565,20 +565,14 @@ class ReaderApp {
                         // Clear pending deeplink since we're using it as initial route
                         this._pendingDeeplink = null;
                     } else {
-                        // Check if there's an explicit hash route
-                        const rawHash = window.location.hash.slice(1);
-                        if (rawHash && rawHash !== '' && rawHash !== '/') {
-                            // Extract path without query params
-                            const hashPath = rawHash.split('?')[0];
-                            // Only use hash if it's a valid route (not empty or just '/')
-                            if (hashPath && hashPath !== '/' && hashPath.startsWith('/')) {
-                                initialRoute = rawHash; // Use full hash including query params
-                                console.log(`🔗 Using explicit hash route: ${initialRoute}`);
-                            } else {
-                                console.log(`📍 No explicit route, defaulting to /catalog`);
-                            }
+                        // ✅ FIX: Use router's hasExplicitRoute() helper to check for explicit routes
+                        // This ensures consistent route detection across the app
+                        if (this.router && this.router.hasExplicitRoute()) {
+                            const rawHash = window.location.hash.slice(1);
+                            initialRoute = rawHash; // Use full hash including query params
+                            console.log(`🔗 Using explicit hash route: ${initialRoute}`);
                         } else {
-                            console.log(`📍 No hash route, defaulting to /catalog`);
+                            console.log(`📍 No explicit route, defaulting to /catalog`);
                         }
                     }
                 }
