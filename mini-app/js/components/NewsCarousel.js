@@ -1,9 +1,10 @@
 /**
  * NewsCarousel — карусель новостей на CSS scroll-snap.
- * - Только изображения (без overlay/ссылок/подсказок)
- * - Высота как в аудиоплеере: квадрат 1:1, object-fit: cover
- * - Удаляем слайды с ошибкой загрузки (без пустых новостей)
- * - Показ "N из N новости" в заголовке
+ * - Баннер 2:1, object-fit: cover (ниже, чем квадрат)
+ * - Без overlay/ссылок/подсказок
+ * - Без пустых слайдов (битые картинки удаляются)
+ * - Счётчик "текущая из всего" над картинкой (1 из N)
+ * - Прокрутка по ширине видимой области (чтобы не выглядывал следующий слайд)
  */
 class NewsCarousel {
   /**
@@ -27,29 +28,33 @@ class NewsCarousel {
 
   render() {
     if (!this.items.length) return '';
+    const initialCurrent = Math.min(1, this.items.length);
+    const total = this.items.length;
+
     return `
       <section class="news-carousel" id="${this.containerId}">
         <div class="news-header">
           <h2 class="news-title">Новости</h2>
-          <div class="news-total" aria-live="polite">${this.currentIndex + 1} из ${this.slidesCount}</div>
+          <div class="news-counter" aria-live="polite">${initialCurrent} из ${total}</div>
         </div>
 
         <div class="news-track" tabindex="0" aria-roledescription="carousel" aria-label="Новости">
           ${this.items.map((x, i) => `
-            <article class="news-slide" role="group" aria-label="${i+1} из ${this.slidesCount}">
+            <article class="news-slide" role="group" aria-label="${i+1} из ${this.items.length}">
               <div class="news-media">
-                <img class="news-img" src="${this.escape(x.imageUrl)}" alt="${this.escape(x.title)}">
+                <img class="news-img" src="${this.escape(x.imageUrl)}" alt="${this.escape(x.title)}"
+                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
               </div>
             </article>
           `).join('')}
         </div>
 
         <div class="news-controls">
-          <button class="news-arrow prev" aria-label="Предыдущая новость">‹</button>
+          <button class="news-arrow prev" aria-label="Предыдущая">‹</button>
           <div class="news-dots">
-            ${this.items.map((_x, i) => `<button class="news-dot ${i===0?'active':''}" data-index="${i}" aria-label="Перейти к ${i+1}-й новости"></button>`).join('')}
+            ${this.items.map((_x, i) => `<button class="news-dot ${i===0?'active':''}" data-index="${i}" aria-label="Перейти к ${i+1}-й"></button>`).join('')}
           </div>
-          <button class="news-arrow next" aria-label="Следующая новость">›</button>
+          <button class="news-arrow next" aria-label="Следующая">›</button>
         </div>
       </section>
     `;
@@ -74,6 +79,7 @@ class NewsCarousel {
 
     this.recalcSlides(container);
     this.scrollToIndex(container, 0, false);
+    this.updateCounter();
   }
 
   onImageError(e) {
@@ -96,14 +102,8 @@ class NewsCarousel {
   recalcSlides(container) {
     const track = container?.querySelector('.news-track');
     const dotsBox = container?.querySelector('.news-dots');
-    const totalEl = container?.querySelector('.news-total');
     const slides = Array.from(track?.querySelectorAll('.news-slide') || []);
     this.slidesCount = slides.length;
-
-    // Обновляем счётчик "N из N" без слова "новости"
-    if (totalEl) {
-      totalEl.textContent = `${this.currentIndex + 1} из ${this.slidesCount}`;
-    }
 
     // Обновляем aria-labels для слайдов
     slides.forEach((slide, i) => {
@@ -113,7 +113,7 @@ class NewsCarousel {
     // Переиндексация точек
     if (dotsBox) {
       dotsBox.innerHTML = slides.map((_s, i) =>
-        `<button class="news-dot ${i===this.currentIndex?'active':''}" data-index="${i}" aria-label="Перейти к ${i+1}-й новости"></button>`
+        `<button class="news-dot ${i===this.currentIndex?'active':''}" data-index="${i}" aria-label="Перейти к ${i+1}-й"></button>`
       ).join('');
       dotsBox.querySelectorAll('.news-dot')?.forEach(dot => {
         dot.addEventListener('click', this._bound.onDotClick);
@@ -140,8 +140,8 @@ class NewsCarousel {
 
   onScroll(e) {
     const track = e.currentTarget;
-    const slideWidth = track.querySelector('.news-slide')?.offsetWidth || track.offsetWidth;
-    const i = Math.round(track.scrollLeft / Math.max(1, slideWidth));
+    const viewportWidth = track.clientWidth;
+    const i = Math.round(track.scrollLeft / Math.max(1, viewportWidth));
     if (i !== this.currentIndex) {
       this.currentIndex = i;
       this.updateDotsActive();
@@ -151,8 +151,8 @@ class NewsCarousel {
 
   scrollToIndex(container, i, smooth = true) {
     const track = container?.querySelector('.news-track');
-    const slideWidth = track?.querySelector('.news-slide')?.offsetWidth || track?.offsetWidth || 0;
-    const left = i * slideWidth;
+    const viewportWidth = track?.clientWidth || 0;
+    const left = i * viewportWidth;
     track?.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
     this.currentIndex = i;
     this.updateDotsActive();
@@ -168,9 +168,9 @@ class NewsCarousel {
 
   updateCounter() {
     const container = document.getElementById(this.containerId);
-    const totalEl = container?.querySelector('.news-total');
-    if (totalEl) {
-      totalEl.textContent = `${this.currentIndex + 1} из ${this.slidesCount}`;
+    const counter = container?.querySelector('.news-counter');
+    if (counter) {
+      counter.textContent = `${this.slidesCount ? (this.currentIndex + 1) : 0} из ${this.slidesCount}`;
     }
   }
 
