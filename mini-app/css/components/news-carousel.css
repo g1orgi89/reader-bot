@@ -1,6 +1,5 @@
 /* NewsCarousel — квадрат как в аудиоплеере (aspect-ratio: 1), без overlay/ссылок */
 .news-carousel {
-  padding: var(--spacing-md);
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -12,6 +11,7 @@
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: var(--spacing-sm);
+  padding: 0 var(--spacing-md);
 }
 .news-title {
   font-size: var(--font-size-lg);
@@ -29,6 +29,7 @@
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  padding: 0 var(--spacing-md);
 }
 .news-track::-webkit-scrollbar { display: none; }
 
@@ -46,14 +47,14 @@
 .news-media {
   position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 1 !important;
   background: var(--bg-secondary);
 }
 
 .news-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;   /* как в аудиоплеере */
+  object-fit: cover;
   object-position: center;
   display: block;
 }
@@ -63,6 +64,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 var(--spacing-md);
 }
 .news-arrow {
   height: var(--touch-target-min);
