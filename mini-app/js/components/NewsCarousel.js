@@ -31,7 +31,7 @@ class NewsCarousel {
       <section class="news-carousel" id="${this.containerId}">
         <div class="news-header">
           <h2 class="news-title">Новости</h2>
-          <div class="news-total" aria-live="polite">${this.slidesCount} из ${this.slidesCount} новости</div>
+          <div class="news-total" aria-live="polite">${this.currentIndex + 1} из ${this.slidesCount}</div>
         </div>
 
         <div class="news-track" tabindex="0" aria-roledescription="carousel" aria-label="Новости">
@@ -100,9 +100,9 @@ class NewsCarousel {
     const slides = Array.from(track?.querySelectorAll('.news-slide') || []);
     this.slidesCount = slides.length;
 
-    // Обновляем счётчик "N из N новости"
+    // Обновляем счётчик "N из N" без слова "новости"
     if (totalEl) {
-      totalEl.textContent = `${this.slidesCount} из ${this.slidesCount} новости`;
+      totalEl.textContent = `${this.currentIndex + 1} из ${this.slidesCount}`;
     }
 
     // Обновляем aria-labels для слайдов
@@ -145,6 +145,7 @@ class NewsCarousel {
     if (i !== this.currentIndex) {
       this.currentIndex = i;
       this.updateDotsActive();
+      this.updateCounter();
     }
   }
 
@@ -155,6 +156,7 @@ class NewsCarousel {
     track?.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
     this.currentIndex = i;
     this.updateDotsActive();
+    this.updateCounter();
   }
 
   updateDotsActive() {
@@ -162,6 +164,14 @@ class NewsCarousel {
     container?.querySelectorAll('.news-dot')?.forEach((d, idx) => {
       d.classList.toggle('active', idx === this.currentIndex);
     });
+  }
+
+  updateCounter() {
+    const container = document.getElementById(this.containerId);
+    const totalEl = container?.querySelector('.news-total');
+    if (totalEl) {
+      totalEl.textContent = `${this.currentIndex + 1} из ${this.slidesCount}`;
+    }
   }
 
   escape(t) {
