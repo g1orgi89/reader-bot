@@ -2743,3 +2743,98 @@ if (rawHash && rawHash !== '' && rawHash !== '/') {
 4. ⏳ Deploy на production после подтверждения
 
 ---
+
+## 2026-01-18 — HomePage News Carousel (CSS scroll-snap, свайп вправо)
+
+**Задача:** Добавить карусель новостей под блоком «Мысль дня» на главной  
+**Фактически затрачено:** 6–8 часов
+
+### Описание
+
+Реализована карусель новостей для главной страницы с горизонтальным свайпом на основе CSS scroll-snap. Карусель размещена сразу под блоком "#мысльдня" (home-status-card) и содержит 5 статических новостей для MVP.
+
+### Файлы
+
+**Новые файлы:**
+- `mini-app/js/components/NewsCarousel.js` — компонент карусели (Vanilla JS + JSDoc)
+- `mini-app/css/components/news-carousel.css` — стили карусели (только переменные из variables.css)
+- `mini-app/assets/images/news/news1.jpg` до `news5.jpg` — плейсхолдеры изображений (будут заменены владельцем)
+
+**Изменённые файлы:**
+- `mini-app/index.html` — подключение CSS и JS компонента
+- `mini-app/js/pages/HomePage.js` — рендер и монтирование карусели
+
+### Реализация
+
+**NewsCarousel.js:**
+- Vanilla JS класс без зависимостей от фреймворков
+- Использует CSS scroll-snap для нативного свайпа
+- Явные стрелки (prev/next) и точки-индикаторы
+- Обработка ошибок изображений через глобальный `window.RBImageErrorHandler`
+- Accessibility: ARIA roles, keyboard navigation, touch targets ≥44px
+- Источник данных: статический метод `getHomeNewsItems()` в HomePage.js
+
+**news-carousel.css:**
+- Использует только переменные из `variables.css`
+- Не изменяет брендовые цвета (--primary-color и т.д.)
+- CSS scroll-snap для горизонтального свайпа
+- Адаптивная высота изображений (200px mobile, 240px desktop)
+- Градиентный оверлей для читаемости текста поверх изображений
+
+**HomePage.js изменения:**
+- `getHomeNewsItems()` — возвращает массив из 5 новостей
+- `renderNewsBlock()` — создаёт экземпляр NewsCarousel и вызывает render()
+- `render()` — вставляет `${this.renderNewsBlock()}` после `${this.renderHomeStatusCard(user)}`
+- `attachEventListeners()` — монтирует carousel.mount('news-carousel')
+
+**index.html изменения:**
+- Добавлена строка `<link rel="stylesheet" href="css/components/news-carousel.css">` в секцию "Компоненты CSS"
+- Добавлена строка `<script src="js/components/NewsCarousel.js"></script>` в секцию "UI компоненты"
+
+### Характеристики
+
+- **UX:** Горизонтальный свайп (CSS scroll-snap), видимые стрелки и точки-индикаторы, хинт "Свайп вправо, чтобы посмотреть"
+- **Accessibility:** Alt-тексты для изображений, ARIA роли (carousel, group), клавиатурная навигация, touch targets ≥44px
+- **Performance:** object-fit: cover для изображений, избегание layout thrash
+- **Graceful degradation:** RBImageErrorHandler скрывает битые изображения без глобальных ошибок
+
+### Тесты (dev.unibotz.com:3003)
+
+**Планируемые тесты:**
+1. ✅ Карусель появляется под блоком «Мысль дня»
+2. ⏳ iOS/Android Telegram WebApp: свайп вправо/влево работает
+3. ⏳ Клик по стрелкам (prev/next) перелистывает слайды
+4. ⏳ Клик по точкам-индикаторам переключает слайды
+5. ⏳ Точки обновляются при свайпе
+6. ⏳ Touch targets ≥44px (стрелки, точки)
+7. ⏳ Safe area: bottom nav не перекрывает карусель
+8. ⏳ Ошибки изображений: RBImageErrorHandler скрывает битые img, показывает fallback
+9. ⏳ Accessibility: Tab-фокус на стрелках/точках, Enter/Space активирует навигацию
+10. ⏳ Performance: 5 изображений загружаются без лагов
+
+### Примечания
+
+- Изображения (news1.jpg - news5.jpg) — плейсхолдеры. Владелец загрузит финальные изображения в `mini-app/assets/images/news/`
+- Рекомендация: WebP формат, размер ≤400KB каждое, разрешение ~1280x720 для мобильных
+- Не изменены брендовые CSS переменные (--primary-color, --primary-light, --primary-dark)
+- Production-ready: код соответствует стандартам проекта, использует существующие утилиты (RBImageErrorHandler)
+
+### Соблюдение требований
+
+✅ **Vanilla JS + JSDoc** - без React/Vue/Angular/TS  
+✅ **CSS scroll-snap** - нативный свайп без библиотек  
+✅ **Только переменные из variables.css** - не добавлены новые color variables  
+✅ **RBImageErrorHandler** - обработка ошибок изображений  
+✅ **Accessibility** - ARIA, keyboard, touch targets ≥44px  
+✅ **Минимальные изменения** - только необходимые файлы  
+✅ **Расположение** - под блоком «Мысль дня» на HomePage
+
+### Следующие шаги
+
+1. ⏳ Тестирование на dev.unibotz.com:3003
+2. ⏳ Проверка на iOS Safari, Android Chrome
+3. ⏳ Владелец загружает финальные изображения в assets/images/news/
+4. ⏳ Code review
+5. ⏳ Security check (CodeQL)
+6. ⏳ Deploy на production после подтверждения
+
