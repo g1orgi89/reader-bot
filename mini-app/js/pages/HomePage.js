@@ -568,6 +568,7 @@ class HomePage {
             <div class="content">
                 ${this.renderUserHeader(user)}
                 ${this.renderHomeStatusCard(user)}
+                ${this.renderNewsBlock()}
                 <!-- ${this.renderWelcomeSection()}  УДАЛЕНО -->
                 ${this.renderStatsInline(stats)}
                 ${this.renderMainCTA()}
@@ -657,6 +658,34 @@ class HomePage {
                 </div>
             </div>
         `;
+    }
+
+
+    /**
+     * 📰 Источник данных: статические 5 новостей (MVP)
+     */
+    getHomeNewsItems() {
+        return [
+            { id: 'n1', title: 'Новое в клубе: январский разбор', subtitle: 'Тема: привычки и время', imageUrl: 'assets/images/news/news1.jpg', link: 'https://annabusel.org' },
+            { id: 'n2', title: 'Скидка на подборку «Я — женщина»', subtitle: 'Промокод READER20', imageUrl: 'assets/images/news/news2.jpg', link: 'https://annabusel.org' },
+            { id: 'n3', title: 'Еженедельный отчёт теперь с рекомендациями', subtitle: 'Обновления AI', imageUrl: 'assets/images/news/news3.jpg' },
+            { id: 'n4', title: 'Шеринг цитат — скоро!', subtitle: 'Сохранение в PNG', imageUrl: 'assets/images/news/news4.jpg' },
+            { id: 'n5', title: 'Подписки: лента «От подписок»', subtitle: 'Следите за друзьями', imageUrl: 'assets/images/news/news5.jpg' }
+        ];
+    }
+
+    /**
+     * 📰 Рендер карусели новостей сразу под «Мысль дня»
+     */
+    renderNewsBlock() {
+        try {
+            const items = this.getHomeNewsItems();
+            const carousel = new window.NewsCarousel({ items, containerId: 'news-carousel' });
+            return carousel.render();
+        } catch (e) {
+            console.warn('HomePage: renderNewsBlock error', e);
+            return '';
+        }
     }
 
 
@@ -948,6 +977,15 @@ class HomePage {
         const addQuoteBtn = document.getElementById('addQuoteBtn');
         if (addQuoteBtn) {
             addQuoteBtn.addEventListener('click', () => this.handleAddQuoteClick());
+        }
+        
+        // 📰 NEW: Mount news carousel
+        try {
+            const items = this.getHomeNewsItems();
+            const carousel = new window.NewsCarousel({ items, containerId: 'news-carousel' });
+            carousel.mount('news-carousel');
+        } catch (e) {
+            console.warn('HomePage: Failed to mount news carousel', e);
         }
         
         // Клики по книгам
