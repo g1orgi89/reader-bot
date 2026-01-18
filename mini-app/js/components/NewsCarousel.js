@@ -36,7 +36,7 @@ class NewsCarousel {
 
         <div class="news-track" tabindex="0" aria-roledescription="carousel" aria-label="Новости">
           ${this.items.map((x, i) => `
-            <article class="news-slide" role="group" aria-label="${i+1} из ${this.items.length}">
+            <article class="news-slide" role="group" aria-label="${i+1} из ${this.slidesCount}">
               <div class="news-media">
                 <img class="news-img" src="${this.escape(x.imageUrl)}" alt="${this.escape(x.title)}">
               </div>
@@ -104,6 +104,11 @@ class NewsCarousel {
     if (totalEl) {
       totalEl.textContent = `${this.slidesCount} из ${this.slidesCount} новости`;
     }
+
+    // Обновляем aria-labels для слайдов
+    slides.forEach((slide, i) => {
+      slide.setAttribute('aria-label', `${i+1} из ${this.slidesCount}`);
+    });
 
     // Переиндексация точек
     if (dotsBox) {
