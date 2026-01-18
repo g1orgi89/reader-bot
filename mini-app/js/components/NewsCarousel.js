@@ -1,16 +1,11 @@
 /**
  * NewsCarousel — карусель новостей на CSS scroll-snap.
- * - 5 карточек-изображений, свайп вправо/влево
- * - Явные стрелки и точки-индикаторы
- * - Использует глобальный RBImageErrorHandler для onerror у <img>
- * - Vanilla JS + JSDoc, без фреймворков
+ * Правки:
+ * - Только изображения: убран overlay, заголовок и ссылка "Подробнее"
+ * - Удален текст-подсказка о свайпе
+ * - Сохранены стрелки и точки
  */
 class NewsCarousel {
-  /**
-   * @param {Object} options
-   * @param {Array<{id:string,title:string,subtitle?:string,imageUrl:string,link?:string}>} options.items
-   * @param {string} options.containerId
-   */
   constructor({ items = [], containerId = 'news-carousel' } = {}) {
     this.items = Array.isArray(items) ? items.slice(0, 5) : [];
     this.containerId = containerId;
@@ -29,22 +24,16 @@ class NewsCarousel {
       <section class="news-carousel" id="${this.containerId}">
         <div class="news-header">
           <h2 class="news-title">Новости</h2>
-          <div class="news-hint">Свайп вправо, чтобы посмотреть</div>
+          <!-- Подсказка удалена по пожеланию владельца -->
         </div>
 
         <div class="news-track" tabindex="0" aria-roledescription="carousel" aria-label="Новости">
-          ${this.items.map((x, i) => `
+          ${this.items.map((_x, i) => `
             <article class="news-slide" role="group" aria-label="${i+1} из ${this.items.length}">
               <div class="news-media">
-                <img class="news-img" src="${this.escape(x.imageUrl)}" alt="${this.escape(x.title)}"
+                <img class="news-img" src="${this.escape(_x.imageUrl)}" alt="${this.escape(_x.title)}"
                      onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-                <div class="news-overlay">
-                  <div class="news-caption">
-                    <div class="news-caption-title">${this.escape(x.title)}</div>
-                    ${x.subtitle ? `<div class="news-caption-subtitle">${this.escape(x.subtitle)}</div>` : ''}
-                    ${x.link ? `<a class="news-link" href="${this.escape(x.link)}" target="_blank" rel="noopener">Подробнее</a>` : ''}
-                  </div>
-                </div>
+                <!-- Overlay и ссылка "Подробнее" удалены -->
               </div>
             </article>
           `).join('')}
@@ -61,10 +50,6 @@ class NewsCarousel {
     `;
   }
 
-  /**
-   * Установка обработчиков и начальной позиции
-   * @param {HTMLElement|string} root
-   */
   mount(root) {
     const container = (typeof root === 'string') ? document.getElementById(root) : (root || document.getElementById(this.containerId));
     if (!container) return;

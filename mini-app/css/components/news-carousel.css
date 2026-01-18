@@ -1,4 +1,4 @@
-/* NewsCarousel — использует только переменные из mini-app/css/variables.css */
+/* NewsCarousel — обновлено: только изображения, 16:9 как в audio cover */
 .news-carousel {
   padding: var(--spacing-md);
   background: var(--bg-secondary);
@@ -17,10 +17,7 @@
   font-size: var(--font-size-xl);
   color: var(--text-primary);
 }
-.news-hint {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-}
+/* .news-hint удалена */
 
 .news-track {
   display: flex;
@@ -42,43 +39,15 @@
   box-shadow: var(--shadow-md);
 }
 
-.news-media { position: relative; width: 100%; height: 200px; }
-@media (min-width: 480px) { .news-media { height: 240px; } }
+/* NEW: use 16:9 like audio cover */
+.news-media { position: relative; width: 100%; aspect-ratio: 16/9; }
 
 .news-img {
-  width: 100%; height: 100%; object-fit: cover;
-  display: block;
+  width: 100%; height: 100%; object-fit: cover; display: block;
 }
 
-.news-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.00) 0%, rgba(0,0,0,0.35) 100%);
-  display: flex; align-items: flex-end;
-}
-.news-caption {
-  color: var(--text-inverse);
-  padding: var(--spacing-md);
-  width: 100%;
-}
-.news-caption-title {
-  font-size: var(--font-size-lg);
-  line-height: var(--line-height-tight);
-  margin-bottom: var(--spacing-xs);
-}
-.news-caption-subtitle {
-  font-size: var(--font-size-sm);
-  opacity: 0.9;
-}
-.news-link {
-  margin-top: var(--spacing-sm);
-  display: inline-block;
-  padding: 8px 12px;
-  background: var(--primary-color);
-  color: var(--text-inverse);
-  border-radius: var(--radius-md);
-  text-decoration: none;
-  box-shadow: var(--shadow-primary);
-}
+/* Overlay/caption styles removed */
+/* .news-overlay, .news-caption, .news-caption-title, .news-caption-subtitle, .news-link { removed } */
 
 .news-controls {
   margin-top: var(--spacing-sm);
@@ -91,26 +60,10 @@
   border-radius: var(--radius-md);
   background: var(--bg-card);
   color: var(--text-primary);
-  font-size: var(--font-size-3xl);
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-.news-arrow:hover {
-  background: var(--bg-primary);
-  border-color: var(--border-dark);
-}
-.news-arrow:active {
-  opacity: var(--active-opacity);
 }
 .news-dots { display: flex; gap: var(--spacing-xs); }
 .news-dot {
   width: 8px; height: 8px; border-radius: var(--radius-round);
   background: var(--border-dark); border: none;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  min-width: var(--touch-target-min);
-  min-height: var(--touch-target-min);
-  padding: calc((var(--touch-target-min) - 8px) / 2);
 }
 .news-dot.active { background: var(--primary-color); }
-.news-dot:hover { opacity: var(--hover-opacity); }
