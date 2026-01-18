@@ -46,7 +46,7 @@
 .news-media {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 !important;
+  aspect-ratio: 1;
   background: var(--bg-secondary);
 }
 

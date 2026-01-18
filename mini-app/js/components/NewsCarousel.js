@@ -31,15 +31,14 @@ class NewsCarousel {
       <section class="news-carousel" id="${this.containerId}">
         <div class="news-header">
           <h2 class="news-title">Новости</h2>
-          <div class="news-total" aria-live="polite">${this.items.length} из ${this.items.length} новости</div>
+          <div class="news-total" aria-live="polite">${this.slidesCount} из ${this.slidesCount} новости</div>
         </div>
 
         <div class="news-track" tabindex="0" aria-roledescription="carousel" aria-label="Новости">
           ${this.items.map((x, i) => `
             <article class="news-slide" role="group" aria-label="${i+1} из ${this.items.length}">
               <div class="news-media">
-                <img class="news-img" src="${this.escape(x.imageUrl)}" alt="${this.escape(x.title)}"
-                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+                <img class="news-img" src="${this.escape(x.imageUrl)}" alt="${this.escape(x.title)}">
               </div>
             </article>
           `).join('')}
