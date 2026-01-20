@@ -927,7 +927,7 @@ body.dark-theme {
 .home-header-menu-btn {
     height: 40px;
     padding: 6px 12px;
-    background: var(--surface);
+    background: var(--primary-color);
     border: 1px solid var(--primary-color);
     border-radius: var(--radius-md, 8px);
     cursor: pointer;
@@ -936,19 +936,19 @@ body.dark-theme {
     justify-content: center;
     font-size: var(--font-size-sm, 14px);
     font-weight: var(--font-weight-semibold, 600);
-    color: var(--primary-color);
+    color: var(--text-inverse);
     transition: all var(--transition-fast, 0.2s ease);
     flex-shrink: 0;
     white-space: nowrap;
 }
 
 .home-header-menu-btn:hover {
-    box-shadow: inset 0 0 0 9999px var(--bg-overlay, rgba(210, 69, 44, 0.08)), inset 0 0 10px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+    background: var(--primary-light);
+    transform: translateY(-2px);
 }
 
 .home-header-menu-btn:focus-visible {
     outline: none;
-    box-shadow: inset 0 0 0 9999px var(--bg-overlay, rgba(210, 69, 44, 0.10)), inset 0 0 10px var(--shadow-color-strong, rgba(210, 69, 44, 0.18));
 }
 
 .home-header-menu-btn:active {
@@ -966,10 +966,10 @@ body.dark-theme {
   height: auto;
   min-height: 40px;
   padding: 6px 12px;
-  background: var(--surface);
+  background: var(--primary-color);
   border: 1px solid var(--primary-color);
   border-radius: var(--radius-md);
-  color: var(--primary-color);
+  color: var(--text-inverse);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   display: inline-flex;
@@ -977,21 +977,17 @@ body.dark-theme {
   justify-content: center;
   gap: 6px;
   transition:
-    box-shadow var(--transition-fast, 0.2s),
+    background var(--transition-fast, 0.2s),
     transform var(--transition-fast, 0.2s);
 }
 
 #homeHeaderMenuBtn:hover {
-  box-shadow:
-    inset 0 0 0 9999px var(--bg-overlay, rgba(210, 69, 44, 0.08)),
-    inset 0 0 10px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+  background: var(--primary-light);
+  transform: translateY(-2px);
 }
 
 #homeHeaderMenuBtn:focus-visible {
   outline: none;
-  box-shadow:
-    inset 0 0 0 9999px var(--bg-overlay, rgba(210, 69, 44, 0.10)),
-    inset 0 0 10px var(--shadow-color-strong, rgba(210, 69, 44, 0.18));
 }
 
 #homeHeaderMenuBtn:active {
@@ -1381,4 +1377,16 @@ body.dark-theme {
 /* === Progress section - compact text for "(дней подряд)" === */
 .progress-streak-suffix {
   font-size: 10px;
+}
+
+/* ============================================================================
+   📊 PROGRESS AUTHOR NAME - OVERFLOW HANDLING
+   ============================================================================ */
+
+.progress-author-name {
+    font-size: var(--font-size-xs);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

@@ -34,7 +34,7 @@ class NewsCarousel {
     return `
       <section class="news-carousel" id="${this.containerId}">
         <div class="news-header">
-          <h2 class="news-title">Новости</h2>
+          <h2 class="news-title">Новости книжного клуба</h2>
           <div class="news-counter" aria-live="polite">${initialCurrent} из ${total}</div>
         </div>
 
