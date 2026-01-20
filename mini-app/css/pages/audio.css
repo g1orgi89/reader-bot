@@ -343,6 +343,11 @@
   margin-bottom: var(--spacing-lg);
 }
 
+/* Inline rate control (in player controls row) */
+.player-rate-control.inline {
+  margin: 0;
+}
+
 .player-rate-btn {
   padding: var(--spacing-xs) var(--spacing-md);
   background: var(--bg-secondary);
@@ -353,6 +358,13 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.1s ease;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Tighter padding for inline rate button in controls */
+.player-controls .player-rate-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
 }
 
 .player-rate-btn:active {

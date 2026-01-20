@@ -342,7 +342,7 @@ class FreeAudioPlayerPage {
     const rateMenu = document.querySelector('.player-rate-menu');
 
     if (rateBtn) {
-      rateBtn.textContent = `Скорость ${this.currentRate}x`;
+      rateBtn.textContent = `${this.currentRate}x`;
     }
 
     if (rateMenu) {
@@ -363,7 +363,7 @@ class FreeAudioPlayerPage {
   renderRateControl() {
     return `
       <button class="player-rate-btn" title="Скорость воспроизведения">
-        Скорость ${this.currentRate}x
+        ${this.currentRate}x
       </button>
     `;
   }
@@ -536,6 +536,12 @@ class FreeAudioPlayerPage {
 
         <!-- Controls -->
         <div class="player-controls">
+          <!-- Rate Control (inline) -->
+          <div class="player-rate-control inline">
+            ${this.renderRateControl()}
+            ${this.renderRateMenu()}
+          </div>
+
           <button class="player-control-btn player-seek-back" data-seek="-15">
             <span class="player-seek-label">-15</span>
           </button>
@@ -547,12 +553,6 @@ class FreeAudioPlayerPage {
           <button class="player-control-btn player-seek-forward" data-seek="15">
             <span class="player-seek-label">+15</span>
           </button>
-        </div>
-
-        <!-- Rate Control -->
-        <div class="player-rate-control">
-          ${this.renderRateControl()}
-          ${this.renderRateMenu()}
         </div>
 
         <!-- Back Button -->
