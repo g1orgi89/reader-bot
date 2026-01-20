@@ -345,7 +345,6 @@
 
 /* Inline rate control (in player controls row) */
 .player-rate-control.inline {
-  position: relative;
   margin: 0;
 }
 
