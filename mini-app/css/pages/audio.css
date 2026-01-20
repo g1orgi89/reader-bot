@@ -389,13 +389,6 @@
   z-index: 10;
 }
 
-/* Inline rate control menu positioning */
-.player-rate-control.inline .player-rate-menu {
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
 .rate-option {
   padding: var(--spacing-xs) var(--spacing-md);
   background: var(--bg-secondary);
