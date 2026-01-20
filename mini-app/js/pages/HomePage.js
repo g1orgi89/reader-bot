@@ -315,11 +315,11 @@ class HomePage {
                 const newContent = [
                     { label: 'За неделю', value: stats.weeklyQuotes ?? '—' },
                     { label: 'Серия <span class="progress-streak-suffix">(дней подряд)</span>', value: stats.currentStreak ?? '—' },
-                    { label: 'Любимый автор', value: stats.favoriteAuthor || '—' }
+                    { label: 'Любимый автор', value: stats.favoriteAuthor || '—', isAuthor: true }
                 ].map(item => `
                     <div class="stat-card fade-in" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;">
                         <div style="font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">${item.label}</div>
-                        <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">${item.value}</div>
+                        <div class="${item.isAuthor ? 'progress-author-name' : ''}" style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">${item.value}</div>
                     </div>
                 `).join('');
                 

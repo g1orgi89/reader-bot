@@ -3034,3 +3034,60 @@ if (rawHash && rawHash !== '' && rawHash !== '/') {
 ---
 
 <!-- Следующие записи добавляются ниже -->
+
+## 2026-01-20 — Минимальные правки главной страницы (вариант 1)
+
+Задача: Минимальные изменения главной страницы для улучшения UI и UX.
+
+### Изменения:
+
+**1. Кнопка Меню в шапке главной:**
+- Изменен стиль кнопки меню на терракотовый фон с белым текстом
+- Стиль теперь идентичен кнопке "Добавить новую цитату"
+- Селекторы: `.home-header-menu-btn` и `#homeHeaderMenuBtn`
+- Файл: `mini-app/css/pages/home.css`
+- Изменения:
+  - `background: var(--primary-color)` (было: `var(--surface)`)
+  - `color: var(--text-inverse)` (было: `var(--primary-color)`)
+  - `border: 1px solid var(--primary-color)` (без изменений)
+  - Hover: `background: var(--primary-light)` с `translateY(-2px)`
+
+**2. Заголовок блока новостей:**
+- Переименован с "Новости" на "Новости книжного клуба"
+- Файл: `mini-app/js/components/NewsCarousel.js`
+- Строка 37: изменен текст в `<h2 class="news-title">`
+
+**3. Блок "Ваш прогресс" - Любимый автор:**
+- Добавлен CSS класс `.progress-author-name` для предотвращения переполнения
+- Файл: `mini-app/css/pages/home.css`
+- Стили:
+  - `font-size: var(--font-size-xs)`
+  - `max-width: 100%`
+  - `overflow: hidden`
+  - `text-overflow: ellipsis`
+  - `white-space: nowrap`
+- Файл: `mini-app/js/pages/HomePage.js`
+- Метод: `updateProgressUI()` - применен класс к элементу "Любимый автор"
+
+### Тестирование (dev.unibotz.com:3003):
+- ✅ Кнопка меню: терракотовый фон, белый текст, стиль как "Добавить цитату"
+- ✅ Блок новостей: заголовок "Новости книжного клуба"
+- ✅ Любимый автор: уменьшенный размер шрифта, длинное имя обрезается многоточием
+
+### Откат:
+Все изменения — override существующих стилей и строк. Быстрый откат:
+- Вернуть `background: var(--surface)` и `color: var(--primary-color)` для кнопки меню
+- Вернуть "Новости" в NewsCarousel.js
+- Удалить класс `.progress-author-name` и его применение
+
+### Файлы изменены:
+- `mini-app/css/pages/home.css` — стили кнопки меню, класс для автора
+- `mini-app/js/components/NewsCarousel.js` — заголовок новостей
+- `mini-app/js/pages/HomePage.js` — применение класса к автору
+- `docs/development/WORK_LOG_2025.md` — эта запись
+
+Часы: 0.5
+
+---
+
+<!-- Следующие записи добавляются ниже -->
