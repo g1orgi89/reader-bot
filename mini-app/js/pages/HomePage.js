@@ -568,9 +568,9 @@ class HomePage {
             <div class="content">
                 ${this.renderUserHeader(user)}
                 ${this.renderHomeStatusCard(user)}
+                ${this.renderStatsInline(stats)}
                 ${this.renderNewsBlock()}
                 <!-- ${this.renderWelcomeSection()}  УДАЛЕНО -->
-                ${this.renderStatsInline(stats)}
                 ${this.renderMainCTA()}
                 ${this.renderRecentQuotesSection()}
                 ${this.renderTopBooks(books)} 
