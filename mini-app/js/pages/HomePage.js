@@ -316,12 +316,17 @@ class HomePage {
                     { label: 'За неделю', value: stats.weeklyQuotes ?? '—' },
                     { label: 'Серия <span class="progress-streak-suffix">(дней подряд)</span>', value: stats.currentStreak ?? '—' },
                     { label: 'Любимый автор', value: stats.favoriteAuthor || '—', isAuthor: true }
-                ].map(item => `
+                ].map(item => {
+                    const valueContent = item.isAuthor && item.value !== '—'
+                        ? `<span class="progress-author-name" title="${item.value}">${item.value}</span>`
+                        : item.value;
+                    return `
                     <div class="stat-card fade-in" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;">
                         <div style="font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">${item.label}</div>
-                        <div class="${item.isAuthor ? 'progress-author-name' : ''}" style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">${item.value}</div>
+                        <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">${valueContent}</div>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
                 
                 if (grid.innerHTML !== newContent) {
                     grid.innerHTML = newContent;
@@ -567,8 +572,8 @@ class HomePage {
         return `
             <div class="content">
                 ${this.renderUserHeader(user)}
-                ${this.renderHomeStatusCard(user)}
                 ${this.renderStatsInline(stats)}
+                ${this.renderHomeStatusCard(user)}
                 ${this.renderNewsBlock()}
                 <!-- ${this.renderWelcomeSection()}  УДАЛЕНО -->
                 ${this.renderMainCTA()}

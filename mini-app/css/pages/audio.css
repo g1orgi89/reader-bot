@@ -291,11 +291,19 @@
 
 /* Player Controls */
 .player-controls {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
+}
+
+.player-controls-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-lg);
 }
 
 .player-control-btn {
@@ -343,9 +351,14 @@
   margin-bottom: var(--spacing-lg);
 }
 
-/* Inline rate control (in player controls row) */
+/* Inline rate control (in player controls row) - positioned on left */
 .player-rate-control.inline {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
   margin: 0;
+  z-index: 5;
 }
 
 .player-rate-btn {
@@ -364,7 +377,9 @@
 
 /* Tighter padding for inline rate button in controls */
 .player-controls .player-rate-btn {
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--spacing-2xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
 .player-rate-btn:active {
@@ -372,6 +387,24 @@
   background: var(--bg-tertiary);
 }
 
+/* Compact rate menu for inline control */
+.player-rate-control.inline .player-rate-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  transform: none;
+  max-width: calc(100vw - 24px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-2xs);
+  z-index: 10;
+}
+
+/* Default rate menu (non-inline) */
 .player-rate-menu {
   position: absolute;
   bottom: 100%;
@@ -386,6 +419,13 @@
   gap: var(--spacing-xs);
   padding: var(--spacing-xs);
   z-index: 10;
+}
+
+.player-rate-menu .rate-option {
+  min-width: 40px;
+  padding: 4px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
 }
 
 .rate-option {
@@ -493,6 +533,17 @@
     width: 72px;
     height: 72px;
     font-size: 28px;
+  }
+
+  .player-controls .player-rate-btn {
+    padding: 2px 6px;
+    font-size: var(--font-size-xs);
+  }
+
+  .player-rate-menu .rate-option {
+    min-width: 36px;
+    padding: 3px 6px;
+    font-size: var(--font-size-xs);
   }
 }
 
