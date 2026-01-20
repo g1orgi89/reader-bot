@@ -1383,10 +1383,20 @@ body.dark-theme {
    📊 PROGRESS AUTHOR NAME - OVERFLOW HANDLING
    ============================================================================ */
 
-.progress-author-name {
-    font-size: var(--font-size-xs);
+.progress-grid .stat-card .progress-author-name {
+    display: inline-block;
     max-width: 100%;
+    font-size: var(--font-size-sm) !important; /* override parent inline font-size */
+    line-height: 1.2;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* Very small screens - even smaller font */
+@media (max-width: 360px) {
+    .progress-grid .stat-card .progress-author-name {
+        font-size: var(--font-size-xs) !important;
+    }
 }
