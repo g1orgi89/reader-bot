@@ -72,6 +72,7 @@ class CommunityPage {
         this.coversPosts = [];
         this.coversHasMore = false;
         this.coversCursor = null;
+        this.coverUploadForm = null; // Upload form component instance
 
         // 🌟 SPOTLIGHT CACHE (TTL система для предотвращения мигания)
         this._spotlightCache = {
@@ -2040,24 +2041,45 @@ async refreshSpotlight() {
      * 📸 РЕНДЕР ЛЕНТЫ ОБЛОЖЕК (COVERS)
      */
     renderCoversSection() {
+        // Initialize upload form if not already created
+        if (!this.coverUploadForm) {
+            this.coverUploadForm = new CoverUploadForm({
+                api: this.api,
+                onSuccess: (result) => {
+                    console.log('✅ CommunityPage: Photo uploaded successfully, refreshing feed...');
+                    this.handleUploadSuccess(result);
+                },
+                onError: (error) => {
+                    console.error('❌ CommunityPage: Upload failed:', error);
+                }
+            });
+        }
+        
+        const uploadFormHtml = this.coverUploadForm.render();
+        
         if (this.coversPosts === null) {
-            return '<div class="loading-indicator" style="text-align: center; padding: 40px;"><div class="spinner"></div><div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div></div>';
+            return `
+                ${uploadFormHtml}
+                <div class="loading-indicator" style="text-align: center; padding: 40px;"><div class="spinner"></div><div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div></div>
+            `;
         }
         
-        if (!this.coversPosts || this.coversPosts.length === 0) {
-            return '<div class="empty-following"><div class="empty-following__icon">📸</div><div class="empty-following__title">Пока нет обложек</div><div class="empty-following__text">Станьте первым, кто добавит фото дня!</div></div>';
-        }
+        const emptyStateHtml = (!this.coversPosts || this.coversPosts.length === 0) 
+            ? '<div class="empty-following"><div class="empty-following__icon">📸</div><div class="empty-following__title">Лента обложек пуста</div><div class="empty-following__text">Добавьте свою первую обложку! 📸</div></div>'
+            : '';
         
-        const postsHtml = this.coversPosts.map(post => this.renderCoverCard(post)).join('');
+        const postsHtml = (this.coversPosts && this.coversPosts.length > 0) 
+            ? this.coversPosts.map(post => this.renderCoverCard(post)).join('')
+            : '';
         
         return `
             <div id="coversSection" class="community-spotlight">
+                ${uploadFormHtml}
                 <div class="spotlight-header">
                     <h3 class="spotlight-title">📸 Обложки</h3>
                 </div>
-                <div class="spotlight-grid">
-                    ${postsHtml}
-                </div>
+                ${emptyStateHtml}
+                ${postsHtml ? `<div class="spotlight-grid">${postsHtml}</div>` : ''}
                 ${this.coversHasMore ? '<div class="feed-load-more"><button class="feed-load-more__btn js-covers-load-more">Показать ещё</button></div>' : ''}
             </div>
         `;
@@ -3326,6 +3348,7 @@ renderAchievementsSection() {
         this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели (теперь обновляет и лидерборд)
         this.attachFeedLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "Все"
         this.attachFollowingLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "От подписок"
+        this.attachCoverUploadFormListeners(); // ✅ НОВОЕ: Upload form для обложек
         // attachLeaderboardRefreshButton() удален - кнопка лидерборда больше не существует
         this.setupQuoteChangeListeners();
     }
@@ -4700,6 +4723,39 @@ renderAchievementsSection() {
             console.error('❌ Error loading more covers:', error);
         } finally {
             this.loadingStates.covers = false;
+        }
+    }
+    
+    /**
+     * 📸 Attach cover upload form event listeners
+     */
+    attachCoverUploadFormListeners() {
+        if (this.feedFilter === 'covers' && this.coverUploadForm) {
+            this.coverUploadForm.attachEventListeners();
+        }
+    }
+    
+    /**
+     * 📸 Handle successful photo upload
+     * @param {Object} result - Upload result from API
+     */
+    async handleUploadSuccess(result) {
+        console.log('📸 CommunityPage: Handling upload success...', result);
+        
+        // Show success message/toast if available
+        if (window.app && window.app.showToast) {
+            window.app.showToast('Фото успешно добавлено! 📸', 'success');
+        }
+        
+        // Refresh the covers feed to show the new post
+        this.coversPosts = null; // Show loading state
+        this.coversCursor = null; // Reset cursor to load from beginning
+        
+        try {
+            await this.loadCovers(false); // Load fresh data
+            this.rerender();
+        } catch (error) {
+            console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
         }
     }
 }

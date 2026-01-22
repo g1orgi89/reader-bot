@@ -1871,12 +1871,16 @@ class ApiService {
         
         console.log('📸 ApiService: Uploading cover photo...');
         
+        // Get authentication data
+        const initDataRaw = this.resolveTelegramInitDataRaw();
+        const userId = this.resolveUserId();
+        
         // Use fetch directly for multipart/form-data
-        return fetch(`${this.baseUrl}/covers`, {
+        return fetch(`${this.baseURL}/covers`, {
             method: 'POST',
             headers: {
-                'Authorization': `tma ${this.initDataRaw || ''}`,
-                'X-User-Id': String(this.userId || '')
+                'Authorization': `tma ${initDataRaw || ''}`,
+                'X-User-Id': String(userId || '')
             },
             body: formData
         }).then(async (response) => {
