@@ -3,7 +3,7 @@
  * 
  * Inline photo upload form for Covers feed
  * Features:
- * - File input with image validation (JPEG/PNG/WebP, max 5MB)
+ * - File input with image validation (JPEG/PNG/WebP/HEIC/HEIF, max 10MB)
  * - Optional caption (max 300 chars)
  * - Brand-styled primary button
  * - Upload via API with multipart/form-data
@@ -31,9 +31,9 @@ class CoverUploadForm {
         this.uploading = false;
         
         // Validation constraints
-        this.MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+        this.MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (increased for HEIC/HEIF support)
         this.MAX_CAPTION_LENGTH = 300;
-        this.ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+        this.ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
     }
     
     /**
@@ -56,7 +56,7 @@ class CoverUploadForm {
                     type="file" 
                     id="coverFileInput"
                     class="cover-upload-form__input"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                     style="display: none;">
                 
                 <div id="coverUploadPreview" class="cover-upload-preview" style="display: none;">
@@ -145,14 +145,14 @@ class CoverUploadForm {
         
         // Validate file type
         if (!this.ALLOWED_TYPES.includes(file.type)) {
-            this.showError('Поддерживаются только JPEG, PNG и WebP изображения');
+            this.showError('Поддерживаются только JPEG, PNG, WebP, HEIC и HEIF изображения');
             event.target.value = '';
             return;
         }
         
         // Validate file size
         if (file.size > this.MAX_FILE_SIZE) {
-            this.showError('Размер файла не должен превышать 5 МБ');
+            this.showError('Размер файла не должен превышать 10 МБ');
             event.target.value = '';
             return;
         }
@@ -294,9 +294,9 @@ class CoverUploadForm {
             if (error.message.includes('already posted')) {
                 errorMessage = 'Вы уже добавили фото сегодня. Попробуйте завтра!';
             } else if (error.message.includes('size')) {
-                errorMessage = 'Файл слишком большой. Максимум 5 МБ.';
+                errorMessage = 'Файл слишком большой. Максимум 10 МБ.';
             } else if (error.message.includes('format') || error.message.includes('type')) {
-                errorMessage = 'Неподдерживаемый формат. Используйте JPEG, PNG или WebP.';
+                errorMessage = 'Неподдерживаемый формат. Используйте JPEG, PNG, WebP, HEIC или HEIF.';
             }
             
             this.showError(errorMessage);
