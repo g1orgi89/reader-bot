@@ -318,14 +318,14 @@ const coverStorage = multer.diskStorage({
 const coverUpload = multer({
   storage: coverStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit (increased for HEIC/HEIF support)
   },
   fileFilter: function (req, file, cb) {
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Поддерживаются только изображения (JPEG, PNG, WebP)'));
+      cb(new Error('Поддерживаются только изображения (JPEG, PNG, WebP, HEIC, HEIF)'));
     }
   }
 });
