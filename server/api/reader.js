@@ -5784,7 +5784,7 @@ router.get('/covers/:id/comments', telegramAuth, async (req, res) => {
  * @route DELETE /api/reader/covers/:id
  * @access Private (telegramAuth, author only)
  */
-router.delete('/covers/:id', telegramAuth, async (req, res) => {
+router.delete('/covers/:id', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const userId = req.userId;
     const postId = req.params.id;
