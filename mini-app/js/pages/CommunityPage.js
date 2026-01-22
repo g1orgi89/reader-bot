@@ -2124,7 +2124,7 @@ async refreshSpotlight() {
         const dateStr = this.formatRelativeTime(createdAt);
         
         // Check if this is the current user's post
-        const currentUserId = this.api.resolveUserId?.();
+        const currentUserId = this.api && typeof this.api.resolveUserId === 'function' ? this.api.resolveUserId() : null;
         const isOwnPost = currentUserId && user.userId && currentUserId === user.userId;
         
         const avatarHtml = avatarUrl 

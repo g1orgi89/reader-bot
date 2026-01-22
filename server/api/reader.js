@@ -5810,9 +5810,13 @@ router.delete('/covers/:id', telegramAuth, async (req, res) => {
     if (post.imageUrl) {
       // Extract filename from URL (e.g., /uploads/covers/filename.jpg)
       const filename = path.basename(post.imageUrl);
-      const filePath = path.join(__dirname, '../../uploads/covers', filename);
+      const coversDir = path.resolve(__dirname, '../../uploads/covers');
+      const filePath = path.resolve(coversDir, filename);
       
-      if (fs.existsSync(filePath)) {
+      // Validate that the resolved path is within the covers directory
+      if (!filePath.startsWith(coversDir)) {
+        console.error('⚠️ Path traversal attempt detected:', filePath);
+      } else if (fs.existsSync(filePath)) {
         try {
           fs.unlinkSync(filePath);
           console.log(`✅ Deleted cover image file: ${filename}`);
