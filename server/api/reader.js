@@ -5780,6 +5780,58 @@ router.get('/covers/:id/comments', telegramAuth, async (req, res) => {
 });
 
 /**
+ * @description DELETE /api/reader/covers/:id - Delete a cover post
+ * @route DELETE /api/reader/covers/:id
+ * @access Private (telegramAuth, author only)
+ */
+router.delete('/covers/:id', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const postId = req.params.id;
+    
+    // Find the post
+    const post = await PhotoPost.findById(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Пост не найден' });
+    }
+    
+    // Check if user is the author
+    if (post.userId !== userId) {
+      return res.status(403).json({ success: false, error: 'Вы можете удалять только свои посты' });
+    }
+    
+    // Delete the post document
+    await PhotoPost.findByIdAndDelete(postId);
+    
+    // Delete all comments for this post
+    await PhotoComment.deleteMany({ postId });
+    
+    // Delete the image file if it exists
+    if (post.imageUrl) {
+      // Extract filename from URL (e.g., /uploads/covers/filename.jpg)
+      const filename = path.basename(post.imageUrl);
+      const filePath = path.join(__dirname, '../../uploads/covers', filename);
+      
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`✅ Deleted cover image file: ${filename}`);
+        } catch (fileError) {
+          console.error('⚠️ Error deleting image file:', fileError);
+          // Don't fail the request if file deletion fails
+        }
+      }
+    }
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('Error deleting cover:', error);
+    res.status(500).json({ success: false, error: 'Ошибка удаления поста' });
+  }
+});
+
+/**
  * @description POST /api/reader/covers/:id/pin - Pin a post (admin only)
  * @route POST /api/reader/covers/:id/pin
  * @access Private (telegramAuth + admin)

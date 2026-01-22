@@ -703,7 +703,7 @@ class CommunityPage {
         this.loadingStates.covers = true;
         
         try {
-            const feed = this.feedFilter === 'all' ? 'all' : 'following';
+            const feed = (this.feedFilter === 'covers' || this.feedFilter === 'all') ? 'all' : 'following';
             const cursor = loadMore ? this.coversCursor : null;
             const limit = 20;
             
@@ -2123,9 +2123,18 @@ async refreshSpotlight() {
         const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
         const dateStr = this.formatRelativeTime(createdAt);
         
+        // Check if this is the current user's post
+        const currentUserId = this.api.resolveUserId?.();
+        const isOwnPost = currentUserId && user.userId && currentUserId === user.userId;
+        
         const avatarHtml = avatarUrl 
             ? `<img src="${this.escapeHtml(avatarUrl)}" alt="${this.escapeHtml(userName)}" class="cover-card__avatar">`
             : '<div class="cover-card__avatar" style="background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">👤</div>';
+        
+        // Add delete button for own posts
+        const deleteButtonHtml = isOwnPost 
+            ? '<button class="cover-card__delete-btn" data-action="delete-cover" data-post-id="' + (post._id || post.id) + '" title="Удалить">✕</button>'
+            : '';
         
         return `
             <div class="cover-card" data-post-id="${post._id || post.id}">
@@ -2136,6 +2145,7 @@ async refreshSpotlight() {
                         <div class="cover-card__date">${dateStr}</div>
                     </div>
                     ${isPinned ? '<div class="cover-card__pin-badge">📌 Закреплено</div>' : ''}
+                    ${deleteButtonHtml}
                 </div>
                 <img src="${this.escapeHtml(post.imageUrl)}" alt="${this.escapeHtml(caption)}" class="cover-photo" data-action="open-image" data-image-url="${this.escapeHtml(post.imageUrl)}" data-caption="${this.escapeHtml(caption)}">
                 ${caption ? `<div class="cover-card__caption">${this.escapeHtml(caption)}</div>` : ''}
@@ -2144,6 +2154,7 @@ async refreshSpotlight() {
                         💬 ${commentsCount > 0 ? commentsCount : 'Комментарии'}
                     </button>
                 </div>
+                <div class="cover-card__comments-section" id="comments-${post._id || post.id}" style="display: none;"></div>
             </div>
         `;
     }
@@ -3535,11 +3546,29 @@ renderAchievementsSection() {
                 return;
             }
             
+            // Handle delete cover
+            if (target.dataset.action === 'delete-cover') {
+                event.preventDefault();
+                const postId = target.dataset.postId;
+                this.handleDeleteCover(postId);
+                this.triggerHapticFeedback('medium');
+                return;
+            }
+            
             // Handle show comments
             if (target.dataset.action === 'show-comments') {
                 event.preventDefault();
                 const postId = target.dataset.postId;
-                console.log('📸 Show comments for post:', postId);
+                this.handleShowComments(postId);
+                this.triggerHapticFeedback('light');
+                return;
+            }
+            
+            // Handle add comment
+            if (target.dataset.action === 'add-comment') {
+                event.preventDefault();
+                const postId = target.dataset.postId;
+                this.handleAddComment(postId);
                 this.triggerHapticFeedback('light');
                 return;
             }
@@ -4800,6 +4829,216 @@ renderAchievementsSection() {
         } finally {
             // Always rerender to update UI
             this.rerender();
+        }
+    }
+    
+    /**
+     * 📸 Handle delete cover post
+     * @param {string} postId - Post ID to delete
+     */
+    async handleDeleteCover(postId) {
+        if (!postId) return;
+        
+        // Confirm deletion
+        const confirmed = confirm('Удалить это фото?');
+        if (!confirmed) return;
+        
+        try {
+            console.log('📸 CommunityPage: Deleting cover post:', postId);
+            
+            // Show loading state on the card
+            const card = document.querySelector(`[data-post-id="${postId}"]`);
+            if (card) {
+                card.style.opacity = '0.5';
+                card.style.pointerEvents = 'none';
+            }
+            
+            // Call API to delete
+            const response = await this.api.deleteCover(postId);
+            
+            if (response && response.success) {
+                // Remove from local state
+                if (Array.isArray(this.coversPosts)) {
+                    this.coversPosts = this.coversPosts.filter(p => (p._id || p.id) !== postId);
+                }
+                
+                // Show success message
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Фото удалено', 'success');
+                }
+                
+                // Rerender to update UI
+                this.rerender();
+            } else {
+                throw new Error(response?.error || 'Failed to delete');
+            }
+        } catch (error) {
+            console.error('❌ CommunityPage: Failed to delete cover:', error);
+            
+            // Restore card state
+            const card = document.querySelector(`[data-post-id="${postId}"]`);
+            if (card) {
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
+            }
+            
+            // Show error message
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Ошибка удаления фото', 'error');
+            }
+        }
+    }
+    
+    /**
+     * 📸 Handle show/hide comments for a post
+     * @param {string} postId - Post ID
+     */
+    async handleShowComments(postId) {
+        if (!postId) return;
+        
+        const commentsSection = document.getElementById(`comments-${postId}`);
+        if (!commentsSection) return;
+        
+        // Toggle visibility
+        const isVisible = commentsSection.style.display !== 'none';
+        
+        if (isVisible) {
+            // Hide comments
+            commentsSection.style.display = 'none';
+        } else {
+            // Show comments - load if needed
+            commentsSection.style.display = 'block';
+            
+            // Check if already loaded
+            if (commentsSection.innerHTML.trim() === '') {
+                await this.loadComments(postId);
+            }
+        }
+    }
+    
+    /**
+     * 📸 Load comments for a post
+     * @param {string} postId - Post ID
+     */
+    async loadComments(postId) {
+        if (!postId) return;
+        
+        const commentsSection = document.getElementById(`comments-${postId}`);
+        if (!commentsSection) return;
+        
+        try {
+            // Show loading state
+            commentsSection.innerHTML = '<div style="padding: 8px; color: var(--text-secondary); font-size: 13px;">Загрузка комментариев...</div>';
+            
+            // Fetch comments
+            const response = await this.api.getCoverComments(postId);
+            
+            if (response && response.success) {
+                const comments = response.data || [];
+                
+                // Render comments
+                const commentsHtml = comments.map(comment => {
+                    const user = comment.user || {};
+                    const userName = user.name || 'Пользователь';
+                    const commentText = comment.text || '';
+                    const createdAt = comment.createdAt ? new Date(comment.createdAt) : new Date();
+                    const dateStr = this.formatRelativeTime(createdAt);
+                    
+                    return `
+                        <div class="cover-card__comment">
+                            <div class="cover-card__comment-author">${this.escapeHtml(userName)}</div>
+                            <div class="cover-card__comment-text">${this.escapeHtml(commentText)}</div>
+                            <div class="cover-card__comment-date">${dateStr}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add input form
+                const inputFormHtml = `
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <input 
+                            type="text" 
+                            id="comment-input-${postId}" 
+                            placeholder="Добавить комментарий..." 
+                            style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; background: var(--bg-card); color: var(--text-primary);"
+                        />
+                        <button 
+                            data-action="add-comment" 
+                            data-post-id="${postId}"
+                            style="padding: 8px 16px; background: var(--primary-color); color: white; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap;"
+                        >
+                            Отправить
+                        </button>
+                    </div>
+                `;
+                
+                commentsSection.innerHTML = commentsHtml + inputFormHtml;
+            } else {
+                throw new Error(response?.error || 'Failed to load comments');
+            }
+        } catch (error) {
+            console.error('❌ CommunityPage: Failed to load comments:', error);
+            commentsSection.innerHTML = '<div style="padding: 8px; color: var(--error-color); font-size: 13px;">Ошибка загрузки комментариев</div>';
+        }
+    }
+    
+    /**
+     * 📸 Handle add comment to a post
+     * @param {string} postId - Post ID
+     */
+    async handleAddComment(postId) {
+        if (!postId) return;
+        
+        const input = document.getElementById(`comment-input-${postId}`);
+        if (!input) return;
+        
+        const text = input.value.trim();
+        if (!text) return;
+        
+        try {
+            // Disable input while sending
+            input.disabled = true;
+            
+            // Send comment
+            const response = await this.api.addCoverComment(postId, text);
+            
+            if (response && response.success) {
+                // Clear input
+                input.value = '';
+                
+                // Reload comments to show the new one
+                await this.loadComments(postId);
+                
+                // Update comment count in the post
+                const post = this.coversPosts?.find(p => (p._id || p.id) === postId);
+                if (post) {
+                    post.commentsCount = (post.commentsCount || 0) + 1;
+                    // Update the button text
+                    const btn = document.querySelector(`[data-action="show-comments"][data-post-id="${postId}"]`);
+                    if (btn) {
+                        btn.textContent = `💬 ${post.commentsCount}`;
+                    }
+                }
+                
+                // Show success message
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Комментарий добавлен', 'success');
+                }
+            } else {
+                throw new Error(response?.error || 'Failed to add comment');
+            }
+        } catch (error) {
+            console.error('❌ CommunityPage: Failed to add comment:', error);
+            
+            // Show error message
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Ошибка добавления комментария', 'error');
+            }
+        } finally {
+            // Re-enable input
+            if (input) {
+                input.disabled = false;
+            }
         }
     }
 }
