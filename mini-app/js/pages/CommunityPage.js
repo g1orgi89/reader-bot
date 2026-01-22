@@ -63,10 +63,15 @@ class CommunityPage {
         this.funFact = null;
         
         // 👥 ПОДПИСКИ (FOLLOW SYSTEM)
-        this.feedFilter = 'all'; // 'all' | 'following'
+        this.feedFilter = 'all'; // 'all' | 'following' | 'covers'
         this.followingQuotes = [];
         this.followingCount = 0;
         this.followStatusCache = this._loadFollowStatusFromStorage(); // userId -> boolean
+
+        // 📸 COVERS (ОБЛОЖКИ)
+        this.coversPosts = [];
+        this.coversHasMore = false;
+        this.coversCursor = null;
 
         // 🌟 SPOTLIGHT CACHE (TTL система для предотвращения мигания)
         this._spotlightCache = {
@@ -153,6 +158,13 @@ class CommunityPage {
     init() {
         this.setupSubscriptions();
         // ✅ ИСПРАВЛЕНО: Убрана автозагрузка из init()
+        
+        // Initialize ImageViewer for Covers
+        if (typeof ImageViewer !== 'undefined') {
+            this.imageViewer = new ImageViewer();
+        } else {
+            console.warn('⚠️ ImageViewer not loaded');
+        }
     }
 
     // PREFETCH: вызывается Router перед первым render — грузим всё параллельно
@@ -676,6 +688,52 @@ class CommunityPage {
     }
     
     /**
+     * 📸 ЗАГРУЗКА ЛЕНТЫ ОБЛОЖЕК (COVERS)
+     * @param {boolean} loadMore - Load more posts (use cursor)
+     */
+    async loadCovers(loadMore = false) {
+        try {
+            const feed = this.feedFilter === 'all' ? 'all' : 'following';
+            const cursor = loadMore ? this.coversCursor : null;
+            const limit = 20;
+            
+            console.log(`📸 CommunityPage: Загружаем обложки (feed=${feed}, cursor=${cursor}, loadMore=${loadMore})...`);
+            
+            const response = await this.api.getCovers({ feed, cursor, limit });
+            
+            if (response && response.success) {
+                const newPosts = response.data || [];
+                
+                if (loadMore) {
+                    // Append to existing posts
+                    this.coversPosts = [...(this.coversPosts || []), ...newPosts];
+                } else {
+                    // Replace posts
+                    this.coversPosts = newPosts;
+                }
+                
+                this.coversHasMore = response.hasMore || false;
+                this.coversCursor = response.nextCursor || null;
+                
+                console.log(`✅ CommunityPage: Обложки загружены: ${newPosts.length} постов, hasMore=${this.coversHasMore}`);
+            } else {
+                if (!loadMore) {
+                    this.coversPosts = [];
+                }
+                this.coversHasMore = false;
+                this.coversCursor = null;
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки обложек:', error);
+            if (!loadMore) {
+                this.coversPosts = [];
+            }
+            this.coversHasMore = false;
+            this.coversCursor = null;
+        }
+    }
+    
+    /**
      * 🔄 COMPOSE COMMUNITY FEED - Компоновка ленты "Все" с вставками
      * Создает структуру с тремя чанками цитат и двумя статическими вставками
      * @param {Array} quotes - Массив цитат для отображения
@@ -1034,6 +1092,13 @@ class CommunityPage {
                 
                 await this.loadFollowingFeed();
             }
+            
+            // Load covers if needed
+            if (filter === 'covers' && (!this.coversPosts || this.coversPosts.length === 0)) {
+                this.coversPosts = null; // Show loading state
+                this.rerender();
+                await this.loadCovers();
+            }
 
             // ✅ НОВОЕ: Если followingFeed уже загружен, применяем saved state
             if (filter === 'following' && this.followingFeed && this.followingFeed.length > 0) {
@@ -1042,11 +1107,16 @@ class CommunityPage {
             }
             
             // Перерисовываем ТОЛЬКО spotlight секцию
-            const spotlightContainer = document.getElementById('spotlightSection');
+            const spotlightContainer = document.getElementById('spotlightSection') || document.getElementById('coversSection');
             if (spotlightContainer) {
-                const newSpotlightHTML = filter === 'following' 
-                    ? this.renderFollowingFeed()
-                    : this.renderSpotlightSection();
+                let newSpotlightHTML;
+                if (filter === 'covers') {
+                    newSpotlightHTML = this.renderCoversSection();
+                } else if (filter === 'following') {
+                    newSpotlightHTML = this.renderFollowingFeed();
+                } else {
+                    newSpotlightHTML = this.renderSpotlightSection();
+                }
                 
                 spotlightContainer.outerHTML = newSpotlightHTML;
                 this.attachSpotlightListeners();
@@ -1967,6 +2037,71 @@ async refreshSpotlight() {
     }
 
     /**
+     * 📸 РЕНДЕР ЛЕНТЫ ОБЛОЖЕК (COVERS)
+     */
+    renderCoversSection() {
+        if (this.coversPosts === null) {
+            return '<div class="loading-indicator" style="text-align: center; padding: 40px;"><div class="spinner"></div><div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div></div>';
+        }
+        
+        if (!this.coversPosts || this.coversPosts.length === 0) {
+            return '<div class="empty-following"><div class="empty-following__icon">📸</div><div class="empty-following__title">Пока нет обложек</div><div class="empty-following__text">Станьте первым, кто добавит фото дня!</div></div>';
+        }
+        
+        const postsHtml = this.coversPosts.map(post => this.renderCoverCard(post)).join('');
+        
+        return `
+            <div id="coversSection" class="community-spotlight">
+                <div class="spotlight-header">
+                    <h3 class="spotlight-title">📸 Обложки</h3>
+                </div>
+                <div class="spotlight-grid">
+                    ${postsHtml}
+                </div>
+                ${this.coversHasMore ? '<div class="feed-load-more"><button class="feed-load-more__btn js-covers-load-more">Показать ещё</button></div>' : ''}
+            </div>
+        `;
+    }
+    
+    /**
+     * 🎴 РЕНДЕР ОДНОЙ COVER CARD
+     */
+    renderCoverCard(post) {
+        const user = post.user || {};
+        const userName = user.name || 'Пользователь';
+        const avatarUrl = user.avatarUrl || '';
+        const isPinned = post.isPinned || false;
+        const caption = post.caption || '';
+        const commentsCount = post.commentsCount || 0;
+        const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
+        const dateStr = this.formatRelativeTime(createdAt);
+        
+        const avatarHtml = avatarUrl 
+            ? `<img src="${this.escapeHtml(avatarUrl)}" alt="${this.escapeHtml(userName)}" class="cover-card__avatar">`
+            : '<div class="cover-card__avatar" style="background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">👤</div>';
+        
+        return `
+            <div class="cover-card" data-post-id="${post._id || post.id}">
+                <div class="cover-card__header">
+                    ${avatarHtml}
+                    <div class="cover-card__user-info">
+                        <div class="cover-card__name">${this.escapeHtml(userName)}</div>
+                        <div class="cover-card__date">${dateStr}</div>
+                    </div>
+                    ${isPinned ? '<div class="cover-card__pin-badge">📌 Закреплено</div>' : ''}
+                </div>
+                <img src="${this.escapeHtml(post.imageUrl)}" alt="${this.escapeHtml(caption)}" class="cover-photo" data-action="open-image" data-image-url="${this.escapeHtml(post.imageUrl)}" data-caption="${this.escapeHtml(caption)}">
+                ${caption ? `<div class="cover-card__caption">${this.escapeHtml(caption)}</div>` : ''}
+                <div class="cover-card__actions">
+                    <button class="cover-card__action-btn" data-action="show-comments" data-post-id="${post._id || post.id}">
+                        💬 ${commentsCount > 0 ? commentsCount : 'Комментарии'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
      * ✨ Рендер секции "Сейчас в сообществе"
      * ✅ FIX C: Added guard to prevent multiple builds/renders within cooldown
      */
@@ -2294,44 +2429,55 @@ async refreshSpotlight() {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
-        // 👥 ФИЛЬТР ЛЕНТЫ (Все / От подписок)
+        // 👥 ФИЛЬТР ЛЕНТЫ (Все / От подписок / Обложки)
         const feedFilterHtml = `
             <div class="feed-filter">
                 <button class="feed-filter-btn ${this.feedFilter === 'all' ? 'active' : ''}"
                         data-filter="all">Все</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
                         data-filter="following">Подписки</button>
+                <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
+                        data-filter="covers">Обложки</button>
             </div>
         `;
 
-        // Spotlight секция меняется в зависимости от фильтра
-        const spotlightSection = this.feedFilter === 'following' 
-            ? this.renderFollowingFeed()
-            : this.renderSpotlightSection();
+        // Content changes based on filter
+        let contentSection;
+        if (this.feedFilter === 'covers') {
+            contentSection = this.renderCoversSection();
+        } else {
+            // Spotlight секция меняется в зависимости от фильтра
+            const spotlightSection = this.feedFilter === 'following' 
+                ? this.renderFollowingFeed()
+                : this.renderSpotlightSection();
+                    
+            // "Сейчас изучают" секция с последними кликами по каталогу
+            const currentlyStudyingSection = this.renderCurrentlyStudyingSection();
+            
+            // Сообщение от Анны с fallback
+            const annaMessageSection = this.renderAnnaMessageSection();
+            
+            // Тренд недели с fallback
+            const trendSection = this.renderTrendSection();
+            
+            contentSection = `
+                <div class="stats-summary">
+                    📊 Сегодня: ${this.communityData.activeReaders} активных читателей • ${this.communityData.newQuotes} новых цитат
+                </div>
                 
-        // "Сейчас изучают" секция с последними кликами по каталогу
-        const currentlyStudyingSection = this.renderCurrentlyStudyingSection();
-        
-        // Сообщение от Анны с fallback
-        const annaMessageSection = this.renderAnnaMessageSection();
-        
-        // Тренд недели с fallback
-        const trendSection = this.renderTrendSection();
+                ${spotlightSection}
+                
+                ${currentlyStudyingSection}
+                
+                ${annaMessageSection}
+                
+                ${trendSection}
+            `;
+        }
         
         return `
             ${feedFilterHtml}
-            
-            <div class="stats-summary">
-                📊 Сегодня: ${this.communityData.activeReaders} активных читателей • ${this.communityData.newQuotes} новых цитат
-            </div>
-            
-            ${spotlightSection}
-            
-            ${currentlyStudyingSection}
-            
-            ${annaMessageSection}
-            
-            ${trendSection}
+            ${contentSection}
         `;
     }
     
@@ -3325,6 +3471,38 @@ renderAchievementsSection() {
         
         // Define handler function
         const handler = (event) => {
+            // === COVERS ACTIONS ===
+            const target = event.target;
+            
+            // Handle open image
+            if (target.dataset.action === 'open-image') {
+                event.preventDefault();
+                const imageUrl = target.dataset.imageUrl;
+                const caption = target.dataset.caption || '';
+                if (this.imageViewer && imageUrl) {
+                    this.imageViewer.open(imageUrl, caption);
+                    this.triggerHapticFeedback('light');
+                }
+                return;
+            }
+            
+            // Handle show comments
+            if (target.dataset.action === 'show-comments') {
+                event.preventDefault();
+                const postId = target.dataset.postId;
+                console.log('📸 Show comments for post:', postId);
+                this.triggerHapticFeedback('light');
+                return;
+            }
+            
+            // Handle load more covers
+            if (target.classList.contains('js-covers-load-more')) {
+                event.preventDefault();
+                this.loadMoreCovers();
+                return;
+            }
+            
+            // === PROFILE MODAL (EXISTING) ===
             // Check if clicked element or its parent has data-user-id
             const clickedElement = event.target.closest('[data-user-id]');
             
@@ -4504,6 +4682,25 @@ renderAchievementsSection() {
         Object.keys(this.errorStates).forEach(key => {
             this.errorStates[key] = null;
         });
+    }
+    
+    /**
+     * 📸 Load more covers (infinite scroll)
+     */
+    async loadMoreCovers() {
+        if (!this.coversHasMore || this.loadingStates.covers) return;
+        
+        this.loadingStates.covers = true;
+        this.triggerHapticFeedback('light');
+        
+        try {
+            await this.loadCovers(true); // true = load more
+            this.rerender();
+        } catch (error) {
+            console.error('❌ Error loading more covers:', error);
+        } finally {
+            this.loadingStates.covers = false;
+        }
     }
 }
 

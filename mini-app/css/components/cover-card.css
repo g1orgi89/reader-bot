@@ -1,0 +1,197 @@
+/**
+ * Cover Card Component Styles
+ * Photo posts in the Covers feed
+ */
+
+.cover-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.cover-card__header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.cover-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--bg-secondary);
+}
+
+.cover-card__user-info {
+    flex: 1;
+}
+
+.cover-card__name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin: 0 0 2px 0;
+}
+
+.cover-card__date {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.cover-card__pin-badge {
+    background: var(--accent-color);
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.cover-photo {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: var(--border-radius-md);
+    margin-bottom: var(--spacing-sm);
+    cursor: zoom-in;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.cover-photo:active {
+    opacity: 0.9;
+}
+
+.cover-card__caption {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.cover-card__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+}
+
+.cover-card__action-btn {
+    background: none;
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.2s;
+    min-height: var(--touch-target-min);
+}
+
+.cover-card__action-btn:hover,
+.cover-card__action-btn:active {
+    color: var(--accent-color);
+}
+
+.cover-card__action-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.cover-card__comments-section {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+}
+
+.cover-card__comment {
+    margin-bottom: var(--spacing-sm);
+}
+
+.cover-card__comment-author {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.cover-card__comment-text {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+
+.cover-card__comment-date {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.cover-upload-form {
+    background: var(--card-bg);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.cover-upload-form__input {
+    display: none;
+}
+
+.cover-upload-form__label {
+    display: block;
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius-md);
+    text-align: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: var(--touch-target-min);
+}
+
+.cover-upload-form__label:hover,
+.cover-upload-form__label:active {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.cover-upload-form__preview {
+    margin-top: var(--spacing-sm);
+    text-align: center;
+}
+
+.cover-upload-form__preview-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: var(--border-radius-md);
+}
+
+.cover-upload-form__caption {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 60px;
+    margin-top: var(--spacing-sm);
+}
+
+.cover-upload-form__submit {
+    width: 100%;
+    margin-top: var(--spacing-sm);
+}
