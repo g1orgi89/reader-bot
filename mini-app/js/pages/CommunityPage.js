@@ -137,7 +137,8 @@ class CommunityPage {
             leaderboard: false,
             stats: false,
             communityInsights: false,
-            funFact: false
+            funFact: false,
+            covers: false  // 📸 COVERS: Add loading state for covers feed
         };
 
         // ✅ LEGACY: Состояния ошибок для каждой секции (PR-3)
@@ -693,6 +694,14 @@ class CommunityPage {
      * @param {boolean} loadMore - Load more posts (use cursor)
      */
     async loadCovers(loadMore = false) {
+        // 🔒 Prevent concurrent loads
+        if (this.loadingStates.covers) {
+            console.log('📸 CommunityPage: Covers already loading, skipping...');
+            return;
+        }
+        
+        this.loadingStates.covers = true;
+        
         try {
             const feed = this.feedFilter === 'all' ? 'all' : 'following';
             const cursor = loadMore ? this.coversCursor : null;
@@ -706,8 +715,9 @@ class CommunityPage {
                 const newPosts = response.data || [];
                 
                 if (loadMore) {
-                    // Append to existing posts
-                    this.coversPosts = [...(this.coversPosts || []), ...newPosts];
+                    // Append to existing posts (ensure coversPosts is array, not null)
+                    const currentPosts = Array.isArray(this.coversPosts) ? this.coversPosts : [];
+                    this.coversPosts = [...currentPosts, ...newPosts];
                 } else {
                     // Replace posts
                     this.coversPosts = newPosts;
@@ -731,6 +741,13 @@ class CommunityPage {
             }
             this.coversHasMore = false;
             this.coversCursor = null;
+        } finally {
+            this.loadingStates.covers = false;
+            
+            // 🔒 CRITICAL FIX: Ensure coversPosts is never stuck at null
+            if (this.coversPosts === null) {
+                this.coversPosts = [];
+            }
         }
     }
     
@@ -1098,7 +1115,15 @@ class CommunityPage {
             if (filter === 'covers' && (!this.coversPosts || this.coversPosts.length === 0)) {
                 this.coversPosts = null; // Show loading state
                 this.rerender();
-                await this.loadCovers();
+                try {
+                    await this.loadCovers();
+                } catch (error) {
+                    console.error('❌ Failed to load covers on filter switch:', error);
+                    // Ensure we show empty state instead of infinite loader
+                    if (this.coversPosts === null) {
+                        this.coversPosts = [];
+                    }
+                }
             }
 
             // ✅ НОВОЕ: Если followingFeed уже загружен, применяем saved state
@@ -3348,6 +3373,7 @@ renderAchievementsSection() {
         this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели (теперь обновляет и лидерборд)
         this.attachFeedLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "Все"
         this.attachFollowingLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "От подписок"
+        this.attachCoversLoadMoreListeners(); // 📸 НОВОЕ: Load More для обложек
         this.attachCoverUploadFormListeners(); // ✅ НОВОЕ: Upload form для обложек
         // attachLeaderboardRefreshButton() удален - кнопка лидерборда больше не существует
         this.setupQuoteChangeListeners();
@@ -4730,8 +4756,20 @@ renderAchievementsSection() {
      * 📸 Attach cover upload form event listeners
      */
     attachCoverUploadFormListeners() {
-        if (this.feedFilter === 'covers' && this.coverUploadForm) {
+        // 🔧 FIX: Always attach listeners if form exists, don't check feedFilter
+        // The form is only rendered when feedFilter === 'covers', so this is safe
+        if (this.coverUploadForm) {
             this.coverUploadForm.attachEventListeners();
+        }
+    }
+    
+    /**
+     * 📸 Attach Load More button listener for covers feed
+     */
+    attachCoversLoadMoreListeners() {
+        const loadMoreBtn = document.querySelector('.js-covers-load-more');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => this.loadMoreCovers());
         }
     }
     
@@ -4753,9 +4791,15 @@ renderAchievementsSection() {
         
         try {
             await this.loadCovers(false); // Load fresh data
-            this.rerender();
         } catch (error) {
             console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
+            // Ensure we show empty state instead of infinite loader
+            if (this.coversPosts === null) {
+                this.coversPosts = [];
+            }
+        } finally {
+            // Always rerender to update UI
+            this.rerender();
         }
     }
 }
