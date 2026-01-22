@@ -133,6 +133,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 const router = express.Router();
 
 // Импорты моделей
@@ -145,6 +146,9 @@ const UTMClick = require('../models/analytics').UTMClick;
 const PromoCodeUsage = require('../models/analytics').PromoCodeUsage;
 const Follow = require('../models/Follow');
 const Feedback = require('../models/Feedback');
+const PhotoPost = require('../models/PhotoPost');
+const PhotoComment = require('../models/PhotoComment');
+const PhotoSchedule = require('../models/PhotoSchedule');
 
 // Импорт сервисов
 const QuoteHandler = require('../services/quoteHandler');
@@ -198,6 +202,7 @@ const quoteHandler = new QuoteHandler();
 // Two levels up (../../) from server/api to reach repository root
 const UPLOADS_ROOT = path.join(__dirname, '../../uploads');
 const AVATARS_DIR = path.join(UPLOADS_ROOT, 'avatars');
+const COVERS_DIR = path.join(UPLOADS_ROOT, 'covers');
 
 // Ensure avatars directory exists at module load time
 try {
@@ -205,6 +210,14 @@ try {
   console.log(`✅ Avatars directory ready: ${AVATARS_DIR}`);
 } catch (error) {
   console.error(`❌ Failed to create avatars directory: ${error.message}`);
+}
+
+// Ensure covers directory exists at module load time
+try {
+  fs.mkdirSync(COVERS_DIR, { recursive: true });
+  console.log(`✅ Covers directory ready: ${COVERS_DIR}`);
+} catch (error) {
+  console.error(`❌ Failed to create covers directory: ${error.message}`);
 }
 
 // === MIGRATION: Move files from legacy server/uploads/avatars to repo root ===
@@ -277,6 +290,46 @@ const avatarUpload = multer({
   }
 });
 
+// === COVERS STORAGE CONFIGURATION ===
+const coverStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, COVERS_DIR);
+  },
+  filename: function (req, file, cb) {
+    const userId = safeExtractUserId(req);
+    
+    if (!userId || userId === 'demo-user') {
+      console.error('❌ Cover upload rejected: NO_USER_ID_FOR_COVER');
+      return cb(new Error('NO_USER_ID_FOR_COVER'));
+    }
+    
+    if (!/^\d+$/.test(userId)) {
+      console.error(`❌ Cover upload rejected: Invalid userId format: ${userId}`);
+      return cb(new Error('INVALID_USER_ID_FORMAT'));
+    }
+    
+    const ext = path.extname(file.originalname) || '.jpg';
+    const filename = `${userId}_${Date.now()}${ext}`;
+    console.log(`📁 Cover filename generated: ${filename} for userId: ${userId}`);
+    cb(null, filename);
+  }
+});
+
+const coverUpload = multer({
+  storage: coverStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Поддерживаются только изображения (JPEG, PNG, WebP)'));
+    }
+  }
+});
+
 /**
  * Simple userId extraction from request
  * Supports both query parameters and request body
@@ -284,6 +337,37 @@ const avatarUpload = multer({
  */
 function getUserId(req) {
   return String(req.userId || req.query.userId || req.body.userId || 'demo-user');
+}
+
+/**
+ * Check if user is admin
+ * @param {Object} req - Express request
+ * @returns {boolean} True if user is admin
+ */
+function isAdmin(req) {
+  const userId = req.userId;
+  
+  // Check if user is in admin list from environment
+  const adminIds = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
+  if (adminIds.includes(userId)) {
+    return true;
+  }
+  
+  // Allow anna_busel as admin (will be verified via username in endpoints)
+  return false;
+}
+
+/**
+ * Get current day key in Europe/Moscow timezone
+ * @returns {string} Day key in format YYYY-MM-DD
+ */
+function getCurrentDayKey() {
+  const now = new Date();
+  const moscowTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Moscow' }));
+  const year = moscowTime.getFullYear();
+  const month = String(moscowTime.getMonth() + 1).padStart(2, '0');
+  const day = String(moscowTime.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -570,6 +654,103 @@ function normalizeSettings(user) {
     },
     language: settings.language ?? 'ru'
   };
+}
+
+/**
+ * Encode cursor for pagination
+ * @param {Object} item - Item with createdAt and _id
+ * @returns {string} Base64 encoded cursor
+ */
+function encodeCursor(item) {
+  if (!item) return null;
+  const data = {
+    createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
+    _id: item._id.toString()
+  };
+  return Buffer.from(JSON.stringify(data)).toString('base64');
+}
+
+/**
+ * Decode cursor for pagination
+ * @param {string} cursor - Base64 encoded cursor
+ * @returns {Object|null} Decoded cursor data
+ */
+function decodeCursor(cursor) {
+  if (!cursor) return null;
+  try {
+    const data = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+    return {
+      createdAt: new Date(data.createdAt),
+      _id: data._id
+    };
+  } catch (error) {
+    console.error('Error decoding cursor:', error);
+    return null;
+  }
+}
+
+/**
+ * Enrich posts with user data
+ * @param {Array} posts - Array of posts
+ * @returns {Promise<Array>} Posts with user data
+ */
+async function enrichPostsWithUserData(posts) {
+  if (!posts || posts.length === 0) return [];
+  
+  const userIds = [...new Set(posts.map(p => p.userId))];
+  const users = await UserProfile.find({ userId: { $in: userIds } })
+    .select('userId name telegramUsername avatarUrl')
+    .lean();
+  
+  const userMap = new Map(users.map(u => [u.userId, u]));
+  
+  return posts.map(post => {
+    const user = userMap.get(post.userId);
+    return {
+      ...post,
+      user: user ? {
+        userId: user.userId,
+        name: user.name || user.telegramUsername ? `@${user.telegramUsername}` : 'Пользователь',
+        avatarUrl: user.avatarUrl || null
+      } : {
+        userId: post.userId,
+        name: 'Пользователь',
+        avatarUrl: null
+      }
+    };
+  });
+}
+
+/**
+ * Enrich comments with user data
+ * @param {Array} comments - Array of comments
+ * @returns {Promise<Array>} Comments with user data
+ */
+async function enrichCommentsWithUserData(comments) {
+  if (!comments || comments.length === 0) return [];
+  
+  const userIds = [...new Set(comments.map(c => c.userId))];
+  const users = await UserProfile.find({ userId: { $in: userIds } })
+    .select('userId name telegramUsername avatarUrl')
+    .lean();
+  
+  const userMap = new Map(users.map(u => [u.userId, u]));
+  
+  return comments.map(comment => {
+    const user = userMap.get(comment.userId);
+    return {
+      ...comment,
+      user: user ? {
+        userId: user.userId,
+        name: user.name || user.telegramUsername ? `@${user.telegramUsername}` : 'Пользователь',
+        avatarUrl: user.avatarUrl || null
+      } : {
+        userId: comment.userId,
+        name: 'Пользователь',
+        avatarUrl: null
+      }
+    };
+  });
 }
 
 /**
@@ -5324,6 +5505,390 @@ router.post('/errors', async (req, res) => {
       success: true,
       message: 'Error logging completed with warnings'
     });
+  }
+});
+
+// ============================================================================
+// === COVERS (ОБЛОЖКИ) ENDPOINTS ===
+// ============================================================================
+
+/**
+ * @description POST /api/reader/covers - Upload a photo post
+ * @route POST /api/reader/covers
+ * @access Private (telegramAuth)
+ */
+router.post('/covers', telegramAuth, communityLimiter, coverUpload.single('image'), async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { caption = '' } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Изображение обязательно' });
+    }
+    
+    // Get current day key
+    const dayKey = getCurrentDayKey();
+    
+    // Process image with Sharp (remove EXIF, optimize)
+    const filePath = req.file.path;
+    const filename = req.file.filename;
+    const processedPath = path.join(COVERS_DIR, `processed_${filename}`);
+    
+    try {
+      await sharp(filePath)
+        .rotate() // Auto-rotate based on EXIF
+        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85, progressive: true })
+        .toFile(processedPath);
+      
+      // Remove original and rename processed
+      fs.unlinkSync(filePath);
+      fs.renameSync(processedPath, filePath);
+      
+    } catch (imageError) {
+      console.error('Error processing image:', imageError);
+      // Continue with original if processing fails
+    }
+    
+    const imageUrl = `/uploads/covers/${filename}`;
+    
+    // Create post (will fail if user already posted today due to unique index)
+    try {
+      const post = await PhotoPost.createPost({
+        userId,
+        imageUrl,
+        caption: caption.substring(0, 300),
+        dayKey,
+        isPinned: false,
+        status: 'published'
+      });
+      
+      // Enrich with user data
+      const enrichedPosts = await enrichPostsWithUserData([post.toObject()]);
+      const enrichedPost = enrichedPosts[0];
+      
+      // Add comments count
+      enrichedPost.commentsCount = 0;
+      
+      res.json({
+        success: true,
+        data: enrichedPost
+      });
+      
+    } catch (dbError) {
+      // Check if it's a duplicate key error (user already posted today)
+      if (dbError.code === 11000) {
+        // Clean up uploaded file
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        return res.status(409).json({ 
+          success: false, 
+          error: 'Вы уже добавили фото сегодня. Можно добавить только одно фото в день.' 
+        });
+      }
+      throw dbError;
+    }
+    
+  } catch (error) {
+    console.error('Error uploading cover:', error);
+    
+    // Clean up file if it exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({ success: false, error: 'Ошибка загрузки фото' });
+  }
+});
+
+/**
+ * @description GET /api/reader/covers - Get covers feed
+ * @route GET /api/reader/covers?feed=all|following&cursor=...&limit=20
+ * @access Private (telegramAuth)
+ */
+router.get('/covers', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { feed = 'all', cursor, limit = 20 } = req.query;
+    const limitNum = Math.min(parseInt(limit) || 20, 100);
+    
+    // Build query
+    let query = { status: 'published' };
+    
+    // Filter by following if needed
+    if (feed === 'following') {
+      const followingIds = await Follow.getFollowingIds(userId);
+      if (followingIds.length === 0) {
+        return res.json({ success: true, data: [], hasMore: false, nextCursor: null });
+      }
+      query.userId = { $in: followingIds };
+    }
+    
+    // Apply cursor pagination
+    const decodedCursor = decodeCursor(cursor);
+    if (decodedCursor) {
+      query.$or = [
+        { createdAt: { $lt: decodedCursor.createdAt } },
+        { 
+          createdAt: decodedCursor.createdAt, 
+          _id: { $lt: decodedCursor._id } 
+        }
+      ];
+    }
+    
+    // Fetch posts (sorted by isPinned desc, then createdAt desc)
+    const posts = await PhotoPost.find(query)
+      .sort({ isPinned: -1, createdAt: -1, _id: -1 })
+      .limit(limitNum + 1)
+      .lean();
+    
+    // Check if there are more posts
+    const hasMore = posts.length > limitNum;
+    const postsToReturn = hasMore ? posts.slice(0, limitNum) : posts;
+    
+    // Enrich with user data
+    const enrichedPosts = await enrichPostsWithUserData(postsToReturn);
+    
+    // Add comments count to each post
+    const postsWithCounts = await Promise.all(
+      enrichedPosts.map(async (post) => ({
+        ...post,
+        commentsCount: await PhotoComment.countForPost(post._id)
+      }))
+    );
+    
+    // Generate next cursor
+    const nextCursor = hasMore && postsToReturn.length > 0 
+      ? encodeCursor(postsToReturn[postsToReturn.length - 1]) 
+      : null;
+    
+    res.json({
+      success: true,
+      data: postsWithCounts,
+      hasMore,
+      nextCursor
+    });
+    
+  } catch (error) {
+    console.error('Error fetching covers:', error);
+    res.status(500).json({ success: false, error: 'Ошибка загрузки ленты' });
+  }
+});
+
+/**
+ * @description POST /api/reader/covers/:id/comments - Add comment to a post
+ * @route POST /api/reader/covers/:id/comments
+ * @access Private (telegramAuth)
+ */
+router.post('/covers/:id/comments', telegramAuth, communityLimiter, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const postId = req.params.id;
+    const { text } = req.body;
+    
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Текст комментария обязателен' });
+    }
+    
+    if (text.length > 500) {
+      return res.status(400).json({ success: false, error: 'Комментарий слишком длинный (макс. 500 символов)' });
+    }
+    
+    // Check if post exists
+    const post = await PhotoPost.findById(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Пост не найден' });
+    }
+    
+    // Create comment
+    const comment = await PhotoComment.createComment({
+      postId,
+      userId,
+      text: text.trim()
+    });
+    
+    // Enrich with user data
+    const enrichedComments = await enrichCommentsWithUserData([comment.toObject()]);
+    
+    res.json({
+      success: true,
+      data: enrichedComments[0]
+    });
+    
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ success: false, error: 'Ошибка создания комментария' });
+  }
+});
+
+/**
+ * @description GET /api/reader/covers/:id/comments - Get comments for a post
+ * @route GET /api/reader/covers/:id/comments?cursor=...&limit=20
+ * @access Private (telegramAuth)
+ */
+router.get('/covers/:id/comments', telegramAuth, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { cursor, limit = 20 } = req.query;
+    const limitNum = Math.min(parseInt(limit) || 20, 100);
+    
+    // Build query
+    const query = { postId };
+    
+    // Apply cursor pagination
+    const decodedCursor = decodeCursor(cursor);
+    if (decodedCursor) {
+      query.$or = [
+        { createdAt: { $lt: decodedCursor.createdAt } },
+        { 
+          createdAt: decodedCursor.createdAt, 
+          _id: { $lt: decodedCursor._id } 
+        }
+      ];
+    }
+    
+    // Fetch comments
+    const comments = await PhotoComment.find(query)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limitNum + 1)
+      .lean();
+    
+    // Check if there are more comments
+    const hasMore = comments.length > limitNum;
+    const commentsToReturn = hasMore ? comments.slice(0, limitNum) : comments;
+    
+    // Enrich with user data
+    const enrichedComments = await enrichCommentsWithUserData(commentsToReturn);
+    
+    // Generate next cursor
+    const nextCursor = hasMore && commentsToReturn.length > 0 
+      ? encodeCursor(commentsToReturn[commentsToReturn.length - 1]) 
+      : null;
+    
+    res.json({
+      success: true,
+      data: enrichedComments,
+      hasMore,
+      nextCursor
+    });
+    
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ success: false, error: 'Ошибка загрузки комментариев' });
+  }
+});
+
+/**
+ * @description POST /api/reader/covers/:id/pin - Pin a post (admin only)
+ * @route POST /api/reader/covers/:id/pin
+ * @access Private (telegramAuth + admin)
+ */
+router.post('/covers/:id/pin', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const postId = req.params.id;
+    
+    // Check if user is admin
+    const user = await UserProfile.findOne({ userId }).lean();
+    if (!user || (user.telegramUsername !== 'anna_busel' && !isAdmin(req))) {
+      return res.status(403).json({ success: false, error: 'Только администратор может закреплять посты' });
+    }
+    
+    // Pin the post
+    const post = await PhotoPost.pinPost(postId);
+    
+    // Enrich with user data
+    const enrichedPosts = await enrichPostsWithUserData([post.toObject()]);
+    
+    res.json({
+      success: true,
+      data: enrichedPosts[0]
+    });
+    
+  } catch (error) {
+    console.error('Error pinning post:', error);
+    
+    if (error.message === 'Post not found') {
+      return res.status(404).json({ success: false, error: 'Пост не найден' });
+    }
+    
+    res.status(500).json({ success: false, error: 'Ошибка закрепления поста' });
+  }
+});
+
+/**
+ * @description POST /api/reader/covers/schedule - Schedule Anna's daily post (admin only)
+ * @route POST /api/reader/covers/schedule
+ * @access Private (telegramAuth + admin)
+ */
+router.post('/covers/schedule', telegramAuth, coverUpload.single('image'), async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { dayKey, caption = '' } = req.body;
+    
+    // Check if user is admin
+    const user = await UserProfile.findOne({ userId }).lean();
+    if (!user || (user.telegramUsername !== 'anna_busel' && !isAdmin(req))) {
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(403).json({ success: false, error: 'Только администратор может планировать посты' });
+    }
+    
+    if (!dayKey || !/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) {
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({ success: false, error: 'Неверный формат dayKey (требуется YYYY-MM-DD)' });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Изображение обязательно' });
+    }
+    
+    // Process image with Sharp
+    const filePath = req.file.path;
+    const filename = req.file.filename;
+    const processedPath = path.join(COVERS_DIR, `processed_${filename}`);
+    
+    try {
+      await sharp(filePath)
+        .rotate()
+        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85, progressive: true })
+        .toFile(processedPath);
+      
+      fs.unlinkSync(filePath);
+      fs.renameSync(processedPath, filePath);
+      
+    } catch (imageError) {
+      console.error('Error processing image:', imageError);
+    }
+    
+    const imageUrl = `/uploads/covers/${filename}`;
+    
+    // Create or update schedule
+    const schedule = await PhotoSchedule.createOrUpdate({
+      dayKey,
+      imageUrl,
+      caption: caption.substring(0, 300),
+      status: 'pending'
+    });
+    
+    res.json({
+      success: true,
+      data: schedule
+    });
+    
+  } catch (error) {
+    console.error('Error scheduling post:', error);
+    
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({ success: false, error: 'Ошибка планирования поста' });
   }
 });
 

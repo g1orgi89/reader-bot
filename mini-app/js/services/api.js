@@ -1835,6 +1835,84 @@ class ApiService {
         console.log(`🎧 ApiService: Getting last track for container ${containerId}...`);
         return this.request('GET', `/audio/${containerId}/last-track?userId=${userId}`);
     }
+    
+    // ============================================================================
+    // === COVERS (ОБЛОЖКИ) METHODS ===
+    // ============================================================================
+    
+    /**
+     * Get covers feed
+     * @param {Object} options - Request options
+     * @param {string} options.feed - Feed filter ('all' or 'following')
+     * @param {string} options.cursor - Pagination cursor
+     * @param {number} options.limit - Number of posts to load
+     * @returns {Promise}
+     */
+    async getCovers(options = {}) {
+        const params = new URLSearchParams();
+        if (options.feed) params.append('feed', options.feed);
+        if (options.cursor) params.append('cursor', options.cursor);
+        if (options.limit) params.append('limit', options.limit);
+        
+        console.log(`📸 ApiService: Getting covers (feed=${options.feed}, cursor=${options.cursor})...`);
+        return this.request('GET', `/covers?${params.toString()}`);
+    }
+    
+    /**
+     * Upload a cover photo
+     * @param {File} imageFile - Image file to upload
+     * @param {string} caption - Photo caption
+     * @returns {Promise}
+     */
+    async uploadCover(imageFile, caption = '') {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        if (caption) formData.append('caption', caption);
+        
+        console.log('📸 ApiService: Uploading cover photo...');
+        
+        // Use fetch directly for multipart/form-data
+        return fetch(`${this.baseUrl}/covers`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `tma ${this.initDataRaw || ''}`,
+                'X-User-Id': String(this.userId || '')
+            },
+            body: formData
+        }).then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Upload failed');
+            }
+            return data;
+        });
+    }
+    
+    /**
+     * Get comments for a cover post
+     * @param {string} postId - Post ID
+     * @param {Object} options - Request options
+     * @returns {Promise}
+     */
+    async getCoverComments(postId, options = {}) {
+        const params = new URLSearchParams();
+        if (options.cursor) params.append('cursor', options.cursor);
+        if (options.limit) params.append('limit', options.limit);
+        
+        console.log(`📸 ApiService: Getting comments for post ${postId}...`);
+        return this.request('GET', `/covers/${postId}/comments?${params.toString()}`);
+    }
+    
+    /**
+     * Add comment to a cover post
+     * @param {string} postId - Post ID
+     * @param {string} text - Comment text
+     * @returns {Promise}
+     */
+    async addCoverComment(postId, text) {
+        console.log(`📸 ApiService: Adding comment to post ${postId}...`);
+        return this.request('POST', `/covers/${postId}/comments`, { text });
+    }
 }
 
 // 🌍 Глобальный экспорт (только если window доступен)

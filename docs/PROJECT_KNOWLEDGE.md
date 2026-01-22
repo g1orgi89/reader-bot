@@ -84,6 +84,16 @@ pm2 stop reader-bot
 - Favorite/like quotes functionality
 - "Top of the Week" section
 - Community statistics
+- **Following System** — subscribe/unsubscribe on users
+- **Feed Filters** — "Все" / "Подписки" / "Обложки"
+- **Covers (Обложки)** — photo-sharing feature:
+  - 1 photo per day per user (enforced)
+  - Auto-posted "start of day" from Anna (@anna_busel) at 06:00 MSK
+  - Photo uploads with Sharp (EXIF cleanup, resize to 1200x1200)
+  - Comments on photos with pagination
+  - Pin mechanism (one pinned post per day)
+  - Full-screen lightbox viewer (zoom, pan, double-tap)
+  - Infinite scroll with cursor-based pagination
 
 **Backend Services:**
 - Telegram Bot (webhook mode)
