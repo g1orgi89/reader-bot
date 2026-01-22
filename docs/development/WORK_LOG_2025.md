@@ -3129,3 +3129,60 @@ if (rawHash && rawHash !== '' && rawHash !== '/') {
 ---
 
 <!-- Следующие записи добавляются ниже -->
+
+## 2026-01-22 — Добавление функции "Обложки" (Covers) в сообщество
+
+Задача: Добавить третью вкладку "Обложки" в страницу сообщества (CommunityPage) для публикации фото участниками с автопостом "старта дня" от Анны.
+
+### Описание:
+
+Реализована полная функциональность "Обложек" согласно бизнес-требованиям:
+- 1 фото в день на пользователя
+- Автопост от Анны (@anna_busel) в 06:00 MSK с автоматическим закреплением
+- Просмотр фото на весь экран с зумом и панорамированием
+- Комментарии к фотографиям
+- Бесконечная подгрузка ленты
+
+### Backend (server):
+
+**Новые модели:**
+- `server/models/PhotoPost.js` — основная модель фото-постов
+- `server/models/PhotoComment.js` — модель комментариев к фото
+- `server/models/PhotoSchedule.js` — расписание автопостов Анны
+
+**Крон-сервис:**
+- `server/services/cron/photoAutopostCron.js` — автопост в 06:00 Europe/Moscow
+
+**API endpoints (в server/api/reader.js):**
+- POST /api/reader/covers — загрузка фото (multipart, Sharp для обработки EXIF)
+- GET /api/reader/covers — получение ленты (с фильтрацией по подпискам)
+- POST /api/reader/covers/:id/comments — добавление комментария
+- GET /api/reader/covers/:id/comments — получение комментариев
+- POST /api/reader/covers/:id/pin — закрепление поста (только админ)
+- POST /api/reader/covers/schedule — планирование автопоста (только админ)
+
+### Frontend (mini-app):
+
+**UI компоненты:**
+- `mini-app/js/components/ImageViewer.js` — лайтбокс для просмотра фото
+- `mini-app/css/components/cover-card.css` — стили карточек фото
+- `mini-app/css/components/image-viewer.css` — стили лайтбокса
+
+**CommunityPage обновления:**
+- Добавлена третья вкладка "Обложки" в фильтр ленты
+- Реализованы методы загрузки, рендеринга и бесконечной подгрузки
+- Event handlers для открытия изображения, комментариев, загрузки
+
+**API methods (в mini-app/js/services/api.js):**
+- getCovers, uploadCover, getCoverComments, addCoverComment
+
+### Зависимости:
+- Добавлена `sharp@latest` для обработки изображений
+
+### Коммиты:
+- 8d18290 — Backend: models, API endpoints, cron service
+- 381d754 — Frontend: UI components, rendering, event handlers
+
+Часы: 4.5
+
+---
