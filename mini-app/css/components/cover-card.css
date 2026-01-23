@@ -16,6 +16,33 @@
     align-items: center;
     gap: var(--spacing-sm);
     margin-bottom: var(--spacing-sm);
+    position: relative;
+}
+
+.cover-card__delete-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 28px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-fast);
+    padding: 0;
+}
+
+.cover-card__delete-btn:hover,
+.cover-card__delete-btn:active {
+    background: rgba(244, 67, 54, 0.9);
+    transform: scale(1.1);
 }
 
 .cover-card__avatar {
