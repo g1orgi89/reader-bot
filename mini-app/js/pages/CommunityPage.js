@@ -703,6 +703,7 @@ class CommunityPage {
         this.loadingStates.covers = true;
         
         try {
+            // Correct feed: for filter 'covers' use 'all'
             const feed = (this.feedFilter === 'covers' || this.feedFilter === 'all') ? 'all' : 'following';
             const cursor = loadMore ? this.coversCursor : null;
             const limit = 20;
@@ -1074,95 +1075,53 @@ class CommunityPage {
     }
     
     /**
-     * 🔄 Переключение фильтра ленты (Все / От подписок)
-     * ОБНОВЛЕНО: Перерисовывает только spotlight секцию, не всю страницу
-     * @param {string} filter - 'all' или 'following'
+     * 🔄 Переключение фильтра ленты (Все / От подписок / Обложки)
+     * ОБНОВЛЕНО: Полный rerender вкладки Feed для всех фильтров (uniform strategy)
+     * @param {string} filter - 'all' или 'following' или 'covers'
      */
     async switchFeedFilter(filter) {
         if (this.feedFilter === filter) return;
         
+        this.feedFilter = filter;
+        this.triggerHapticFeedback('light');
+        
+        // Обновляем активную кнопку фильтра
+        const filterButtons = document.querySelectorAll('.feed-filter-btn');
+        filterButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.filter === filter);
+        });
+        
+        // Prefetch data where needed
         try {
-            console.log(`🔄 Переключение фильтра ленты: ${this.feedFilter} → ${filter}`);
-            
-            this.feedFilter = filter;
-            this.triggerHapticFeedback('light');
-            
-            // Обновляем активную кнопку фильтра
-            const filterButtons = document.querySelectorAll('.feed-filter-btn');
-            filterButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.filter === filter);
-            });
-            
-            // Загружаем данные подписок если нужно и ещё не загружены
             if (filter === 'following' && (!this.followingFeed || this.followingFeed.length === 0)) {
-                const spotlightSection = document.getElementById('spotlightSection');
-                if (spotlightSection) {
-                    spotlightSection.innerHTML = `
-                        <div class="spotlight-header">
-                            <h3 class="spotlight-title">✨ Подписки</h3>
-                        </div>
-                        <div class="loading-indicator" style="text-align: center; padding: 40px;">
-                            <div class="spinner"></div>
-                            <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
-                        </div>
-                    `;
-                }
-                
                 await this.loadFollowingFeed();
             }
-            
-            // Load covers if needed
             if (filter === 'covers' && (!this.coversPosts || this.coversPosts.length === 0)) {
-                this.coversPosts = null; // Show loading state
-                this.rerender();
-                try {
-                    await this.loadCovers();
-                } catch (error) {
-                    console.error('❌ Failed to load covers on filter switch:', error);
-                    // Ensure we show empty state instead of infinite loader
-                    if (this.coversPosts === null) {
-                        this.coversPosts = [];
-                    }
-                }
+                this.coversPosts = null; // show loading state
+                await this.loadCovers();
+                if (this.coversPosts === null) this.coversPosts = [];
             }
-
-            // ✅ НОВОЕ: Если followingFeed уже загружен, применяем saved state
             if (filter === 'following' && this.followingFeed && this.followingFeed.length > 0) {
-                console.log('🔄 Применяем сохранённое состояние лайков к followingFeed');
                 this._applyLikeStateToArray(this.followingFeed);
             }
-            
-            // Перерисовываем ТОЛЬКО spotlight секцию
-            const spotlightContainer = document.getElementById('spotlightSection') || document.getElementById('coversSection');
-            if (spotlightContainer) {
-                let newSpotlightHTML;
-                if (filter === 'covers') {
-                    newSpotlightHTML = this.renderCoversSection();
-                } else if (filter === 'following') {
-                    newSpotlightHTML = this.renderFollowingFeed();
-                } else {
-                    newSpotlightHTML = this.renderSpotlightSection();
-                }
-                
-                spotlightContainer.outerHTML = newSpotlightHTML;
-                this.attachSpotlightListeners();
-            }
-            
-            // ✅ КРИТИЧНО: Синхронизация после смены фильтра
-            setTimeout(() => {
-                this._reconcileAllLikeData();
-                
-                // ✅ НОВОЕ: Обновляем все кнопки лайков
-                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
-            }, 200);
-            
-            console.log(`✅ Фильтр переключен на: ${filter}`);
-
-            this.attachQuoteCardListeners();
-            
-        } catch (error) {
-            console.error('❌ Error switching feed filter:', error);
+        } catch (e) {
+            console.error('❌ Error preloading data on filter switch:', e);
         }
+        
+        // Full rerender of the Feed tab after filter change
+        this.rerender();
+        
+        // Reconcile likes and reattach listeners after full rerender
+        // Delay ensures DOM is fully rendered before reattaching listeners
+        setTimeout(() => {
+            this._reconcileAllLikeData();
+            this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+            this.attachSpotlightListeners();
+            this.attachQuoteCardListeners();
+            this.attachCommunityCardListeners();
+            this.attachCoverUploadFormListeners();
+            this.attachCoversLoadMoreListeners();
+        }, 100);
     }
     
     /**
@@ -2084,8 +2043,16 @@ async refreshSpotlight() {
         
         if (this.coversPosts === null) {
             return `
-                ${uploadFormHtml}
-                <div class="loading-indicator" style="text-align: center; padding: 40px;"><div class="spinner"></div><div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div></div>
+                <div id="spotlightSection" class="community-spotlight">
+                    ${uploadFormHtml}
+                    <div class="spotlight-header">
+                        <h3 class="spotlight-title">📸 Обложки</h3>
+                    </div>
+                    <div class="loading-indicator" style="text-align: center; padding: 40px;">
+                        <div class="spinner"></div>
+                        <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
+                    </div>
+                </div>
             `;
         }
         
@@ -2098,7 +2065,7 @@ async refreshSpotlight() {
             : '';
         
         return `
-            <div id="coversSection" class="community-spotlight">
+            <div id="spotlightSection" class="community-spotlight">
                 ${uploadFormHtml}
                 <div class="spotlight-header">
                     <h3 class="spotlight-title">📸 Обложки</h3>
@@ -4627,6 +4594,31 @@ renderAchievementsSection() {
             }
         } catch {
             return 'недавно';
+        }
+    }
+
+    /**
+     * ⏱️ Формат относительного времени (для обложек)
+     * @param {Date|number|string} dateInput
+     * @returns {string}
+     */
+    formatRelativeTime(dateInput) {
+        try {
+            const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
+            const now = new Date();
+            const diffMs = now - d;
+            const mins = Math.floor(diffMs / (1000 * 60));
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+            if (mins < 60) return `${mins} мин назад`;
+            if (hours < 24) return `${hours} ч назад`;
+            if (days === 1) return 'вчера';
+            if (days < 7) return `${days} дн назад`;
+
+            return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+        } catch {
+            return this.formatDate?.(dateInput) || '';
         }
     }
 
