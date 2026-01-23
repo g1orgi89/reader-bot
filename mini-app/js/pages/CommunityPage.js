@@ -1112,6 +1112,7 @@ class CommunityPage {
         this.rerender();
         
         // Reconcile likes and reattach listeners after full rerender
+        // Delay ensures DOM is fully rendered before reattaching listeners
         setTimeout(() => {
             this._reconcileAllLikeData();
             this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
@@ -4612,7 +4613,6 @@ renderAchievementsSection() {
 
             if (mins < 60) return `${mins} мин назад`;
             if (hours < 24) return `${hours} ч назад`;
-            if (days === 0) return 'сегодня';
             if (days === 1) return 'вчера';
             if (days < 7) return `${days} дн назад`;
 
