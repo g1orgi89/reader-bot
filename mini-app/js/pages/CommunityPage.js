@@ -4952,13 +4952,16 @@ renderAchievementsSection() {
             console.error('❌ CommunityPage: Failed to toggle like:', error);
             
             // Revert optimistic update on error
-            button.classList.toggle('liked');
+            // We already toggled the class and count, so we need to restore original state
+            button.classList.toggle('liked'); // Toggle back
             const likeCountSpan = button.querySelector('.like-count');
             const currentCount = parseInt(likeCountSpan?.textContent || '0', 10);
-            const wasLiked = button.dataset.liked === 'true';
+            // If we just toggled back to liked, we need to add 1. If we toggled back to unliked, subtract 1
+            const isNowLiked = button.classList.contains('liked');
             if (likeCountSpan) {
-                likeCountSpan.textContent = wasLiked ? currentCount + 1 : currentCount - 1;
+                likeCountSpan.textContent = isNowLiked ? currentCount + 1 : currentCount - 1;
             }
+            button.dataset.liked = isNowLiked ? 'true' : 'false';
             
             if (window.app && window.app.showToast) {
                 window.app.showToast('Ошибка обработки лайка', 'error');
@@ -5004,19 +5007,27 @@ renderAchievementsSection() {
             if (response && response.data) {
                 const post = this.coversPosts?.find(p => (p._id || p.id) === postId);
                 if (post) {
-                    // Count is not directly returned, but we can infer or fetch separately
-                    // For now, just increment by 1 when a comment is added
+                    // Increment count since a new comment was added
                     post.commentsCount = (post.commentsCount || 0) + 1;
                     
                     // Update button text
                     const btn = document.querySelector(`[data-action="show-comments"][data-post-id="${postId}"]`);
-                    if (btn && post.commentsCount > 0) {
+                    if (btn) {
                         btn.textContent = `💬 ${post.commentsCount}`;
                     }
                 }
             }
         } catch (error) {
             console.error('Failed to refresh comment count:', error);
+            // On error, still increment optimistically
+            const post = this.coversPosts?.find(p => (p._id || p.id) === postId);
+            if (post) {
+                post.commentsCount = (post.commentsCount || 0) + 1;
+                const btn = document.querySelector(`[data-action="show-comments"][data-post-id="${postId}"]`);
+                if (btn) {
+                    btn.textContent = `💬 ${post.commentsCount}`;
+                }
+            }
         }
     }
 }

@@ -129,6 +129,29 @@
     color: var(--accent-color);
 }
 
+.cover-card__like-btn {
+    background: none;
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.2s;
+    min-height: var(--touch-target-min);
+}
+
+.cover-card__like-btn:hover,
+.cover-card__like-btn:active {
+    color: var(--primary-color);
+}
+
+.cover-card__like-btn.liked {
+    color: var(--primary-color);
+}
+
 .cover-card__action-btn svg {
     width: 18px;
     height: 18px;
