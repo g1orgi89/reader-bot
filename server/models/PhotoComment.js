@@ -29,6 +29,22 @@ const photoCommentSchema = new mongoose.Schema({
     maxlength: 500,
     trim: true
     // Comment text (max 500 chars)
+  },
+  parentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PhotoComment',
+    default: null
+    // Reference to parent comment for nested replies
+  },
+  likesCount: {
+    type: Number,
+    default: 0
+    // Number of likes on this comment
+  },
+  likedBy: {
+    type: [String],
+    default: []
+    // Array of userIds who liked this comment
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt
