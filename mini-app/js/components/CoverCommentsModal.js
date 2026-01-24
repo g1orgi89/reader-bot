@@ -573,11 +573,11 @@ class CoverCommentsModal {
         this.replyingTo = { commentId, userName };
         this.render();
         
-        // Focus on textarea
-        setTimeout(() => {
+        // Focus on textarea after render completes
+        requestAnimationFrame(() => {
             const textarea = this.modal.querySelector('.reply-form__input');
             if (textarea) textarea.focus();
-        }, 100);
+        });
         
         // Haptic feedback
         if (this.telegram?.hapticFeedback) {

@@ -690,6 +690,29 @@ function decodeCursor(cursor) {
 }
 
 /**
+ * Build user object for enrichment
+ * @param {Object} user - User profile data or null
+ * @param {string} userId - Fallback user ID
+ * @returns {Object} Enriched user object
+ */
+function buildEnrichedUserObject(user, userId) {
+  if (user) {
+    return {
+      userId: user.userId,
+      name: user.name || (user.telegramUsername ? `@${user.telegramUsername}` : 'Пользователь'),
+      telegramUsername: user.telegramUsername || null,
+      avatarUrl: user.avatarUrl || null
+    };
+  }
+  return {
+    userId: userId,
+    name: 'Пользователь',
+    telegramUsername: null,
+    avatarUrl: null
+  };
+}
+
+/**
  * Enrich posts with user data
  * @param {Array} posts - Array of posts
  * @returns {Promise<Array>} Posts with user data
@@ -704,23 +727,10 @@ async function enrichPostsWithUserData(posts) {
   
   const userMap = new Map(users.map(u => [u.userId, u]));
   
-  return posts.map(post => {
-    const user = userMap.get(post.userId);
-    return {
-      ...post,
-      user: user ? {
-        userId: user.userId,
-        name: user.name || (user.telegramUsername ? `@${user.telegramUsername}` : 'Пользователь'),
-        telegramUsername: user.telegramUsername || null,
-        avatarUrl: user.avatarUrl || null
-      } : {
-        userId: post.userId,
-        name: 'Пользователь',
-        telegramUsername: null,
-        avatarUrl: null
-      }
-    };
-  });
+  return posts.map(post => ({
+    ...post,
+    user: buildEnrichedUserObject(userMap.get(post.userId), post.userId)
+  }));
 }
 
 /**
@@ -738,23 +748,10 @@ async function enrichCommentsWithUserData(comments) {
   
   const userMap = new Map(users.map(u => [u.userId, u]));
   
-  return comments.map(comment => {
-    const user = userMap.get(comment.userId);
-    return {
-      ...comment,
-      user: user ? {
-        userId: user.userId,
-        name: user.name || (user.telegramUsername ? `@${user.telegramUsername}` : 'Пользователь'),
-        telegramUsername: user.telegramUsername || null,
-        avatarUrl: user.avatarUrl || null
-      } : {
-        userId: comment.userId,
-        name: 'Пользователь',
-        telegramUsername: null,
-        avatarUrl: null
-      }
-    };
-  });
+  return comments.map(comment => ({
+    ...comment,
+    user: buildEnrichedUserObject(userMap.get(comment.userId), comment.userId)
+  }));
 }
 
 /**
