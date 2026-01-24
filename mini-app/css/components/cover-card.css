@@ -129,6 +129,14 @@
     color: var(--accent-color);
 }
 
+.cover-card__like-btn.liked {
+    color: var(--accent-color, #e91e63);
+}
+
+.cover-card__like-btn .like-count {
+    font-size: 14px;
+}
+
 .cover-card__action-btn svg {
     width: 18px;
     height: 18px;

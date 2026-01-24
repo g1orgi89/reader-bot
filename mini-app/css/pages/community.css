@@ -2158,6 +2158,12 @@
     white-space: nowrap;
 }
 
+.quote-card__time {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
 /* Quote card footer with likes left and actions right */
 .quote-card__footer {
     display: flex;
