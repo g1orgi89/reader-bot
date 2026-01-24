@@ -1911,11 +1911,35 @@ class ApiService {
      * Add comment to a cover post
      * @param {string} postId - Post ID
      * @param {string} text - Comment text
+     * @param {string|null} parentId - Parent comment ID for replies (optional)
      * @returns {Promise}
      */
-    async addCoverComment(postId, text) {
+    async addCoverComment(postId, text, parentId = null) {
         console.log(`📸 ApiService: Adding comment to post ${postId}...`);
-        return this.request('POST', `/covers/${postId}/comments`, { text });
+        const payload = { text };
+        if (parentId) payload.parentId = parentId;
+        return this.request('POST', `/covers/${postId}/comments`, payload);
+    }
+    
+    /**
+     * Like/unlike a cover post (toggle)
+     * @param {string} postId - Post ID
+     * @returns {Promise}
+     */
+    async likeCoverPost(postId) {
+        console.log(`❤️ ApiService: Toggling like for cover post ${postId}...`);
+        return this.request('POST', `/covers/${postId}/like`);
+    }
+    
+    /**
+     * Like/unlike a comment (toggle)
+     * @param {string} postId - Post ID
+     * @param {string} commentId - Comment ID
+     * @returns {Promise}
+     */
+    async likeCoverComment(postId, commentId) {
+        console.log(`❤️ ApiService: Toggling like for comment ${commentId}...`);
+        return this.request('POST', `/covers/${postId}/comments/${commentId}/like`);
     }
     
     /**
