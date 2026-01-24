@@ -50,6 +50,16 @@ const photoPostSchema = new mongoose.Schema({
     default: 'published',
     index: true
     // Post status
+  },
+  likesCount: {
+    type: Number,
+    default: 0
+    // Number of likes on this post
+  },
+  likedBy: {
+    type: [String],
+    default: []
+    // Array of userIds who liked this post
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt
