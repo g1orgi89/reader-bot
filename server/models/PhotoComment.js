@@ -29,6 +29,22 @@ const photoCommentSchema = new mongoose.Schema({
     maxlength: 500,
     trim: true
     // Comment text (max 500 chars)
+  },
+  parentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PhotoComment',
+    default: null
+    // Optional reference to parent comment for threaded replies
+  },
+  likesCount: {
+    type: Number,
+    default: 0
+    // Number of likes on this comment
+  },
+  likedBy: {
+    type: [String],
+    default: []
+    // Array of userIds who liked this comment
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt
@@ -39,6 +55,9 @@ photoCommentSchema.index({ postId: 1, createdAt: -1 });
 
 // Index for user's comments
 photoCommentSchema.index({ userId: 1, createdAt: -1 });
+
+// Index for replies (parentId)
+photoCommentSchema.index({ parentId: 1, createdAt: 1 });
 
 /**
  * Create a new comment
