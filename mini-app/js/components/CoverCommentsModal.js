@@ -92,7 +92,10 @@ class CoverCommentsModal {
         // Render loading state
         this.render();
         
-        // Attach event listeners
+        // Attach delegated event listeners (once)
+        this.attachDelegatedListeners();
+        
+        // Attach other event listeners
         this.attachEventListeners();
         
         // Load comments
@@ -117,6 +120,7 @@ class CoverCommentsModal {
         
         // Detach event listeners
         this.detachEventListeners();
+        this.detachDelegatedListeners();
         
         // Trigger haptic feedback
         if (this.telegram?.HapticFeedback) {
@@ -196,9 +200,6 @@ class CoverCommentsModal {
                 </div>
             </div>
         `;
-        
-        // Attach delegated listeners
-        this.attachDelegatedListeners();
     }
     
     /**
@@ -279,12 +280,12 @@ class CoverCommentsModal {
     }
     
     /**
-     * 🎯 Attach delegated event listeners
+     * 🎯 Attach delegated event listeners (called once when modal opens)
      */
     attachDelegatedListeners() {
-        if (!this.modal) return;
+        if (!this.modal || this._delegatedListenersAttached) return;
         
-        this.modal.addEventListener('click', async (event) => {
+        this._clickHandler = async (event) => {
             const target = event.target;
             const action = target.dataset.action;
             
@@ -309,18 +310,42 @@ class CoverCommentsModal {
                     this.profileModal.open(userId);
                 }
             }
-        });
+        };
         
-        // Handle Enter key in input
-        const input = this.modal.querySelector('[data-action="comment-input"]');
-        if (input) {
-            input.addEventListener('keypress', (event) => {
-                if (event.key === 'Enter') {
+        this.modal.addEventListener('click', this._clickHandler);
+        
+        this._keypressHandler = (event) => {
+            if (event.key === 'Enter') {
+                const target = event.target;
+                if (target.dataset.action === 'comment-input') {
                     event.preventDefault();
                     this.sendComment();
                 }
-            });
+            }
+        };
+        
+        this.modal.addEventListener('keypress', this._keypressHandler);
+        
+        this._delegatedListenersAttached = true;
+    }
+    
+    /**
+     * 🗑️ Detach delegated event listeners
+     */
+    detachDelegatedListeners() {
+        if (!this.modal || !this._delegatedListenersAttached) return;
+        
+        if (this._clickHandler) {
+            this.modal.removeEventListener('click', this._clickHandler);
+            this._clickHandler = null;
         }
+        
+        if (this._keypressHandler) {
+            this.modal.removeEventListener('keypress', this._keypressHandler);
+            this._keypressHandler = null;
+        }
+        
+        this._delegatedListenersAttached = false;
     }
     
     /**

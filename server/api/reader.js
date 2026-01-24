@@ -5878,31 +5878,35 @@ router.post('/covers/:id/like', telegramAuth, communityLimiter, async (req, res)
     // Check if user has already liked this post
     const hasLiked = post.likedBy && post.likedBy.includes(userId);
     
+    // Perform atomic update
+    let update;
     if (hasLiked) {
       // Unlike: remove user from likedBy array and decrement count
-      await PhotoPost.findByIdAndUpdate(postId, {
-        $pull: { likedBy: userId },
-        $inc: { likesCount: -1 }
-      });
-      
-      res.json({
-        success: true,
-        liked: false,
-        likesCount: Math.max(0, (post.likesCount || 0) - 1)
-      });
+      update = await PhotoPost.findByIdAndUpdate(
+        postId,
+        {
+          $pull: { likedBy: userId },
+          $inc: { likesCount: -1 }
+        },
+        { new: true }
+      );
     } else {
       // Like: add user to likedBy array and increment count
-      await PhotoPost.findByIdAndUpdate(postId, {
-        $addToSet: { likedBy: userId },
-        $inc: { likesCount: 1 }
-      });
-      
-      res.json({
-        success: true,
-        liked: true,
-        likesCount: (post.likesCount || 0) + 1
-      });
+      update = await PhotoPost.findByIdAndUpdate(
+        postId,
+        {
+          $addToSet: { likedBy: userId },
+          $inc: { likesCount: 1 }
+        },
+        { new: true }
+      );
     }
+    
+    res.json({
+      success: true,
+      liked: !hasLiked,
+      likesCount: Math.max(0, update.likesCount || 0)
+    });
     
   } catch (error) {
     console.error('Error toggling post like:', error);
@@ -5929,31 +5933,35 @@ router.post('/covers/:postId/comments/:commentId/like', telegramAuth, communityL
     // Check if user has already liked this comment
     const hasLiked = comment.likedBy && comment.likedBy.includes(userId);
     
+    // Perform atomic update
+    let update;
     if (hasLiked) {
       // Unlike: remove user from likedBy array and decrement count
-      await PhotoComment.findByIdAndUpdate(commentId, {
-        $pull: { likedBy: userId },
-        $inc: { likesCount: -1 }
-      });
-      
-      res.json({
-        success: true,
-        liked: false,
-        likesCount: Math.max(0, (comment.likesCount || 0) - 1)
-      });
+      update = await PhotoComment.findByIdAndUpdate(
+        commentId,
+        {
+          $pull: { likedBy: userId },
+          $inc: { likesCount: -1 }
+        },
+        { new: true }
+      );
     } else {
       // Like: add user to likedBy array and increment count
-      await PhotoComment.findByIdAndUpdate(commentId, {
-        $addToSet: { likedBy: userId },
-        $inc: { likesCount: 1 }
-      });
-      
-      res.json({
-        success: true,
-        liked: true,
-        likesCount: (comment.likesCount || 0) + 1
-      });
+      update = await PhotoComment.findByIdAndUpdate(
+        commentId,
+        {
+          $addToSet: { likedBy: userId },
+          $inc: { likesCount: 1 }
+        },
+        { new: true }
+      );
     }
+    
+    res.json({
+      success: true,
+      liked: !hasLiked,
+      likesCount: Math.max(0, update.likesCount || 0)
+    });
     
   } catch (error) {
     console.error('Error toggling comment like:', error);
