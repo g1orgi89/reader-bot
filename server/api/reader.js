@@ -711,10 +711,12 @@ async function enrichPostsWithUserData(posts) {
       user: user ? {
         userId: user.userId,
         name: user.name || user.telegramUsername ? `@${user.telegramUsername}` : 'Пользователь',
+        telegramUsername: user.telegramUsername || null,
         avatarUrl: user.avatarUrl || null
       } : {
         userId: post.userId,
         name: 'Пользователь',
+        telegramUsername: null,
         avatarUrl: null
       }
     };
@@ -743,10 +745,12 @@ async function enrichCommentsWithUserData(comments) {
       user: user ? {
         userId: user.userId,
         name: user.name || user.telegramUsername ? `@${user.telegramUsername}` : 'Пользователь',
+        telegramUsername: user.telegramUsername || null,
         avatarUrl: user.avatarUrl || null
       } : {
         userId: comment.userId,
         name: 'Пользователь',
+        telegramUsername: null,
         avatarUrl: null
       }
     };
@@ -5650,11 +5654,13 @@ router.get('/covers', telegramAuth, async (req, res) => {
     // Enrich with user data
     const enrichedPosts = await enrichPostsWithUserData(postsToReturn);
     
-    // Add comments count to each post
+    // Add comments count and like status to each post
     const postsWithCounts = await Promise.all(
       enrichedPosts.map(async (post) => ({
         ...post,
-        commentsCount: await PhotoComment.countForPost(post._id)
+        commentsCount: await PhotoComment.countForPost(post._id),
+        likesCount: post.likesCount || 0,
+        isLiked: post.likedBy && post.likedBy.includes(userId)
       }))
     );
     
@@ -5685,7 +5691,7 @@ router.post('/covers/:id/comments', telegramAuth, communityLimiter, async (req, 
   try {
     const userId = req.userId;
     const postId = req.params.id;
-    const { text } = req.body;
+    const { text, parentId } = req.body;
     
     if (!text || text.trim().length === 0) {
       return res.status(400).json({ success: false, error: 'Текст комментария обязателен' });
@@ -5701,11 +5707,20 @@ router.post('/covers/:id/comments', telegramAuth, communityLimiter, async (req, 
       return res.status(404).json({ success: false, error: 'Пост не найден' });
     }
     
+    // If parentId is provided, verify parent comment exists
+    if (parentId) {
+      const parentComment = await PhotoComment.findById(parentId);
+      if (!parentComment || parentComment.postId.toString() !== postId) {
+        return res.status(404).json({ success: false, error: 'Родительский комментарий не найден' });
+      }
+    }
+    
     // Create comment
     const comment = await PhotoComment.createComment({
       postId,
       userId,
-      text: text.trim()
+      text: text.trim(),
+      parentId: parentId || null
     });
     
     // Enrich with user data
@@ -5729,6 +5744,7 @@ router.post('/covers/:id/comments', telegramAuth, communityLimiter, async (req, 
  */
 router.get('/covers/:id/comments', telegramAuth, async (req, res) => {
   try {
+    const userId = req.userId;
     const postId = req.params.id;
     const { cursor, limit = 20 } = req.query;
     const limitNum = Math.min(parseInt(limit) || 20, 100);
@@ -5761,14 +5777,22 @@ router.get('/covers/:id/comments', telegramAuth, async (req, res) => {
     // Enrich with user data
     const enrichedComments = await enrichCommentsWithUserData(commentsToReturn);
     
+    // Add like status to each comment
+    const commentsWithLikes = enrichedComments.map(comment => ({
+      ...comment,
+      likesCount: comment.likesCount || 0,
+      isLiked: comment.likedBy && comment.likedBy.includes(userId),
+      parentId: comment.parentId || null
+    }));
+    
     // Generate next cursor
-    const nextCursor = hasMore && commentsToReturn.length > 0 
-      ? encodeCursor(commentsToReturn[commentsToReturn.length - 1]) 
+    const nextCursor = hasMore && commentsToReturn.length > 0
+      ? encodeCursor(commentsToReturn[commentsToReturn.length - 1])
       : null;
     
     res.json({
       success: true,
-      data: enrichedComments,
+      data: commentsWithLikes,
       hasMore,
       nextCursor
     });
@@ -5832,6 +5856,116 @@ router.delete('/covers/:id', telegramAuth, communityLimiter, async (req, res) =>
   } catch (error) {
     console.error('Error deleting cover:', error);
     res.status(500).json({ success: false, error: 'Ошибка удаления поста' });
+  }
+});
+
+/**
+ * @description POST /api/reader/covers/:id/like - Toggle like on a cover post
+ * @route POST /api/reader/covers/:id/like
+ * @access Private (telegramAuth)
+ */
+router.post('/covers/:id/like', telegramAuth, communityLimiter, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const postId = req.params.id;
+    
+    // Find the post
+    const post = await PhotoPost.findById(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Пост не найден' });
+    }
+    
+    // Check if user has already liked this post
+    const hasLiked = post.likedBy && post.likedBy.includes(userId);
+    
+    // Perform atomic update
+    let update;
+    if (hasLiked) {
+      // Unlike: remove user from likedBy array and decrement count
+      update = await PhotoPost.findByIdAndUpdate(
+        postId,
+        {
+          $pull: { likedBy: userId },
+          $inc: { likesCount: -1 }
+        },
+        { new: true }
+      );
+    } else {
+      // Like: add user to likedBy array and increment count
+      update = await PhotoPost.findByIdAndUpdate(
+        postId,
+        {
+          $addToSet: { likedBy: userId },
+          $inc: { likesCount: 1 }
+        },
+        { new: true }
+      );
+    }
+    
+    res.json({
+      success: true,
+      liked: !hasLiked,
+      likesCount: Math.max(0, update.likesCount || 0)
+    });
+    
+  } catch (error) {
+    console.error('Error toggling post like:', error);
+    res.status(500).json({ success: false, error: 'Ошибка при лайке поста' });
+  }
+});
+
+/**
+ * @description POST /api/reader/covers/:postId/comments/:commentId/like - Toggle like on a comment
+ * @route POST /api/reader/covers/:postId/comments/:commentId/like
+ * @access Private (telegramAuth)
+ */
+router.post('/covers/:postId/comments/:commentId/like', telegramAuth, communityLimiter, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const commentId = req.params.commentId;
+    
+    // Find the comment
+    const comment = await PhotoComment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'Комментарий не найден' });
+    }
+    
+    // Check if user has already liked this comment
+    const hasLiked = comment.likedBy && comment.likedBy.includes(userId);
+    
+    // Perform atomic update
+    let update;
+    if (hasLiked) {
+      // Unlike: remove user from likedBy array and decrement count
+      update = await PhotoComment.findByIdAndUpdate(
+        commentId,
+        {
+          $pull: { likedBy: userId },
+          $inc: { likesCount: -1 }
+        },
+        { new: true }
+      );
+    } else {
+      // Like: add user to likedBy array and increment count
+      update = await PhotoComment.findByIdAndUpdate(
+        commentId,
+        {
+          $addToSet: { likedBy: userId },
+          $inc: { likesCount: 1 }
+        },
+        { new: true }
+      );
+    }
+    
+    res.json({
+      success: true,
+      liked: !hasLiked,
+      likesCount: Math.max(0, update.likesCount || 0)
+    });
+    
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+    res.status(500).json({ success: false, error: 'Ошибка при лайке комментария' });
   }
 });
 

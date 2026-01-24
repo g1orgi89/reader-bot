@@ -43,6 +43,9 @@ class CommunityPage {
             ? app.getProfileModal()
             : (window.profileModal || (window.profileModal = new ProfileModal(app)));
         
+        // Initialize CoverCommentsModal
+        this.coverCommentsModal = new CoverCommentsModal(app);
+        
         // Store bound delegated handler reference for cleanup
         this._delegatedHandlerBound = null;
         
@@ -1031,7 +1034,9 @@ class CommunityPage {
     _renderFollowingQuotes(quotes) {
         return quotes.map(quote => {
             const owner = quote.owner || quote.user;
-            const userName = owner?.name || 'Пользователь';
+            const userName = owner?.telegramUsername 
+                ? `${owner.name || 'Пользователь'} · @${owner.telegramUsername}`
+                : (owner?.name || 'Пользователь');
             const userId = owner?.userId || owner?.id || owner?._id || '';
             const isFollowing = this.followStatusCache?.get(userId) || false;
             
@@ -2045,9 +2050,6 @@ async refreshSpotlight() {
             return `
                 <div id="spotlightSection" class="community-spotlight">
                     ${uploadFormHtml}
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">📸 Обложки</h3>
-                    </div>
                     <div class="loading-indicator" style="text-align: center; padding: 40px;">
                         <div class="spinner"></div>
                         <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
@@ -2067,9 +2069,6 @@ async refreshSpotlight() {
         return `
             <div id="spotlightSection" class="community-spotlight">
                 ${uploadFormHtml}
-                <div class="spotlight-header">
-                    <h3 class="spotlight-title">📸 Обложки</h3>
-                </div>
                 ${emptyStateHtml}
                 ${postsHtml ? `<div class="spotlight-grid">${postsHtml}</div>` : ''}
                 ${this.coversHasMore ? '<div class="feed-load-more"><button class="feed-load-more__btn js-covers-load-more">Показать ещё</button></div>' : ''}
@@ -2082,11 +2081,15 @@ async refreshSpotlight() {
      */
     renderCoverCard(post) {
         const user = post.user || {};
-        const userName = user.name || 'Пользователь';
+        const userName = user.telegramUsername 
+            ? `${user.name || 'Пользователь'} · @${user.telegramUsername}`
+            : (user.name || 'Пользователь');
         const avatarUrl = user.avatarUrl || '';
         const isPinned = post.isPinned || false;
         const caption = post.caption || '';
         const commentsCount = post.commentsCount || 0;
+        const likesCount = post.likesCount || 0;
+        const isLiked = post.isLiked || false;
         const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
         const dateStr = this.formatRelativeTime(createdAt);
         
@@ -2095,8 +2098,8 @@ async refreshSpotlight() {
         const isOwnPost = currentUserId && user.userId && currentUserId === user.userId;
         
         const avatarHtml = avatarUrl 
-            ? `<img src="${this.escapeHtml(avatarUrl)}" alt="${this.escapeHtml(userName)}" class="cover-card__avatar">`
-            : '<div class="cover-card__avatar" style="background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">👤</div>';
+            ? `<img src="${this.escapeHtml(avatarUrl)}" alt="${this.escapeHtml(userName)}" class="cover-card__avatar" data-user-id="${user.userId || ''}">`
+            : `<div class="cover-card__avatar" data-user-id="${user.userId || ''}" style="background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">👤</div>`;
         
         // Add delete button for own posts
         const deleteButtonHtml = isOwnPost 
@@ -2108,7 +2111,7 @@ async refreshSpotlight() {
                 <div class="cover-card__header">
                     ${avatarHtml}
                     <div class="cover-card__user-info">
-                        <div class="cover-card__name">${this.escapeHtml(userName)}</div>
+                        <div class="cover-card__name" data-user-id="${user.userId || ''}">${this.escapeHtml(userName)}</div>
                         <div class="cover-card__date">${dateStr}</div>
                     </div>
                     ${isPinned ? '<div class="cover-card__pin-badge">📌 Закреплено</div>' : ''}
@@ -2117,11 +2120,13 @@ async refreshSpotlight() {
                 <img src="${this.escapeHtml(post.imageUrl)}" alt="${this.escapeHtml(caption)}" class="cover-photo" data-action="open-image" data-image-url="${this.escapeHtml(post.imageUrl)}" data-caption="${this.escapeHtml(caption)}">
                 ${caption ? `<div class="cover-card__caption">${this.escapeHtml(caption)}</div>` : ''}
                 <div class="cover-card__actions">
+                    <button class="cover-card__action-btn cover-card__like-btn ${isLiked ? 'liked' : ''}" data-action="like-cover" data-post-id="${post._id || post.id}">
+                        ${isLiked ? '❤️' : '🤍'} ${likesCount > 0 ? likesCount : ''}
+                    </button>
                     <button class="cover-card__action-btn" data-action="show-comments" data-post-id="${post._id || post.id}">
                         💬 ${commentsCount > 0 ? commentsCount : 'Комментарии'}
                     </button>
                 </div>
-                <div class="cover-card__comments-section" id="comments-${post._id || post.id}" style="display: none;"></div>
             </div>
         `;
     }
@@ -2200,14 +2205,9 @@ async refreshSpotlight() {
             cards = this._renderSpotlightCards();
         }
         
-        // ALWAYS render container (with refresh button) even if no items
+        // ALWAYS render container (БЕЗ ЗАГОЛОВКА - он уже есть в filter switch) even if no items
         return `
             <div id="spotlightSection" class="community-spotlight">
-                <div class="spotlight-header">
-                    <h3 class="spotlight-title">✨ Сейчас в сообществе</h3>
-                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                            aria-label="Обновить подборку">↻</button>
-                </div>
                 <div class="spotlight-grid">
                     ${cards}
                 </div>
@@ -2245,7 +2245,9 @@ async refreshSpotlight() {
             const userId = owner?.userId || owner?.id || owner?._id || owner?.telegramId || '';
             const isFollowing = this.followStatusCache?.get(userId) || false;
             const userAvatarHtml = this.getUserAvatarHtml(owner, userId, isFollowing);
-            const userName = owner?.name || 'Пользователь';
+            const userName = owner?.telegramUsername 
+                ? `${owner.name || 'Пользователь'} · @${owner.telegramUsername}`
+                : (owner?.name || 'Пользователь');
             
             // Apply like state by normalized key via _likeStore with _computeLikeKey()
             const normalizedKey = this._computeLikeKey(item.text, item.author);
@@ -2454,15 +2456,15 @@ async refreshSpotlight() {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
-        // 👥 ФИЛЬТР ЛЕНТЫ (Все / От подписок / Обложки)
+        // 👥 ФИЛЬТР ЛЕНТЫ (Цитаты / От подписок / КнижныйКадр)
         const feedFilterHtml = `
             <div class="feed-filter">
                 <button class="feed-filter-btn ${this.feedFilter === 'all' ? 'active' : ''}"
-                        data-filter="all">Все</button>
+                        data-filter="all">Цитаты</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
-                        data-filter="following">Подписки</button>
+                        data-filter="following">От подписок</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
-                        data-filter="covers">Обложки</button>
+                        data-filter="covers">КнижныйКадр</button>
             </div>
         `;
 
@@ -2516,9 +2518,6 @@ async refreshSpotlight() {
             // Loading state
             return `
                 <div id="spotlightSection" class="community-spotlight">
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ Подписки</h3>
-                    </div>
                     <div class="spotlight-grid">
                         <div class="loading-indicator" style="text-align: center; padding: 40px;">
                             <div class="spinner"></div>
@@ -2533,9 +2532,6 @@ async refreshSpotlight() {
             // Empty state - NO "Показать ещё" button
             return `
                 <div id="spotlightSection" class="community-spotlight">
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ Подписки</h3>
-                    </div>
                     <div class="spotlight-grid">
                         <div class="empty-following">
                             <div class="empty-following__icon">👥</div>
@@ -2555,9 +2551,6 @@ async refreshSpotlight() {
         // NO "Показать ещё" button for Following feed
         return `
             <div id="spotlightSection" class="community-spotlight">
-                <div class="spotlight-header">
-                    <h3 class="spotlight-title">✨ Подписки</h3>
-                </div>
                 <div class="spotlight-grid">
                     ${quotesHtml}
                 </div>
@@ -3527,6 +3520,15 @@ renderAchievementsSection() {
                 event.preventDefault();
                 const postId = target.dataset.postId;
                 this.handleShowComments(postId);
+                this.triggerHapticFeedback('light');
+                return;
+            }
+            
+            // Handle like cover post
+            if (target.dataset.action === 'like-cover') {
+                event.preventDefault();
+                const postId = target.dataset.postId;
+                this.handleLikeCoverPost(postId, target);
                 this.triggerHapticFeedback('light');
                 return;
             }
@@ -4882,29 +4884,68 @@ renderAchievementsSection() {
     }
     
     /**
-     * 📸 Handle show/hide comments for a post
+     * 📸 HANDLE LIKE COVER POST
+     * Toggle like on a cover post with optimistic updates
+     */
+    async handleLikeCoverPost(postId, buttonElement) {
+        try {
+            // Find the post in our local state
+            const post = this.coversPosts.find(p => (p._id || p.id) === postId);
+            if (!post) {
+                console.warn('Post not found in local state:', postId);
+                return;
+            }
+            
+            // Store original state for rollback
+            const originalLiked = post.isLiked || false;
+            const originalCount = post.likesCount || 0;
+            
+            // Optimistic update
+            post.isLiked = !originalLiked;
+            post.likesCount = post.isLiked ? originalCount + 1 : Math.max(0, originalCount - 1);
+            
+            // Update UI immediately
+            buttonElement.classList.toggle('liked', post.isLiked);
+            buttonElement.innerHTML = `${post.isLiked ? '❤️' : '🤍'} ${post.likesCount > 0 ? post.likesCount : ''}`;
+            
+            // Call API
+            try {
+                const response = await this.api.likeCoverPost(postId);
+                
+                // Reconcile with server response
+                if (response.success) {
+                    post.isLiked = response.liked;
+                    post.likesCount = response.likesCount;
+                    
+                    // Update UI with server data
+                    buttonElement.classList.toggle('liked', post.isLiked);
+                    buttonElement.innerHTML = `${post.isLiked ? '❤️' : '🤍'} ${post.likesCount > 0 ? post.likesCount : ''}`;
+                }
+            } catch (error) {
+                console.error('Error liking cover post:', error);
+                
+                // Rollback on error
+                post.isLiked = originalLiked;
+                post.likesCount = originalCount;
+                buttonElement.classList.toggle('liked', originalLiked);
+                buttonElement.innerHTML = `${originalLiked ? '❤️' : '🤍'} ${originalCount > 0 ? originalCount : ''}`;
+            }
+        } catch (error) {
+            console.error('Error in handleLikeCoverPost:', error);
+        }
+    }
+    
+    /**
+     * 📸 Handle show comments for a post
+     * Opens the CoverCommentsModal instead of inline comments
      * @param {string} postId - Post ID
      */
     async handleShowComments(postId) {
         if (!postId) return;
         
-        const commentsSection = document.getElementById(`comments-${postId}`);
-        if (!commentsSection) return;
-        
-        // Toggle visibility
-        const isVisible = commentsSection.style.display !== 'none';
-        
-        if (isVisible) {
-            // Hide comments
-            commentsSection.style.display = 'none';
-        } else {
-            // Show comments - load if needed
-            commentsSection.style.display = 'block';
-            
-            // Check if already loaded
-            if (commentsSection.innerHTML.trim() === '') {
-                await this.loadComments(postId);
-            }
+        // Open the CoverCommentsModal
+        if (this.coverCommentsModal) {
+            this.coverCommentsModal.open(postId);
         }
     }
     
