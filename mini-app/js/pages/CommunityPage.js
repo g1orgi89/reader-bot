@@ -2045,9 +2045,6 @@ async refreshSpotlight() {
             return `
                 <div id="spotlightSection" class="community-spotlight">
                     ${uploadFormHtml}
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">📸 Обложки</h3>
-                    </div>
                     <div class="loading-indicator" style="text-align: center; padding: 40px;">
                         <div class="spinner"></div>
                         <div style="margin-top: 12px; color: var(--text-secondary);">Загрузка...</div>
@@ -2067,9 +2064,6 @@ async refreshSpotlight() {
         return `
             <div id="spotlightSection" class="community-spotlight">
                 ${uploadFormHtml}
-                <div class="spotlight-header">
-                    <h3 class="spotlight-title">📸 Обложки</h3>
-                </div>
                 ${emptyStateHtml}
                 ${postsHtml ? `<div class="spotlight-grid">${postsHtml}</div>` : ''}
                 ${this.coversHasMore ? '<div class="feed-load-more"><button class="feed-load-more__btn js-covers-load-more">Показать ещё</button></div>' : ''}
@@ -2200,14 +2194,9 @@ async refreshSpotlight() {
             cards = this._renderSpotlightCards();
         }
         
-        // ALWAYS render container (with refresh button) even if no items
+        // ALWAYS render container (БЕЗ ЗАГОЛОВКА - он уже есть в filter switch) even if no items
         return `
             <div id="spotlightSection" class="community-spotlight">
-                <div class="spotlight-header">
-                    <h3 class="spotlight-title">✨ Сейчас в сообществе</h3>
-                    <button class="spotlight-refresh-btn" id="spotlightRefreshBtn" 
-                            aria-label="Обновить подборку">↻</button>
-                </div>
                 <div class="spotlight-grid">
                     ${cards}
                 </div>
@@ -2454,15 +2443,15 @@ async refreshSpotlight() {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
-        // 👥 ФИЛЬТР ЛЕНТЫ (Все / От подписок / Обложки)
+        // 👥 ФИЛЬТР ЛЕНТЫ (Цитаты / От подписок / КнижныйКадр)
         const feedFilterHtml = `
             <div class="feed-filter">
                 <button class="feed-filter-btn ${this.feedFilter === 'all' ? 'active' : ''}"
-                        data-filter="all">Все</button>
+                        data-filter="all">Цитаты</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
-                        data-filter="following">Подписки</button>
+                        data-filter="following">От подписок</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
-                        data-filter="covers">Обложки</button>
+                        data-filter="covers">КнижныйКадр</button>
             </div>
         `;
 
@@ -2516,9 +2505,6 @@ async refreshSpotlight() {
             // Loading state
             return `
                 <div id="spotlightSection" class="community-spotlight">
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ Подписки</h3>
-                    </div>
                     <div class="spotlight-grid">
                         <div class="loading-indicator" style="text-align: center; padding: 40px;">
                             <div class="spinner"></div>
@@ -2533,9 +2519,6 @@ async refreshSpotlight() {
             // Empty state - NO "Показать ещё" button
             return `
                 <div id="spotlightSection" class="community-spotlight">
-                    <div class="spotlight-header">
-                        <h3 class="spotlight-title">✨ Подписки</h3>
-                    </div>
                     <div class="spotlight-grid">
                         <div class="empty-following">
                             <div class="empty-following__icon">👥</div>
@@ -2555,9 +2538,6 @@ async refreshSpotlight() {
         // NO "Показать ещё" button for Following feed
         return `
             <div id="spotlightSection" class="community-spotlight">
-                <div class="spotlight-header">
-                    <h3 class="spotlight-title">✨ Подписки</h3>
-                </div>
                 <div class="spotlight-grid">
                     ${quotesHtml}
                 </div>
