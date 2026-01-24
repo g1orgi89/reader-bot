@@ -43,6 +43,9 @@ class CommunityPage {
             ? app.getProfileModal()
             : (window.profileModal || (window.profileModal = new ProfileModal(app)));
         
+        // Initialize CoverCommentsModal
+        this.coverCommentsModal = new CoverCommentsModal(app);
+        
         // Store bound delegated handler reference for cleanup
         this._delegatedHandlerBound = null;
         
@@ -2124,7 +2127,6 @@ async refreshSpotlight() {
                         💬 ${commentsCount > 0 ? commentsCount : 'Комментарии'}
                     </button>
                 </div>
-                <div class="cover-card__comments-section" id="comments-${post._id || post.id}" style="display: none;"></div>
             </div>
         `;
     }
@@ -4934,29 +4936,16 @@ renderAchievementsSection() {
     }
     
     /**
-     * 📸 Handle show/hide comments for a post
+     * 📸 Handle show comments for a post
+     * Opens the CoverCommentsModal instead of inline comments
      * @param {string} postId - Post ID
      */
     async handleShowComments(postId) {
         if (!postId) return;
         
-        const commentsSection = document.getElementById(`comments-${postId}`);
-        if (!commentsSection) return;
-        
-        // Toggle visibility
-        const isVisible = commentsSection.style.display !== 'none';
-        
-        if (isVisible) {
-            // Hide comments
-            commentsSection.style.display = 'none';
-        } else {
-            // Show comments - load if needed
-            commentsSection.style.display = 'block';
-            
-            // Check if already loaded
-            if (commentsSection.innerHTML.trim() === '') {
-                await this.loadComments(postId);
-            }
+        // Open the CoverCommentsModal
+        if (this.coverCommentsModal) {
+            this.coverCommentsModal.open(postId);
         }
     }
     
