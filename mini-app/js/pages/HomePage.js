@@ -295,87 +295,81 @@ class HomePage {
         if (!wrap) return;
         
         const stats = this.state.get('stats') || {};
-        // Check loading state from state.loading property, not local loading flag
         const isLoading = this.state.get('stats.loading') || false;
         
         const grid = wrap.querySelector('.progress-grid');
-        const activityNode = wrap.querySelector('.progress-activity');
-        const summaryNode = wrap.querySelector('.progress-summary');
-        
-        // Update summary line
-        if (summaryNode) {
-            if (isLoading) {
-                summaryNode.textContent = 'Загрузка…';
-            } else if (stats && stats.totalQuotes != null && stats.totalQuotes >= 0) {
-                const totalQuotes = stats.totalQuotes ?? 0;
-                const daysInApp = stats.daysInApp ?? 0;
-                const quotesWord = this.getQuoteWord(totalQuotes);
-                const daysWord = this.getDayWord(daysInApp);
-                
-                let summaryContent = `${totalQuotes} ${quotesWord}`;
-                if (daysInApp > 0) {
-                    summaryContent += ` • ${daysInApp} ${daysWord} в приложении`;
-                }
-                summaryNode.textContent = summaryContent;
-            }
-        }
         
         if (grid) {
+            const row1 = grid.querySelector('.row-1');
+            const row2 = grid.querySelector('.row-2');
+            
             if (isLoading) {
-                // Show skeleton loading state
-                grid.innerHTML = Array(3).fill(0).map(() => `
-                    <div class="stat-card skeleton-stat-block" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);">
-                        <div class="skeleton-stat-label"></div>
-                        <div class="skeleton-stat-number"></div>
-                    </div>
-                `).join('');
+                // Show skeleton loading state for both rows
+                if (row1) {
+                    row1.innerHTML = [1,2].map(() => `
+                        <div class="stat-card skeleton-stat-block">
+                            <div class="skeleton-stat-label"></div>
+                            <div class="skeleton-stat-number"></div>
+                        </div>
+                    `).join('');
+                }
+                if (row2) {
+                    row2.innerHTML = [1,2,3].map(() => `
+                        <div class="stat-card skeleton-stat-block">
+                            <div class="skeleton-stat-label"></div>
+                            <div class="skeleton-stat-number"></div>
+                        </div>
+                    `).join('');
+                }
             } else {
-                // Show actual data with smooth transition - ensure touch-friendly sizes
-                const newContent = [
-                    { label: 'Цитаты за неделю', value: stats.weeklyQuotes ?? '—' },
-                    { label: 'Серия (дней подряд)', value: stats.currentStreak ?? '—' },
-                    { label: 'Любимый автор', value: stats.favoriteAuthor || '—', isAuthor: true }
-                ].map(item => {
-                    const valueContent = item.isAuthor && item.value !== '—'
-                        ? `<span class="progress-author-name" title="${item.value}">${item.value}</span>`
-                        : item.value;
-                    return `
-                    <div class="stat-card fade-in" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;">
-                        <div class="stat-label" style="font-size:var(--font-size-xs);color:var(--text-secondary);">${item.label}</div>
-                        <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">${valueContent}</div>
-                    </div>
+                // Update row-1 (top 2 metrics)
+                if (row1) {
+                    const row1Content = `
+                        <div class="stat-card fade-in">
+                            <div class="stat-label">Всего цитат</div>
+                            <div class="stat-value">${stats.totalQuotes ?? '—'}</div>
+                        </div>
+                        <div class="stat-card fade-in">
+                            <div class="stat-label">Дней в приложении</div>
+                            <div class="stat-value">${stats.daysInApp ?? '—'}</div>
+                        </div>
                     `;
-                }).join('');
-                
-                if (grid.innerHTML !== newContent) {
-                    grid.innerHTML = newContent;
-                    // Remove fade-in class after animation
-                    setTimeout(() => {
-                        grid.querySelectorAll('.fade-in').forEach(el => {
-                            el.classList.remove('fade-in');
-                        });
-                    }, 300);
+                    if (row1.innerHTML.trim() !== row1Content.trim()) {
+                        row1.innerHTML = row1Content;
+                    }
                 }
-            }
-        }
-        
-        if (activityNode) {
-            if (isLoading) {
-                activityNode.innerHTML = '<div class="skeleton-line" style="width: 60%; height: 16px; margin: 0 auto;"></div>';
-            } else {
-                // Always get activityPercent from API data
-                const activityPercent = stats.activityPercent ?? 1;
-                const activityLevel = stats.activityLevel || 'low';
-                let emoji = '🔍';
-                if (activityLevel === 'high') emoji = '🔥';
-                else if (activityLevel === 'medium') emoji = '💪';
                 
-                const newText = `Активность: ${activityLevel === 'high' ? 'Высокая' : activityLevel === 'medium' ? 'Средняя' : 'Начинающий'} ${emoji}`;
-                if (activityNode.textContent !== newText) {
-                    activityNode.textContent = newText;
-                    activityNode.classList.add('fade-in');
-                    setTimeout(() => activityNode.classList.remove('fade-in'), 300);
+                // Update row-2 (bottom 3 metrics)
+                if (row2) {
+                    const authorValue = stats.favoriteAuthor && stats.favoriteAuthor !== '—'
+                        ? `<span class="progress-author-name" title="${stats.favoriteAuthor}">${stats.favoriteAuthor}</span>`
+                        : '—';
+                    
+                    const row2Content = `
+                        <div class="stat-card fade-in">
+                            <div class="stat-label">Цитаты за неделю</div>
+                            <div class="stat-value">${stats.weeklyQuotes ?? '—'}</div>
+                        </div>
+                        <div class="stat-card fade-in">
+                            <div class="stat-label">Серия (дней подряд)</div>
+                            <div class="stat-value">${stats.currentStreak ?? '—'}</div>
+                        </div>
+                        <div class="stat-card fade-in">
+                            <div class="stat-label">Любимый автор</div>
+                            <div class="stat-value">${authorValue}</div>
+                        </div>
+                    `;
+                    if (row2.innerHTML.trim() !== row2Content.trim()) {
+                        row2.innerHTML = row2Content;
+                    }
                 }
+                
+                // Remove fade-in class after animation
+                setTimeout(() => {
+                    grid.querySelectorAll('.fade-in').forEach(el => {
+                        el.classList.remove('fade-in');
+                    });
+                }, 300);
             }
         }
     }
@@ -644,7 +638,12 @@ class HomePage {
             <div class="home-status-card">
                 <div class="home-status-card-header">
                     <div class="home-status-card-title">#мысльдня</div>
-                    <button class="home-status-card-edit-btn" id="statusEditBtn" aria-label="Редактировать статус">✏️</button>
+                    <button class="home-status-card-edit-btn" id="statusEditBtn" aria-label="Редактировать статус">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
                 </div>
                 <div id="statusContainer">
                     <div class="${isPlaceholder ? 'home-status-placeholder' : 'home-status-text'}" id="statusDisplay">
@@ -923,28 +922,51 @@ class HomePage {
         const stats = _stats || {};
         const loading = stats?.loading || this.loading;
         
-        // Generate summary line
-        let summaryContent = 'Загрузка…';
-        if (!loading && stats && stats.totalQuotes != null && stats.totalQuotes >= 0) {
-            const totalQuotes = stats.totalQuotes ?? 0;
-            const daysInApp = stats.daysInApp ?? 0;
-            const quotesWord = this.getQuoteWord(totalQuotes);
-            const daysWord = this.getDayWord(daysInApp);
-            
-            summaryContent = `${totalQuotes} ${quotesWord}`;
-            if (daysInApp > 0) {
-                summaryContent += ` • ${daysInApp} ${daysWord} в приложении`;
-            }
-        }
-        
         return `
-        <div class="progress-block" style="margin:var(--spacing-md) 0;">
-          <div style="font-weight:var(--font-weight-semibold);font-size:var(--font-size-sm);margin:0 0 var(--spacing-sm);color:var(--text-primary);">📈 Ваш прогресс</div>
-          <div class="progress-summary" style="font-size:var(--font-size-sm);color:var(--text-secondary);margin:0 0 var(--spacing-sm);text-align:center;">${summaryContent}</div>
-          <div class="progress-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--spacing-sm);">
-            ${[1,2,3].map(()=>`<div class="stat-card" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);opacity:.45;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;"><div class="stat-label" style="font-size:var(--font-size-xs);color:var(--text-secondary);">…</div><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">—</div></div>`).join('')}
+        <div class="progress-block">
+          <div class="section-title">📈 Ваш прогресс</div>
+          <div class="progress-grid">
+            <div class="row-1">
+              ${loading ? 
+                `<div class="stat-card skeleton-stat-block">
+                  <div class="skeleton-stat-label"></div>
+                  <div class="skeleton-stat-number"></div>
+                </div>
+                <div class="stat-card skeleton-stat-block">
+                  <div class="skeleton-stat-label"></div>
+                  <div class="skeleton-stat-number"></div>
+                </div>` :
+                `<div class="stat-card">
+                  <div class="stat-label">Всего цитат</div>
+                  <div class="stat-value">${stats.totalQuotes ?? '—'}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Дней в приложении</div>
+                  <div class="stat-value">${stats.daysInApp ?? '—'}</div>
+                </div>`
+              }
+            </div>
+            <div class="row-2">
+              ${loading ?
+                [1,2,3].map(()=>`<div class="stat-card skeleton-stat-block">
+                  <div class="skeleton-stat-label"></div>
+                  <div class="skeleton-stat-number"></div>
+                </div>`).join('') :
+                `<div class="stat-card">
+                  <div class="stat-label">Цитаты за неделю</div>
+                  <div class="stat-value">${stats.weeklyQuotes ?? '—'}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Серия (дней подряд)</div>
+                  <div class="stat-value">${stats.currentStreak ?? '—'}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Любимый автор</div>
+                  <div class="stat-value">${stats.favoriteAuthor && stats.favoriteAuthor !== '—' ? `<span class="progress-author-name" title="${stats.favoriteAuthor}">${stats.favoriteAuthor}</span>` : '—'}</div>
+                </div>`
+              }
+            </div>
           </div>
-          <div class="progress-activity" style="margin-top:var(--spacing-sm);font-size:var(--font-size-xs);color:var(--text-secondary);">Загрузка…</div>
         </div>`;
     }
     
