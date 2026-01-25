@@ -1243,31 +1243,36 @@ body.dark-theme {
 }
 
 .home-status-card-edit-btn {
-    width: 24px;
-    height: 24px;
+    width: 36px;
+    height: 36px;
     padding: 0;
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.12);
     background: transparent;
     border-radius: var(--radius-round, 50%);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
     transition: all 0.2s ease;
     flex-shrink: 0;
-    opacity: 0.6;
+    color: var(--text-secondary, #666666);
+}
+
+.home-status-card-edit-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
 }
 
 .home-status-card-edit-btn:hover {
     background: rgba(0, 0, 0, 0.04);
-    opacity: 0.8;
-    border-color: rgba(0, 0, 0, 0.2);
+    border-color: rgba(0, 0, 0, 0.18);
+    color: var(--text-primary, #2D2D2D);
 }
 
 .home-status-card-edit-btn:active {
-    transform: scale(0.96);
-    opacity: 0.9;
+    transform: scale(0.95);
+    background: rgba(0, 0, 0, 0.06);
 }
 
 /* Real user status - larger, primary color, higher opacity, italic */
@@ -1403,5 +1408,111 @@ body.dark-theme {
 @media (max-width: 360px) {
     .progress-grid .stat-card .progress-author-name {
         font-size: var(--font-size-xs) !important;
+    }
+}
+
+/* ============================================================================
+   📊 PROGRESS BLOCK - VARIANT B (SINGLE COHESIVE CARD)
+   ============================================================================ */
+
+.progress-block {
+    background: var(--surface, #FFFFFF);
+    border: 1px solid var(--border, #E6E0D6);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px var(--shadow-color, rgba(210, 69, 44, 0.08));
+    transition: all var(--transition-normal, 0.3s ease);
+}
+
+.progress-block:hover {
+    box-shadow: 0 4px 12px var(--shadow-color-strong, rgba(210, 69, 44, 0.15));
+}
+
+.progress-block .section-title {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.progress-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm, 8px);
+}
+
+.progress-grid .row-1 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm, 8px);
+}
+
+.progress-grid .row-2 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-sm, 8px);
+}
+
+.progress-grid .stat-card {
+    min-height: var(--touch-target-min, 44px);
+    min-width: var(--touch-target-min, 44px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 12px;
+    background: var(--background-light, #FAF8F3);
+    border: 1px solid var(--border-light, #F0EBE3);
+    border-radius: var(--border-radius-small, 8px);
+    cursor: pointer;
+    transition: all var(--transition-fast, 0.2s ease);
+}
+
+.progress-grid .stat-card:hover {
+    background: var(--surface-warm, #FEFCF8);
+    border-color: var(--border, #E6E0D6);
+    transform: translateY(-1px);
+}
+
+.progress-grid .stat-label {
+    font-size: var(--font-size-xs, 12px);
+    color: var(--text-secondary, #666666);
+    text-transform: none;
+    letter-spacing: 0;
+    margin-bottom: 4px;
+    line-height: 1.2;
+}
+
+.progress-grid .stat-value {
+    font-size: var(--font-size-xl, 20px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--text-primary, #2D2D2D);
+    line-height: 1.2;
+}
+
+.progress-grid .stat-card .progress-author-name {
+    display: inline-block;
+    max-width: 100%;
+    font-size: var(--font-size-sm, 14px) !important;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+/* Responsive adjustments */
+@media (max-width: 360px) {
+    .progress-grid .stat-card .progress-author-name {
+        font-size: var(--font-size-xs, 12px) !important;
+    }
+    
+    .progress-grid .row-2 {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+    
+    .progress-grid .stat-card {
+        padding: 10px 8px;
     }
 }
