@@ -300,6 +300,25 @@ class HomePage {
         
         const grid = wrap.querySelector('.progress-grid');
         const activityNode = wrap.querySelector('.progress-activity');
+        const summaryNode = wrap.querySelector('.progress-summary');
+        
+        // Update summary line
+        if (summaryNode) {
+            if (isLoading) {
+                summaryNode.textContent = 'Загрузка…';
+            } else if (stats && stats.totalQuotes != null && stats.totalQuotes >= 0) {
+                const totalQuotes = stats.totalQuotes ?? 0;
+                const daysInApp = stats.daysInApp ?? 0;
+                const quotesWord = this.getQuoteWord(totalQuotes);
+                const daysWord = this.getDayWord(daysInApp);
+                
+                let summaryContent = `${totalQuotes} ${quotesWord}`;
+                if (daysInApp > 0) {
+                    summaryContent += ` • ${daysInApp} ${daysWord} в приложении`;
+                }
+                summaryNode.textContent = summaryContent;
+            }
+        }
         
         if (grid) {
             if (isLoading) {
@@ -313,8 +332,8 @@ class HomePage {
             } else {
                 // Show actual data with smooth transition - ensure touch-friendly sizes
                 const newContent = [
-                    { label: 'За неделю', value: stats.weeklyQuotes ?? '—' },
-                    { label: 'Серия <span class="progress-streak-suffix">(дней подряд)</span>', value: stats.currentStreak ?? '—' },
+                    { label: 'Цитаты за неделю', value: stats.weeklyQuotes ?? '—' },
+                    { label: 'Серия (дней подряд)', value: stats.currentStreak ?? '—' },
                     { label: 'Любимый автор', value: stats.favoriteAuthor || '—', isAuthor: true }
                 ].map(item => {
                     const valueContent = item.isAuthor && item.value !== '—'
@@ -322,7 +341,7 @@ class HomePage {
                         : item.value;
                     return `
                     <div class="stat-card fade-in" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;">
-                        <div style="font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">${item.label}</div>
+                        <div class="stat-label" style="font-size:var(--font-size-xs);color:var(--text-secondary);">${item.label}</div>
                         <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">${valueContent}</div>
                     </div>
                     `;
@@ -572,7 +591,6 @@ class HomePage {
         return `
             <div class="content">
                 ${this.renderUserHeader(user)}
-                ${this.renderStatsInline(stats)}
                 ${this.renderHomeStatusCard(user)}
                 ${this.renderNewsBlock()}
                 <!-- ${this.renderWelcomeSection()}  УДАЛЕНО -->
@@ -902,11 +920,29 @@ class HomePage {
      * 📈 Рендер секции прогресса
      */
     renderProgressSection(_stats) {
+        const stats = _stats || {};
+        const loading = stats?.loading || this.loading;
+        
+        // Generate summary line
+        let summaryContent = 'Загрузка…';
+        if (!loading && stats && stats.totalQuotes != null && stats.totalQuotes >= 0) {
+            const totalQuotes = stats.totalQuotes ?? 0;
+            const daysInApp = stats.daysInApp ?? 0;
+            const quotesWord = this.getQuoteWord(totalQuotes);
+            const daysWord = this.getDayWord(daysInApp);
+            
+            summaryContent = `${totalQuotes} ${quotesWord}`;
+            if (daysInApp > 0) {
+                summaryContent += ` • ${daysInApp} ${daysWord} в приложении`;
+            }
+        }
+        
         return `
         <div class="progress-block" style="margin:var(--spacing-md) 0;">
           <div style="font-weight:var(--font-weight-semibold);font-size:var(--font-size-sm);margin:0 0 var(--spacing-sm);color:var(--text-primary);">📈 Ваш прогресс</div>
+          <div class="progress-summary" style="font-size:var(--font-size-sm);color:var(--text-secondary);margin:0 0 var(--spacing-sm);text-align:center;">${summaryContent}</div>
           <div class="progress-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--spacing-sm);">
-            ${[1,2,3].map(()=>`<div class="stat-card" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);opacity:.45;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;"><div style="font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">…</div><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">—</div></div>`).join('')}
+            ${[1,2,3].map(()=>`<div class="stat-card" style="min-height:var(--touch-target-min);min-width:var(--touch-target-min);opacity:.45;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;"><div class="stat-label" style="font-size:var(--font-size-xs);color:var(--text-secondary);">…</div><div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-semibold);color:var(--text-primary);">—</div></div>`).join('')}
           </div>
           <div class="progress-activity" style="margin-top:var(--spacing-sm);font-size:var(--font-size-xs);color:var(--text-secondary);">Загрузка…</div>
         </div>`;
