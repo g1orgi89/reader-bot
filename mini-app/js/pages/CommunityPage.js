@@ -3383,7 +3383,6 @@ renderAchievementsSection() {
         // attachLeaderboardRefreshButton() удален - кнопка лидерборда больше не существует
         this.setupQuoteChangeListeners();
     }
-    }
 
     /**
      * 💬 ОБРАБОТЧИКИ ДЛЯ КАРТОЧЕК ЦИТАТ (НОВОЕ ДЛЯ PR-3)
