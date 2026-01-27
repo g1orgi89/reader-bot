@@ -5066,14 +5066,8 @@ renderAchievementsSection() {
      * @returns {string} HTML for PTR indicator
      */
     renderPtrIndicator() {
-        if (!this._ptrActive && !this._ptrRefreshing) {
-            return '';
-        }
-
-        const visible = this._ptrRefreshing ? 'style="display: flex;"' : 'style="display: none;"';
-        
         return `
-            <div id="ptrIndicator" class="ptr-indicator" ${visible}>
+            <div id="ptrIndicator" class="ptr-indicator" style="display: none; opacity: 0;">
                 <div class="loading-spinner"></div>
             </div>
         `;
