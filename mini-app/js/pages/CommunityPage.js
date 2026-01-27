@@ -108,6 +108,14 @@ class CommunityPage {
         this._spotlightBuildInFlight = false;
         this._lastSpotlightBuildTs = 0;
 
+        // 🔄 PULL-TO-REFRESH STATE
+        this._ptrActive = false;
+        this._ptrRefreshing = false;
+        this._ptrStartY = 0;
+        this._ptrCurrentY = 0;
+        this._ptrThreshold = 70;
+        this._ptrListenersAttached = false;
+
         // Флаги "данные загружены"
         this.loaded = {
             latestQuotes: false,
@@ -2447,6 +2455,7 @@ async refreshSpotlight() {
         return `
             <div class="content">
                 ${this.renderTabs()}
+                ${this.renderPtrIndicator()}
                 ${this.renderTabContent()}
             </div>
         `;
@@ -2482,9 +2491,6 @@ async refreshSpotlight() {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
-        // 🔒 HOTFIX: Guard against covers filter (temporarily hidden)
-        if (this.feedFilter === 'covers') this.feedFilter = 'all';
-        
         // 👥 ФИЛЬТР ЛЕНТЫ (Цитаты / От подписок / КнижныйКадр)
         const feedFilterHtml = `
             <div class="feed-filter">
@@ -2492,9 +2498,8 @@ async refreshSpotlight() {
                         data-filter="all">Цитаты</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
                         data-filter="following">От подписок</button>
-                <!-- 🔒 HOTFIX: Covers tab temporarily hidden -->
-                <!-- <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
-                        data-filter="covers">КнижныйКадр</button> -->
+                <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
+                        data-filter="covers">КнижныйКадр</button>
             </div>
         `;
 
@@ -2860,12 +2865,10 @@ async refreshSpotlight() {
      * ⭐ POPULAR QUOTES WEEK SECTION - SPOTLIGHT-STYLE DESIGN (SECTION 3)
      */
     renderPopularQuotesWeekSection() {
-        // Always render header with refresh button in ALL states
+        // Header without refresh button (replaced with pull-to-refresh)
         const header = `
             <div class="spotlight-header">
                 <h3 class="popular-quotes-week-title">⭐ Популярные цитаты недели</h3>
-                <button class="spotlight-refresh-btn" id="popularWeekRefreshBtn" 
-                        aria-label="Обновить популярные цитаты">↻</button>
             </div>
         `;
     
@@ -3376,8 +3379,10 @@ renderAchievementsSection() {
         this.attachFollowingLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "От подписок"
         this.attachCoversLoadMoreListeners(); // 📸 НОВОЕ: Load More для обложек
         this.attachCoverUploadFormListeners(); // ✅ НОВОЕ: Upload form для обложек
+        this.attachPullToRefreshListeners(); // 🔄 НОВОЕ: Pull-to-refresh для всех табов
         // attachLeaderboardRefreshButton() удален - кнопка лидерборда больше не существует
         this.setupQuoteChangeListeners();
+    }
     }
 
     /**
@@ -3738,176 +3743,29 @@ renderAchievementsSection() {
      * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ SPOTLIGHT
      * Uses delegated event handling to survive DOM replacement
      */
+    /**
+     * 🔄 OBРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ SPOTLIGHT (DEPRECATED)
+     * Replaced with pull-to-refresh functionality
+     */
     attachSpotlightRefreshButton() {
-        // Only attach the delegated listener once
-        if (this._spotlightRefreshDelegated) {
-            return;
-        }
-        this._spotlightRefreshDelegated = true;
-        
-        // Delegated click handler on document
-        document.addEventListener('click', async (event) => {
-            const target = event.target;
-            
-            // Check if clicked element is the spotlight refresh button
-            if (target.id !== 'spotlightRefreshBtn' && !target.closest('#spotlightRefreshBtn')) {
-                return;
-            }
-            
-            const refreshBtn = document.getElementById('spotlightRefreshBtn');
-            if (!refreshBtn || refreshBtn.disabled) {
-                return;
-            }
-            
-            try {
-                // Haptic feedback
-                this.triggerHapticFeedback('medium');
-                
-                // Показываем loading состояние с анимацией
-                refreshBtn.innerHTML = '↻';
-                refreshBtn.disabled = true;
-                refreshBtn.setAttribute('aria-disabled', 'true');
-                refreshBtn.style.animation = 'spin 1s linear infinite';
-                
-                // Очищаем кэш, чтобы buildSpotlightMix брала только свежее!
-                this._spotlightCache = { ts: 0, items: [] };
-                
-                // Параллельно форсим загрузку ЛЕНТЫ и ИЗБРАННОГО с noCache/fresh
-                await Promise.allSettled([
-                    this.api.getCommunityRecentFavorites({ limit: 8, noCache: true }), // лимит аналогичен buildSpotlightMix (или чуть больше)
-                    this.loadLatestQuotes(8) // лимит — сколько нужно latest (можешь задать свой по конфигу)
-                ]);
-                
-                // Пересобираем подборку с форсом: buildSpotlightMix(forceReload=true)
-                await this.getSpotlightItems(true); // <- прокидывается forceReload
-    
-                // Генерируем свежий HTML для spotlight секции
-                const newSpotlightHTML = this.renderSpotlightSection();
-                
-                requestAnimationFrame(() => {
-                    const spotlightSection = document.getElementById('spotlightSection');
-                    if (spotlightSection) {
-                        spotlightSection.outerHTML = newSpotlightHTML;
-                    }
-                    // 🔄 Reconcile like data and update all buttons after DOM replacement
-                    this._reconcileAllLikeData();
-                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
-                    // Перепривязываем обработчики для обновленных карточек
-                    this.attachQuoteCardListeners();
-                    this.attachCommunityCardListeners();
-                });
-    
-                // Haptic feedback на успех
-                this.triggerHapticFeedback('light');
-            } catch (error) {
-                console.error('❌ Ошибка обновления spotlight:', error);
-                this.showNotification('Ошибка обновления', 'error');
-                const btn = document.getElementById('spotlightRefreshBtn');
-                if (btn) {
-                    btn.innerHTML = '↻';
-                    btn.disabled = false;
-                    btn.removeAttribute('aria-disabled');
-                    btn.style.animation = '';
-                }
-            }
-        });
+        // No-op: кнопка обновления удалена, теперь используется pull-to-refresh
     }
 
     /**
-     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ПОПУЛЯРНЫХ ЦИТАТ НЕДЕЛИ И ЛИДЕРБОРДА
-     * Uses delegated event handling to survive DOM replacement
+     * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ПОПУЛЯРНЫХ ЦИТАТ НЕДЕЛИ И ЛИДЕРБОРДА (DEPRECATED)
+     * Replaced with pull-to-refresh functionality
      */
     attachPopularWeekRefreshButton() {
-        // Only attach the delegated listener once
-        if (this._popularWeekRefreshDelegated) {
-            return;
-        }
-        this._popularWeekRefreshDelegated = true;
-        
-        // Delegated click handler on document
-        document.addEventListener('click', async (event) => {
-            const target = event.target;
-            
-            // Check if clicked element is the refresh button
-            if (target.id !== 'popularWeekRefreshBtn' && !target.closest('#popularWeekRefreshBtn')) {
-                return;
-            }
-            
-            const refreshBtn = document.getElementById('popularWeekRefreshBtn');
-            if (!refreshBtn || refreshBtn.disabled) {
-                return;
-            }
-            
-            try {
-                console.debug('🔄 CommunityPage.attachPopularWeekRefreshButton: Refresh button clicked');
-                
-                // Haptic feedback
-                this.triggerHapticFeedback('medium');
-                
-                // Показываем loading состояние с анимацией
-                refreshBtn.innerHTML = '↻';
-                refreshBtn.disabled = true;
-                refreshBtn.setAttribute('aria-disabled', 'true');
-                refreshBtn.style.animation = 'spin 1s linear infinite';
-                
-                // Параллельно загружаем оба раздела с noCache=true для свежих данных
-                console.debug('🔄 CommunityPage.attachPopularWeekRefreshButton: Fetching fresh data...');
-                await Promise.allSettled([
-                    this.loadPopularFavorites(10, { noCache: true }),
-                    this.loadLeaderboard(10, { noCache: true })
-                ]);
-                
-                // Генерируем свежий HTML для обоих секций
-                const newPopularWeekHTML = this.renderPopularQuotesWeekSection();
-                const newLeaderboardHTML = this.renderLeaderboardSection();
-                
-                // Заменяем только эти два контейнера в DOM в одном requestAnimationFrame
-                requestAnimationFrame(() => {
-                    const popularWeekSection = document.getElementById('popularWeekSection');
-                    const leaderboardSection = document.getElementById('leaderboardSection');
-                    
-                    if (popularWeekSection) {
-                        popularWeekSection.outerHTML = newPopularWeekHTML;
-                    }
-                    
-                    if (leaderboardSection) {
-                        leaderboardSection.outerHTML = newLeaderboardHTML;
-                    }
-                    
-                    // 🔄 Reconcile like data and update all buttons after DOM replacement
-                    this._reconcileAllLikeData();
-                    this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
-                    
-                    // Перепривязываем обработчики для обновленных узлов
-                    // Delegated listener still works, only need to reattach other listeners
-                    this.attachQuoteCardListeners();
-                    this.attachRetryButtons();
-                });
-                
-            } catch (error) {
-                console.error('❌ Ошибка обновления недельных секций:', error);
-                this.showNotification('Ошибка обновления', 'error');
-                
-                // Восстанавливаем кнопку при ошибке
-                const btn = document.getElementById('popularWeekRefreshBtn');
-                if (btn) {
-                    btn.innerHTML = '↻';
-                    btn.disabled = false;
-                    btn.removeAttribute('aria-disabled');
-                    btn.style.animation = '';
-                }
-            }
-        });
+        // No-op: кнопка обновления удалена, теперь используется pull-to-refresh
     }
 
     /**
      * 🔄 ОБРАБОТЧИК КНОПКИ ОБНОВЛЕНИЯ ЛИДЕРБОРДА (DEPRECATED - NO-OP)
-     * Кнопка обновления лидерборда удалена. Теперь обновление происходит через
-     * кнопку "Популярные цитаты недели", которая обновляет оба раздела сразу.
+     * Кнопка обновления лидерборда удалена. Теперь обновление происходит через pull-to-refresh.
      */
     attachLeaderboardRefreshButton() {
         // No-op: кнопка лидерборда больше не существует
-        // Обновление лидерборда теперь происходит через attachPopularWeekRefreshButton()
+        // Обновление лидерборда теперь происходит через pull-to-refresh
     }
 
     /**
@@ -5172,6 +5030,250 @@ renderAchievementsSection() {
                 input.disabled = false;
             }
         }
+    }
+
+    // ========================================
+    // 🔄 PULL-TO-REFRESH FUNCTIONALITY
+    // ========================================
+
+    /**
+     * 🔄 Render PTR indicator element
+     * @returns {string} HTML for PTR indicator
+     */
+    renderPtrIndicator() {
+        if (!this._ptrActive && !this._ptrRefreshing) {
+            return '';
+        }
+
+        const visible = this._ptrRefreshing ? 'style="display: flex;"' : 'style="display: none;"';
+        
+        return `
+            <div id="ptrIndicator" class="ptr-indicator" ${visible}>
+                <div class="loading-spinner"></div>
+            </div>
+        `;
+    }
+
+    /**
+     * 🔄 Attach pull-to-refresh event listeners
+     */
+    attachPullToRefreshListeners() {
+        if (this._ptrListenersAttached) {
+            return; // Already attached
+        }
+
+        const container = document.querySelector('.content') || document.querySelector('#page-content') || window;
+        
+        // Touch event handlers
+        const handleTouchStart = (e) => {
+            const scrollTop = container === window ? window.pageYOffset : container.scrollTop;
+            
+            if (scrollTop <= 0 && !this._ptrRefreshing) {
+                this._ptrStartY = e.touches[0].pageY;
+                this._ptrActive = true;
+            }
+        };
+
+        const handleTouchMove = (e) => {
+            if (!this._ptrActive || this._ptrRefreshing) {
+                return;
+            }
+
+            this._ptrCurrentY = e.touches[0].pageY;
+            const pullDistance = this._ptrCurrentY - this._ptrStartY;
+
+            if (pullDistance > 0) {
+                // Show indicator when pulling down
+                const indicator = document.getElementById('ptrIndicator');
+                if (indicator && pullDistance > 10) {
+                    indicator.style.display = 'flex';
+                    indicator.style.opacity = Math.min(pullDistance / this._ptrThreshold, 1);
+                }
+            }
+        };
+
+        const handleTouchEnd = async (e) => {
+            if (!this._ptrActive || this._ptrRefreshing) {
+                return;
+            }
+
+            const pullDistance = this._ptrCurrentY - this._ptrStartY;
+            this._ptrActive = false;
+
+            if (pullDistance >= this._ptrThreshold) {
+                // Trigger refresh
+                await this._triggerPullToRefresh();
+            } else {
+                // Hide indicator
+                this._hidePtrIndicator();
+            }
+
+            this._ptrStartY = 0;
+            this._ptrCurrentY = 0;
+        };
+
+        // Store references for cleanup
+        this._ptrHandlers = {
+            touchStart: handleTouchStart,
+            touchMove: handleTouchMove,
+            touchEnd: handleTouchEnd
+        };
+
+        // Attach to document for better compatibility
+        document.addEventListener('touchstart', handleTouchStart, { passive: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: true });
+        document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+        this._ptrListenersAttached = true;
+        console.log('✅ CommunityPage: Pull-to-refresh listeners attached');
+    }
+
+    /**
+     * 🔄 Detach pull-to-refresh event listeners
+     */
+    detachPullToRefreshListeners() {
+        if (!this._ptrListenersAttached || !this._ptrHandlers) {
+            return;
+        }
+
+        document.removeEventListener('touchstart', this._ptrHandlers.touchStart);
+        document.removeEventListener('touchmove', this._ptrHandlers.touchMove);
+        document.removeEventListener('touchend', this._ptrHandlers.touchEnd);
+
+        this._ptrListenersAttached = false;
+        this._ptrHandlers = null;
+        console.log('✅ CommunityPage: Pull-to-refresh listeners detached');
+    }
+
+    /**
+     * 🔄 Show PTR indicator
+     */
+    _showPtrIndicator() {
+        const indicator = document.getElementById('ptrIndicator');
+        if (indicator) {
+            indicator.style.display = 'flex';
+            indicator.style.opacity = '1';
+        }
+    }
+
+    /**
+     * 🔄 Hide PTR indicator
+     */
+    _hidePtrIndicator() {
+        const indicator = document.getElementById('ptrIndicator');
+        if (indicator) {
+            indicator.style.display = 'none';
+            indicator.style.opacity = '0';
+        }
+    }
+
+    /**
+     * 🔄 Trigger pull-to-refresh
+     */
+    async _triggerPullToRefresh() {
+        if (this._ptrRefreshing) {
+            return;
+        }
+
+        this._ptrRefreshing = true;
+        this._showPtrIndicator();
+        this.triggerHapticFeedback('medium');
+
+        try {
+            await this._refreshCurrentView();
+        } catch (error) {
+            console.error('❌ CommunityPage: PTR refresh failed:', error);
+        } finally {
+            this._ptrRefreshing = false;
+            this._hidePtrIndicator();
+        }
+    }
+
+    /**
+     * 🔄 Refresh current view based on active tab and filter
+     */
+    async _refreshCurrentView() {
+        console.log(`🔄 CommunityPage: Refreshing ${this.activeTab} tab with filter ${this.feedFilter}`);
+
+        if (this.activeTab === 'feed') {
+            // Feed tab - dispatch based on filter
+            if (this.feedFilter === 'all') {
+                // Force rebuild spotlight mix
+                this._spotlightCache = { ts: 0, items: [] };
+                await this.buildSpotlightMix(true); // forceReload=true
+                
+                // Optionally refresh background data
+                await Promise.allSettled([
+                    this._safe(async () => {
+                        const r = await this.api.getCatalogRecentClicks({ limit: 3 });
+                        if (r?.success) {
+                            this.recentClicks = r.clicks || r.data || [];
+                            this.loaded.recentClicks = true;
+                        }
+                    }),
+                    this._safe(async () => {
+                        const r = await this.api.getCommunityMessage();
+                        if (r?.success) {
+                            this.communityMessage = r.data;
+                            this.loaded.message = true;
+                        }
+                    }),
+                    this._safe(async () => {
+                        const r = await this.api.getCommunityTrend();
+                        if (r?.success) {
+                            this.communityTrend = r.data;
+                            this.loaded.trend = true;
+                        }
+                    })
+                ]);
+                
+                this.scheduleRerender();
+            } else if (this.feedFilter === 'following') {
+                // Refresh following feed
+                await this.loadFollowingFeed();
+                this.scheduleRerender();
+            } else if (this.feedFilter === 'covers') {
+                // Refresh covers - reset cursor and reload
+                this.coversCursor = null;
+                await this.loadCovers(false);
+                this.scheduleRerender();
+            }
+        } else if (this.activeTab === 'top') {
+            // Top Week tab - refresh popular favorites and leaderboard
+            await Promise.all([
+                this.loadPopularFavorites(10, { noCache: true }),
+                this.loadLeaderboard(10, { noCache: true })
+            ]);
+            this.scheduleRerender();
+        } else if (this.activeTab === 'stats') {
+            // Stats tab - refresh stats, insights, and fun fact
+            await Promise.allSettled([
+                this._safe(async () => {
+                    const r = await this.api.getCommunityStats({ scope: 'week' });
+                    if (r?.success) {
+                        this.communityData = { ...this.communityData, ...r.data };
+                        this.loaded.stats = true;
+                    }
+                }),
+                this._safe(async () => {
+                    const r = await this.api.getCommunityInsights({ scope: 'week' });
+                    if (r?.success) {
+                        this.communityInsights = r.data;
+                        this.loaded.insights = true;
+                    }
+                }),
+                this._safe(async () => {
+                    const r = await this.api.getCommunityFunFact({ scope: 'week' });
+                    if (r?.success) {
+                        this.funFact = r.data;
+                        this.loaded.funFact = true;
+                    }
+                })
+            ]);
+            this.scheduleRerender();
+        }
+
+        console.log('✅ CommunityPage: Refresh complete');
     }
 }
 
