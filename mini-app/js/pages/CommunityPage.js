@@ -2107,8 +2107,14 @@ async refreshSpotlight() {
             ? '<button class="cover-card__delete-btn" data-action="delete-cover" data-post-id="' + (post._id || post.id) + '" title="Удалить">✕</button>'
             : '';
         
+        // 🔧 HOTFIX: Cache-busting for images (avoid stale CDN/browser cache)
+        const postId = post._id || post.id;
+        const updatedAt = post.updatedAt || post.createdAt;
+        const cacheBuster = updatedAt ? `?v=${new Date(updatedAt).getTime()}` : `?t=${postId}`;
+        const imageUrlWithCache = this.escapeHtml(post.imageUrl) + cacheBuster;
+        
         return `
-            <div class="cover-card" data-post-id="${post._id || post.id}">
+            <div class="cover-card" data-post-id="${postId}">
                 <div class="cover-card__header">
                     ${avatarHtml}
                     <div class="cover-card__user-info">
@@ -2118,20 +2124,20 @@ async refreshSpotlight() {
                     ${isPinned ? '<div class="cover-card__pin-badge">📌 Закреплено</div>' : ''}
                     ${deleteButtonHtml}
                 </div>
-                <img src="${this.escapeHtml(post.imageUrl)}" alt="${this.escapeHtml(caption)}" class="cover-photo" data-action="open-image" data-image-url="${this.escapeHtml(post.imageUrl)}" data-caption="${this.escapeHtml(caption)}">
+                <img src="${imageUrlWithCache}" alt="${this.escapeHtml(caption)}" class="cover-photo" data-action="open-image" data-image-url="${imageUrlWithCache}" data-caption="${this.escapeHtml(caption)}">
                 ${caption ? `<div class="cover-card__caption">${this.escapeHtml(caption)}</div>` : ''}
                 <div class="cover-card__actions">
                     <button class="cover-card__action-btn cover-card__like-btn${liked ? ' liked' : ''}" 
                             data-action="like-cover" 
-                            data-post-id="${post._id || post.id}"
+                            data-post-id="${postId}"
                             data-liked="${liked}">
                         ❤️ <span class="like-count">${likesCount}</span>
                     </button>
-                    <button class="cover-card__action-btn" data-action="show-comments" data-post-id="${post._id || post.id}">
+                    <button class="cover-card__action-btn" data-action="show-comments" data-post-id="${postId}">
                         💬 ${commentsCount > 0 ? commentsCount : 'Комментарии'}
                     </button>
                 </div>
-                <div class="cover-card__comments-section" id="comments-${post._id || post.id}" style="display: none;"></div>
+                <div class="cover-card__comments-section" id="comments-${postId}" style="display: none;"></div>
             </div>
         `;
     }
@@ -2476,6 +2482,9 @@ async refreshSpotlight() {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
+        // 🔒 HOTFIX: Guard against covers filter (temporarily hidden)
+        if (this.feedFilter === 'covers') this.feedFilter = 'all';
+        
         // 👥 ФИЛЬТР ЛЕНТЫ (Цитаты / От подписок / КнижныйКадр)
         const feedFilterHtml = `
             <div class="feed-filter">
@@ -2483,8 +2492,9 @@ async refreshSpotlight() {
                         data-filter="all">Цитаты</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
                         data-filter="following">От подписок</button>
-                <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
-                        data-filter="covers">КнижныйКадр</button>
+                <!-- 🔒 HOTFIX: Covers tab temporarily hidden -->
+                <!-- <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
+                        data-filter="covers">КнижныйКадр</button> -->
             </div>
         `;
 
@@ -4829,21 +4839,46 @@ renderAchievementsSection() {
             window.app.showToast('Фото успешно добавлено! 📸', 'success');
         }
         
-        // Refresh the covers feed to show the new post
-        this.coversPosts = null; // Show loading state
-        this.coversCursor = null; // Reset cursor to load from beginning
+        // Haptic feedback
+        if (window.Telegram?.WebApp?.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+        }
         
-        try {
-            await this.loadCovers(false); // Load fresh data
-        } catch (error) {
-            console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
-            // Ensure we show empty state instead of infinite loader
-            if (this.coversPosts === null) {
+        // 🔧 HOTFIX: Optimistic refresh - prepend new post immediately if available
+        if (result && result.data) {
+            const newPost = result.data;
+            
+            // Initialize coversPosts if null
+            if (!Array.isArray(this.coversPosts)) {
                 this.coversPosts = [];
             }
-        } finally {
-            // Always rerender to update UI
+            
+            // Prepend new post to the beginning
+            this.coversPosts = [newPost, ...this.coversPosts];
+            
+            // Reset pagination to ensure fresh data
+            this.coversCursor = null;
+            this.hasMoreCovers = false;
+            
+            // Rerender immediately to show new post
             this.rerender();
+        } else {
+            // Fallback: Refresh the covers feed to show the new post
+            this.coversPosts = null; // Show loading state
+            this.coversCursor = null; // Reset cursor to load from beginning
+            
+            try {
+                await this.loadCovers(false); // Load fresh data
+            } catch (error) {
+                console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
+                // Ensure we show empty state instead of infinite loader
+                if (this.coversPosts === null) {
+                    this.coversPosts = [];
+                }
+            } finally {
+                // Always rerender to update UI
+                this.rerender();
+            }
         }
     }
     
@@ -4916,9 +4951,28 @@ renderAchievementsSection() {
     async handleDeleteCover(postId) {
         if (!postId) return;
         
-        // Confirm deletion
-        const confirmed = confirm('Удалить это фото?');
+        // 🔒 HOTFIX: Prevent multiple concurrent delete prompts
+        if (this._deletingCover) {
+            console.log('⚠️ CommunityPage: Delete already in progress');
+            return;
+        }
+        
+        // 🔧 HOTFIX: Use non-blocking Telegram.WebApp.showConfirm (with fallback)
+        const showConfirm = (message) => {
+            return new Promise((resolve) => {
+                if (window.Telegram?.WebApp?.showConfirm) {
+                    window.Telegram.WebApp.showConfirm(message, resolve);
+                } else {
+                    // Fallback to blocking confirm if Telegram API not available
+                    resolve(confirm(message));
+                }
+            });
+        };
+        
+        const confirmed = await showConfirm('Удалить это фото?');
         if (!confirmed) return;
+        
+        this._deletingCover = true;
         
         try {
             console.log('📸 CommunityPage: Deleting cover post:', postId);
@@ -4944,7 +4998,12 @@ renderAchievementsSection() {
                     window.app.showToast('Фото удалено', 'success');
                 }
                 
-                // Rerender to update UI
+                // Haptic feedback
+                if (window.Telegram?.WebApp?.HapticFeedback) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+                
+                // Rerender to update UI (removes card immediately)
                 this.rerender();
             } else {
                 throw new Error(response?.error || 'Failed to delete');
@@ -4963,6 +5022,8 @@ renderAchievementsSection() {
             if (window.app && window.app.showToast) {
                 window.app.showToast('Ошибка удаления фото', 'error');
             }
+        } finally {
+            this._deletingCover = false;
         }
     }
     
@@ -4973,9 +5034,17 @@ renderAchievementsSection() {
     async handleShowComments(postId) {
         if (!postId) return;
         
+        // 🔧 HOTFIX: Pass callback to update comment count after loading
+        const updateCommentCount = (count) => {
+            const commentBtn = document.querySelector(`[data-action="show-comments"][data-post-id="${postId}"]`);
+            if (commentBtn) {
+                commentBtn.textContent = count > 0 ? `💬 ${count}` : '💬 Комментарии';
+            }
+        };
+        
         // Open comments modal
         if (this.coverCommentsModal) {
-            this.coverCommentsModal.open(postId);
+            this.coverCommentsModal.open(postId, updateCommentCount);
         }
     }
     
