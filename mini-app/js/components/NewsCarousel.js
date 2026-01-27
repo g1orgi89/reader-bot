@@ -11,18 +11,33 @@ class NewsCarousel {
    * @param {Object} options
    * @param {Array<{id:string,title:string,imageUrl:string}>} options.items
    * @param {string} options.containerId
+   * @param {boolean} options.autoplay - Enable autoplay
+   * @param {number} options.interval - Autoplay interval in ms
+   * @param {boolean} options.pauseOnTouch - Pause on user interaction
+   * @param {boolean} options.pauseOnVisibilityChange - Pause when page hidden
    */
-  constructor({ items = [], containerId = 'news-carousel' } = {}) {
+  constructor({ items = [], containerId = 'news-carousel', autoplay = true, interval = 6000, pauseOnTouch = true, pauseOnVisibilityChange = true } = {}) {
     this.items = Array.isArray(items) ? items.slice(0, 5) : [];
     this.containerId = containerId;
     this.currentIndex = 0;
     this.slidesCount = this.items.length;
+    
+    // Autoplay configuration
+    this.config = {
+      autoplay,
+      interval,
+      pauseOnTouch,
+      pauseOnVisibilityChange
+    };
+    this.autoplayTimer = null;
+    this.pauseTimer = null;
 
     this._bound = {
-      onArrowClick: this.onArrowClick.bind(this),
       onDotClick: this.onDotClick.bind(this),
       onScroll: this.onScroll.bind(this),
-      onImageError: this.onImageError.bind(this)
+      onImageError: this.onImageError.bind(this),
+      onInteractionStart: this.onInteractionStart.bind(this),
+      onVisibilityChange: this.onVisibilityChange.bind(this)
     };
   }
 
@@ -50,27 +65,47 @@ class NewsCarousel {
         </div>
 
         <div class="news-controls">
-          <button class="news-arrow prev" aria-label="Предыдущая">‹</button>
           <div class="news-dots">
             ${this.items.map((_x, i) => `<button class="news-dot ${i===0?'active':''}" data-index="${i}" aria-label="Перейти к ${i+1}-й"></button>`).join('')}
           </div>
-          <button class="news-arrow next" aria-label="Следующая">›</button>
         </div>
       </section>
     `;
   }
 
-  mount(root) {
+  async mount(root) {
     const container = (typeof root === 'string') ? document.getElementById(root) : (root || document.getElementById(this.containerId));
     if (!container) return;
 
     const track = container.querySelector('.news-track');
-    container.querySelector('.news-arrow.prev')?.addEventListener('click', (e) => this._bound.onArrowClick(e, -1));
-    container.querySelector('.news-arrow.next')?.addEventListener('click', (e) => this._bound.onArrowClick(e, +1));
+    
+    // Validate images first to get correct count
+    const validatedItems = await this.validateImages(this.items);
+    
+    // Rebuild if some images failed to load
+    if (validatedItems.length !== this.items.length) {
+      this.items = validatedItems;
+      this.rebuildCarousel(container);
+    }
+    
+    // Bind dot clicks
     container.querySelectorAll('.news-dot')?.forEach(dot => {
       dot.addEventListener('click', this._bound.onDotClick);
     });
+    
+    // Bind scroll updates
     track?.addEventListener('scroll', this._bound.onScroll, { passive: true });
+    
+    // Bind touch/mouse interaction for pause/resume
+    if (this.config.pauseOnTouch) {
+      track?.addEventListener('touchstart', this._bound.onInteractionStart, { passive: true });
+      track?.addEventListener('mousedown', this._bound.onInteractionStart);
+    }
+    
+    // Bind visibility change
+    if (this.config.pauseOnVisibilityChange) {
+      document.addEventListener('visibilitychange', this._bound.onVisibilityChange);
+    }
 
     // Удаляем битые изображения и пересчитываем карусель
     container.querySelectorAll('.news-img')?.forEach(img => {
@@ -80,6 +115,11 @@ class NewsCarousel {
     this.recalcSlides(container);
     this.scrollToIndex(container, 0, false);
     this.updateCounter();
+    
+    // Start autoplay after everything is set up
+    if (this.config.autoplay && this.slidesCount > 1) {
+      this.startAutoplay();
+    }
   }
 
   onImageError(e) {
@@ -95,6 +135,7 @@ class NewsCarousel {
       // Если больше нет слайдов — скрываем секцию
       if (this.slidesCount === 0 && section) {
         section.style.display = 'none';
+        this.stopAutoplay();
       }
     } catch (_) {}
   }
@@ -124,18 +165,132 @@ class NewsCarousel {
     if (this.currentIndex >= this.slidesCount) {
       this.currentIndex = Math.max(0, this.slidesCount - 1);
     }
+    
+    // Restart autoplay if slides count changed
+    if (this.slidesCount <= 1) {
+      this.stopAutoplay();
+    }
   }
 
-  onArrowClick(_e, dir) {
+  /**
+   * Validate images and return only successfully loaded ones
+   * @param {Array} items - Array of news items
+   * @returns {Promise<Array>} - Array of valid items
+   */
+  async validateImages(items) {
+    const validationPromises = items.map(item => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ item, valid: true });
+        img.onerror = () => resolve({ item, valid: false });
+        img.src = item.imageUrl;
+      });
+    });
+    
+    const results = await Promise.all(validationPromises);
+    return results.filter(r => r.valid).map(r => r.item);
+  }
+
+  /**
+   * Rebuild carousel DOM with validated items
+   * @param {HTMLElement} container - Carousel container
+   */
+  rebuildCarousel(container) {
+    const track = container?.querySelector('.news-track');
+    const dotsBox = container?.querySelector('.news-dots');
+    
+    if (!track || !this.items.length) return;
+    
+    // Rebuild slides
+    track.innerHTML = this.items.map((x, i) => `
+      <article class="news-slide" role="group" aria-label="${i+1} из ${this.items.length}">
+        <div class="news-media">
+          <img class="news-img" src="${this.escape(x.imageUrl)}" alt="${this.escape(x.title)}"
+               onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+        </div>
+      </article>
+    `).join('');
+    
+    // Rebuild dots
+    if (dotsBox) {
+      dotsBox.innerHTML = this.items.map((_x, i) => 
+        `<button class="news-dot ${i===0?'active':''}" data-index="${i}" aria-label="Перейти к ${i+1}-й"></button>`
+      ).join('');
+    }
+    
+    this.slidesCount = this.items.length;
+    this.currentIndex = 0;
+  }
+
+  /**
+   * Start autoplay timer
+   */
+  startAutoplay() {
+    this.stopAutoplay();
+    if (this.config.autoplay && this.slidesCount > 1) {
+      this.autoplayTimer = setInterval(() => {
+        this.next();
+      }, this.config.interval);
+    }
+  }
+
+  /**
+   * Stop autoplay timer
+   */
+  stopAutoplay() {
+    if (this.autoplayTimer) {
+      clearInterval(this.autoplayTimer);
+      this.autoplayTimer = null;
+    }
+    if (this.pauseTimer) {
+      clearTimeout(this.pauseTimer);
+      this.pauseTimer = null;
+    }
+  }
+
+  /**
+   * Move to next slide
+   */
+  next() {
     const container = document.getElementById(this.containerId);
-    const nextIndex = Math.max(0, Math.min(this.slidesCount - 1, this.currentIndex + dir));
+    const nextIndex = (this.currentIndex + 1) % this.slidesCount;
     this.scrollToIndex(container, nextIndex, true);
+  }
+
+  /**
+   * Handle user interaction (touch/mouse) - pause briefly
+   */
+  onInteractionStart() {
+    if (!this.config.pauseOnTouch) return;
+    
+    this.stopAutoplay();
+    
+    // Resume after 1.5s
+    this.pauseTimer = setTimeout(() => {
+      this.startAutoplay();
+    }, 1500);
+  }
+
+  /**
+   * Handle visibility change - pause when hidden
+   */
+  onVisibilityChange() {
+    if (!this.config.pauseOnVisibilityChange) return;
+    
+    if (document.hidden) {
+      this.stopAutoplay();
+    } else {
+      this.startAutoplay();
+    }
   }
 
   onDotClick(e) {
     const i = Number(e.currentTarget?.dataset?.index || 0);
     const container = document.getElementById(this.containerId);
     this.scrollToIndex(container, i, true);
+    
+    // Pause autoplay briefly on dot click
+    this.onInteractionStart();
   }
 
   onScroll(e) {

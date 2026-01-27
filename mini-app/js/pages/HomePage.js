@@ -1043,13 +1043,15 @@ class HomePage {
         }
         
         // 📰 NEW: Mount news carousel
-        try {
-            const items = this.getHomeNewsItems();
-            const carousel = new window.NewsCarousel({ items, containerId: 'news-carousel' });
-            carousel.mount('news-carousel');
-        } catch (e) {
-            console.warn('HomePage: Failed to mount news carousel', e);
-        }
+        (async () => {
+            try {
+                const items = this.getHomeNewsItems();
+                const carousel = new window.NewsCarousel({ items, containerId: 'news-carousel' });
+                await carousel.mount('news-carousel');
+            } catch (e) {
+                console.warn('HomePage: Failed to mount news carousel', e);
+            }
+        })();
         
         // Клики по книгам
         const bookItems = document.querySelectorAll('.book-item');
