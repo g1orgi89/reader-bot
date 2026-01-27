@@ -2483,7 +2483,8 @@ async refreshSpotlight() {
                         data-filter="all">Цитаты</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
                         data-filter="following">От подписок</button>
-                <!-- КнижныйКадр временно скрыт -->
+                <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
+                        data-filter="covers">КнижныйКадр</button>
             </div>
         `;
 
