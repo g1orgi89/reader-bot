@@ -4855,8 +4855,6 @@ renderAchievementsSection() {
             const card = document.querySelector(`[data-post-id="${postId}"]`);
             if (card) {
                 card.classList.add('deleting');
-                card.style.opacity = '0.5';
-                card.style.pointerEvents = 'none';
             }
             
             // Call API to delete
@@ -4890,8 +4888,6 @@ renderAchievementsSection() {
             const card = document.querySelector(`[data-post-id="${postId}"]`);
             if (card) {
                 card.classList.remove('deleting');
-                card.style.opacity = '1';
-                card.style.pointerEvents = 'auto';
             }
             
             // Show error message
