@@ -2139,7 +2139,7 @@ async refreshSpotlight() {
                             data-action="like-cover" 
                             data-post-id="${postId}"
                             data-liked="${liked}">
-                        ❤️ <span class="like-count">${likesCount}</span>
+                        ${liked ? '❤️' : '♡'} <span class="like-count">${likesCount}</span>
                     </button>
                     <button class="cover-card__action-btn" data-action="show-comments" data-post-id="${postId}">
                         💬 ${commentsCount > 0 ? commentsCount : 'Комментарии'}
@@ -4765,9 +4765,18 @@ renderAchievementsSection() {
         // Disable button to prevent double clicks
         button.disabled = true;
         
+        // Helper to update icon
+        const updateIcon = (liked) => {
+            const iconNode = button.childNodes[0];
+            if (iconNode && iconNode.nodeType === Node.TEXT_NODE) {
+                iconNode.textContent = liked ? '❤️ ' : '♡ ';
+            }
+        };
+        
         // Optimistic UI update
         button.dataset.liked = wasLiked ? 'false' : 'true';
         button.classList.toggle('liked', !wasLiked);
+        updateIcon(!wasLiked);
         
         const currentCount = parseInt(likeCountSpan?.textContent || '0');
         const newCount = wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
@@ -4783,6 +4792,7 @@ renderAchievementsSection() {
                 // Update with server response
                 button.dataset.liked = response.liked ? 'true' : 'false';
                 button.classList.toggle('liked', response.liked);
+                updateIcon(response.liked);
                 if (likeCountSpan) {
                     likeCountSpan.textContent = response.likesCount || 0;
                 }
@@ -4802,6 +4812,7 @@ renderAchievementsSection() {
             // Revert optimistic update
             button.dataset.liked = wasLiked ? 'true' : 'false';
             button.classList.toggle('liked', wasLiked);
+            updateIcon(wasLiked);
             if (likeCountSpan) {
                 likeCountSpan.textContent = currentCount;
             }
