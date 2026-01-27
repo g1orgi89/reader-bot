@@ -2370,3 +2370,84 @@
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
+
+/* =============================================
+   📸 COVER CARDS - LIKE BUTTON STATES
+   ============================================= */
+
+.cover-card__like-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #6B7280);
+    font-size: var(--font-size-sm, 14px);
+    cursor: pointer;
+    padding: var(--spacing-xs, 8px) var(--spacing-sm, 12px);
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: var(--radius-md, 8px);
+    transition: all 0.2s ease;
+}
+
+.cover-card__like-btn:hover {
+    background: var(--bg-secondary, #F0EBE3);
+}
+
+.cover-card__like-btn:active {
+    transform: scale(0.95);
+}
+
+/* Active/liked state - terracotta color */
+.cover-card__like-btn.liked {
+    color: var(--primary-color, #D2452C);
+    font-weight: 600;
+}
+
+/* =============================================
+   💬 COMMENT SEND BUTTON - TERRACOTTA
+   ============================================= */
+
+.comment-send-btn,
+.reply-form__submit {
+    background: var(--primary-color, #D2452C);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md, 8px);
+    padding: var(--spacing-xs, 8px) var(--spacing-md, 16px);
+    min-width: 44px;
+    min-height: 44px;
+    font-size: var(--font-size-sm, 14px);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.comment-send-btn:hover,
+.reply-form__submit:hover {
+    background: var(--primary-dark, #B13925);
+}
+
+.comment-send-btn:active,
+.reply-form__submit:active {
+    transform: scale(0.95);
+    background: var(--primary-dark, #B13925);
+}
+
+.comment-send-btn:disabled,
+.reply-form__submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   🗑️ COVER CARD - DELETING STATE
+   ============================================= */
+
+.cover-card.deleting {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}

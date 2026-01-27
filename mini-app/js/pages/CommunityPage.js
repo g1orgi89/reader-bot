@@ -5076,7 +5076,7 @@ renderAchievementsSection() {
             return; // Already attached
         }
 
-        const container = document.querySelector('.content') || document.querySelector('#page-content') || window;
+        const container = document.querySelector('#page-content') || document.querySelector('.content') || window;
         
         // Touch event handlers
         const handleTouchStart = (e) => {
@@ -5241,16 +5241,16 @@ renderAchievementsSection() {
                     })
                 ]);
                 
-                this.scheduleRerender();
+                this._scheduleRerender();
             } else if (this.feedFilter === 'following') {
                 // Refresh following feed
                 await this.loadFollowingFeed();
-                this.scheduleRerender();
+                this._scheduleRerender();
             } else if (this.feedFilter === 'covers') {
                 // Refresh covers - reset cursor and reload
                 this.coversCursor = null;
                 await this.loadCovers(false);
-                this.scheduleRerender();
+                this._scheduleRerender();
             }
         } else if (this.activeTab === 'top') {
             // Top Week tab - refresh popular favorites and leaderboard
@@ -5258,7 +5258,7 @@ renderAchievementsSection() {
                 this.loadPopularFavorites(10, { noCache: true }),
                 this.loadLeaderboard(10, { noCache: true })
             ]);
-            this.scheduleRerender();
+            this._scheduleRerender();
         } else if (this.activeTab === 'stats') {
             // Stats tab - refresh stats, insights, and fun fact
             await Promise.allSettled([
@@ -5284,7 +5284,7 @@ renderAchievementsSection() {
                     }
                 })
             ]);
-            this.scheduleRerender();
+            this._scheduleRerender();
         }
 
         console.log('✅ CommunityPage: Refresh complete');
