@@ -2139,7 +2139,7 @@ async refreshSpotlight() {
                             data-action="like-cover" 
                             data-post-id="${postId}"
                             data-liked="${liked}">
-                        ❤️ <span class="like-count">${likesCount}</span>
+                        <span class="like-icon">${liked ? '❤️' : '♡'}</span> <span class="like-count">${likesCount}</span>
                     </button>
                     <button class="cover-card__action-btn" data-action="show-comments" data-post-id="${postId}">
                         💬 ${commentsCount > 0 ? commentsCount : 'Комментарии'}
@@ -4761,13 +4761,22 @@ renderAchievementsSection() {
         
         const wasLiked = button.dataset.liked === 'true';
         const likeCountSpan = button.querySelector('.like-count');
+        const likeIconSpan = button.querySelector('.like-icon');
         
         // Disable button to prevent double clicks
         button.disabled = true;
         
+        // Helper to update icon
+        const updateIcon = (liked) => {
+            if (likeIconSpan) {
+                likeIconSpan.textContent = liked ? '❤️' : '♡';
+            }
+        };
+        
         // Optimistic UI update
         button.dataset.liked = wasLiked ? 'false' : 'true';
         button.classList.toggle('liked', !wasLiked);
+        updateIcon(!wasLiked);
         
         const currentCount = parseInt(likeCountSpan?.textContent || '0');
         const newCount = wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
@@ -4783,6 +4792,7 @@ renderAchievementsSection() {
                 // Update with server response
                 button.dataset.liked = response.liked ? 'true' : 'false';
                 button.classList.toggle('liked', response.liked);
+                updateIcon(response.liked);
                 if (likeCountSpan) {
                     likeCountSpan.textContent = response.likesCount || 0;
                 }
@@ -4802,6 +4812,7 @@ renderAchievementsSection() {
             // Revert optimistic update
             button.dataset.liked = wasLiked ? 'true' : 'false';
             button.classList.toggle('liked', wasLiked);
+            updateIcon(wasLiked);
             if (likeCountSpan) {
                 likeCountSpan.textContent = currentCount;
             }
@@ -5055,14 +5066,8 @@ renderAchievementsSection() {
      * @returns {string} HTML for PTR indicator
      */
     renderPtrIndicator() {
-        if (!this._ptrActive && !this._ptrRefreshing) {
-            return '';
-        }
-
-        const visible = this._ptrRefreshing ? 'style="display: flex;"' : 'style="display: none;"';
-        
         return `
-            <div id="ptrIndicator" class="ptr-indicator" ${visible}>
+            <div id="ptrIndicator" class="ptr-indicator" style="display: none; opacity: 0;">
                 <div class="loading-spinner"></div>
             </div>
         `;

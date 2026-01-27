@@ -57,7 +57,6 @@ class CoverUploadForm {
                     id="coverFileInput"
                     class="cover-upload-form__input"
                     accept="image/*"
-                    capture="environment"
                     style="display: none;">
                 
                 <div id="coverUploadPreview" class="cover-upload-preview" style="display: none;">
