@@ -2139,7 +2139,7 @@ async refreshSpotlight() {
                             data-action="like-cover" 
                             data-post-id="${postId}"
                             data-liked="${liked}">
-                        ${liked ? '❤️' : '♡'} <span class="like-count">${likesCount}</span>
+                        <span class="like-icon">${liked ? '❤️' : '♡'}</span> <span class="like-count">${likesCount}</span>
                     </button>
                     <button class="cover-card__action-btn" data-action="show-comments" data-post-id="${postId}">
                         💬 ${commentsCount > 0 ? commentsCount : 'Комментарии'}
@@ -4761,15 +4761,15 @@ renderAchievementsSection() {
         
         const wasLiked = button.dataset.liked === 'true';
         const likeCountSpan = button.querySelector('.like-count');
+        const likeIconSpan = button.querySelector('.like-icon');
         
         // Disable button to prevent double clicks
         button.disabled = true;
         
         // Helper to update icon
         const updateIcon = (liked) => {
-            const iconNode = button.childNodes[0];
-            if (iconNode && iconNode.nodeType === Node.TEXT_NODE) {
-                iconNode.textContent = liked ? '❤️ ' : '♡ ';
+            if (likeIconSpan) {
+                likeIconSpan.textContent = liked ? '❤️' : '♡';
             }
         };
         
