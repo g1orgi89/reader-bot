@@ -334,3 +334,10 @@
     font-size: var(--font-size-sm);
     line-height: var(--line-height-normal);
 }
+
+/* Deleting State */
+.cover-card.deleting {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}

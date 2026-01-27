@@ -4557,6 +4557,9 @@ renderAchievementsSection() {
             window.removeEventListener('followStateChanged', this._followStateChangedBridge);
             this._followStateChangedBridge = null;
         }
+        
+        // 🔄 Detach pull-to-refresh listeners
+        this.detachPullToRefreshListeners();
     }
 
     /**
@@ -4610,6 +4613,9 @@ renderAchievementsSection() {
      */
     destroy() {
         console.log('🧹 CommunityPage: Очистка ресурсов');
+        
+        // 🔄 Detach pull-to-refresh listeners
+        this.detachPullToRefreshListeners();
         
         // Remove delegated profile modal handler
         try {
@@ -4740,10 +4746,6 @@ renderAchievementsSection() {
     }
     
     /**
-     * 📸 Handle delete cover post
-     * @param {string} postId - Post ID to delete
-     */
-    /**
      * 📸 Handle like/unlike cover post
      * @param {string} postId - Post ID
      * @param {HTMLElement} button - Like button element
@@ -4751,8 +4753,17 @@ renderAchievementsSection() {
     async handleLikeCover(postId, button) {
         if (!postId || !button) return;
         
+        // 🔒 Prevent double-clicking - check if button is disabled
+        if (button.disabled) {
+            console.log('⚠️ CommunityPage: Like action already in progress');
+            return;
+        }
+        
         const wasLiked = button.dataset.liked === 'true';
         const likeCountSpan = button.querySelector('.like-count');
+        
+        // Disable button to prevent double clicks
+        button.disabled = true;
         
         // Optimistic UI update
         button.dataset.liked = wasLiked ? 'false' : 'true';
@@ -4798,6 +4809,9 @@ renderAchievementsSection() {
             if (window.app && window.app.showToast) {
                 window.app.showToast('Ошибка сохранения лайка', 'error');
             }
+        } finally {
+            // Re-enable button
+            button.disabled = false;
         }
     }
     
@@ -4827,16 +4841,20 @@ renderAchievementsSection() {
         };
         
         const confirmed = await showConfirm('Удалить это фото?');
-        if (!confirmed) return;
+        if (!confirmed) {
+            // User cancelled - no side effects
+            return;
+        }
         
         this._deletingCover = true;
         
         try {
             console.log('📸 CommunityPage: Deleting cover post:', postId);
             
-            // Show loading state on the card
+            // Show deleting state on the card
             const card = document.querySelector(`[data-post-id="${postId}"]`);
             if (card) {
+                card.classList.add('deleting');
                 card.style.opacity = '0.5';
                 card.style.pointerEvents = 'none';
             }
@@ -4868,9 +4886,10 @@ renderAchievementsSection() {
         } catch (error) {
             console.error('❌ CommunityPage: Failed to delete cover:', error);
             
-            // Restore card state
+            // Restore card state on error
             const card = document.querySelector(`[data-post-id="${postId}"]`);
             if (card) {
+                card.classList.remove('deleting');
                 card.style.opacity = '1';
                 card.style.pointerEvents = 'auto';
             }
