@@ -39,6 +39,7 @@ class CoverCommentsModal {
         this.boundHandleBackdropClick = this.handleBackdropClick.bind(this);
         this.boundHandleEscape = this.handleEscape.bind(this);
         this.boundHandleBackButton = this.handleBackButton.bind(this);
+        this.boundDelegatedClickHandler = null; // Track delegated click handler
         
         // Track if BackButton handler is attached
         this.backButtonAttached = false;
@@ -462,8 +463,13 @@ class CoverCommentsModal {
             loadMoreBtn.addEventListener('click', () => this.loadComments(true));
         }
         
-        // Delegate click events
-        this.modal.addEventListener('click', (e) => {
+        // Remove old delegated click handler to prevent duplicates
+        if (this.boundDelegatedClickHandler) {
+            this.modal.removeEventListener('click', this.boundDelegatedClickHandler);
+        }
+        
+        // Create new delegated click handler
+        this.boundDelegatedClickHandler = (e) => {
             const target = e.target;
             
             // Delete comment
@@ -515,7 +521,10 @@ class CoverCommentsModal {
                 }
                 return;
             }
-        });
+        };
+        
+        // Attach delegated click handler
+        this.modal.addEventListener('click', this.boundDelegatedClickHandler);
     }
     
     /**
@@ -524,6 +533,12 @@ class CoverCommentsModal {
     detachEventListeners() {
         this.backdrop.removeEventListener('click', this.boundHandleBackdropClick);
         document.removeEventListener('keydown', this.boundHandleEscape);
+        
+        // Remove delegated click handler
+        if (this.boundDelegatedClickHandler && this.modal) {
+            this.modal.removeEventListener('click', this.boundDelegatedClickHandler);
+            this.boundDelegatedClickHandler = null;
+        }
     }
     
     /**
