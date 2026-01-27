@@ -75,8 +75,9 @@ class CoverCommentsModal {
     /**
      * 🎭 Open modal
      * @param {string} postId - Post ID to load comments for
+     * @param {Function} updateCountCallback - Callback to update comment count in parent
      */
-    async open(postId) {
+    async open(postId, updateCountCallback = null) {
         if (!postId) {
             console.error('❌ CoverCommentsModal: No postId provided');
             return;
@@ -89,6 +90,7 @@ class CoverCommentsModal {
         this.nextCursor = null;
         this.hasMore = false;
         this.replyingTo = null;
+        this.updateCountCallback = updateCountCallback; // Store callback
         
         // Create modal if needed
         this.createModal();
@@ -188,6 +190,11 @@ class CoverCommentsModal {
                 this.nextCursor = response.nextCursor || null;
                 
                 console.log(`✅ CoverCommentsModal: Loaded ${uniqueNewComments.length} comments (total: ${this.comments.length})`);
+                
+                // 🔧 HOTFIX: Update comment count in parent card using deduped count
+                if (this.updateCountCallback) {
+                    this.updateCountCallback(this.comments.length);
+                }
             }
         } catch (error) {
             console.error('❌ CoverCommentsModal: Failed to load comments:', error);
@@ -323,6 +330,10 @@ class CoverCommentsModal {
         const liked = comment.liked || false;
         const commentId = comment._id || comment.id;
         
+        // Check if this is the current user's comment
+        const currentUserId = this.api && typeof this.api.resolveUserId === 'function' ? this.api.resolveUserId() : null;
+        const isOwnComment = currentUserId && userId && currentUserId === userId;
+        
         const avatarHtml = avatarUrl 
             ? `<img src="${this.escapeHtml(avatarUrl)}" alt="${this.escapeHtml(displayName)}" class="comment__avatar" data-user-id="${userId}">`
             : `<div class="comment__avatar comment__avatar--placeholder" data-user-id="${userId}">👤</div>`;
@@ -334,6 +345,7 @@ class CoverCommentsModal {
                     <div class="comment__header">
                         <span class="comment__name" data-user-id="${userId}">${displayName}</span>
                         <span class="comment__time">${timeStr}</span>
+                        ${isOwnComment ? `<button class="comment__delete-btn" data-action="delete-comment" data-comment-id="${commentId}" title="Удалить" style="margin-left: auto; background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px 8px; font-size: 14px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">🗑️</button>` : ''}
                     </div>
                     <div class="comment__text">${this.escapeHtml(comment.text)}</div>
                     <div class="comment__actions">
@@ -453,6 +465,14 @@ class CoverCommentsModal {
         // Delegate click events
         this.modal.addEventListener('click', (e) => {
             const target = e.target;
+            
+            // Delete comment
+            if (target.dataset.action === 'delete-comment' || target.closest('[data-action="delete-comment"]')) {
+                e.preventDefault();
+                const btn = target.dataset.action === 'delete-comment' ? target : target.closest('[data-action="delete-comment"]');
+                this.handleDeleteComment(btn);
+                return;
+            }
             
             // Like comment
             if (target.dataset.action === 'like-comment' || target.closest('[data-action="like-comment"]')) {
@@ -607,6 +627,11 @@ class CoverCommentsModal {
                 const newComment = response.data;
                 this.comments.unshift(newComment);
                 
+                // Update comment count in parent card
+                if (this.updateCountCallback) {
+                    this.updateCountCallback(this.comments.length);
+                }
+                
                 // Clear form
                 textarea.value = '';
                 this.replyingTo = null;
@@ -631,6 +656,81 @@ class CoverCommentsModal {
             }
         } finally {
             if (textarea) textarea.disabled = false;
+        }
+    }
+    
+    /**
+     * 🗑️ Handle delete comment
+     */
+    async handleDeleteComment(button) {
+        if (!button) return;
+        
+        const commentId = button.dataset.commentId;
+        if (!commentId) return;
+        
+        // 🔧 HOTFIX: Use non-blocking Telegram.WebApp.showConfirm (with fallback)
+        const showConfirm = (message) => {
+            return new Promise((resolve) => {
+                if (window.Telegram?.WebApp?.showConfirm) {
+                    window.Telegram.WebApp.showConfirm(message, resolve);
+                } else {
+                    // Fallback to blocking confirm if Telegram API not available
+                    resolve(confirm(message));
+                }
+            });
+        };
+        
+        const confirmed = await showConfirm('Удалить комментарий?');
+        if (!confirmed) return;
+        
+        try {
+            // Optimistically remove from UI
+            const commentElement = button.closest('.comment');
+            if (commentElement) {
+                commentElement.style.opacity = '0.5';
+                commentElement.style.pointerEvents = 'none';
+            }
+            
+            // Call API to delete
+            const response = await this.api.deleteCoverComment(this.postId, commentId);
+            
+            if (response && response.success) {
+                // Remove from local state
+                this.comments = this.comments.filter(c => (c._id || c.id) !== commentId);
+                
+                // Update comment count in parent card
+                if (this.updateCountCallback) {
+                    this.updateCountCallback(this.comments.length);
+                }
+                
+                // Rerender
+                this.render();
+                
+                // Show success toast
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Комментарий удален', 'success');
+                }
+                
+                // Haptic feedback
+                if (window.Telegram?.WebApp?.HapticFeedback) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                throw new Error(response?.error || 'Failed to delete comment');
+            }
+        } catch (error) {
+            console.error('❌ CoverCommentsModal: Failed to delete comment:', error);
+            
+            // Restore comment element
+            const commentElement = button.closest('.comment');
+            if (commentElement) {
+                commentElement.style.opacity = '1';
+                commentElement.style.pointerEvents = 'auto';
+            }
+            
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Ошибка удаления комментария', 'error');
+            }
         }
     }
     

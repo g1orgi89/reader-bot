@@ -1951,6 +1951,17 @@ class ApiService {
         console.log(`📸 ApiService: Deleting cover post ${postId}...`);
         return this.request('DELETE', `/covers/${postId}`);
     }
+    
+    /**
+     * Delete a comment on a cover post
+     * @param {string} postId - Post ID
+     * @param {string} commentId - Comment ID to delete
+     * @returns {Promise}
+     */
+    async deleteCoverComment(postId, commentId) {
+        console.log(`📸 ApiService: Deleting comment ${commentId} from post ${postId}...`);
+        return this.request('DELETE', `/covers/${postId}/comments/${commentId}`);
+    }
 }
 
 // 🌍 Глобальный экспорт (только если window доступен)
