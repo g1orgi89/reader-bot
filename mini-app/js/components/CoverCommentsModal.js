@@ -748,6 +748,52 @@ class CoverCommentsModal {
             if (response && response.success) {
                 // Add new comment to list
                 const newComment = response.data;
+                if (newComment) {
+                    this.comments = [newComment, ...this.comments];
+                    
+                    // 🔧 Update cache with new comment
+                    this._commentsCache.set(this.postId, {
+                        items: this.comments,
+                        ts: Date.now()
+                    });
+                }
+                
+                // Clear form and reply state
+                textarea.value = '';
+                this.replyingTo = null;
+                
+                // Update comment count in parent card
+                if (this.updateCountCallback) {
+                    this.updateCountCallback(this.comments.length);
+                }
+                
+                // Reload comments with cache-bust to get fresh data
+                await this.loadComments();
+                
+                // Show success toast
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Комментарий добавлен', 'success');
+                }
+                
+                // Haptic feedback
+                if (window.Telegram?.WebApp?.HapticFeedback) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                throw new Error(response?.error || 'Failed to add comment');
+            }
+        } catch (error) {
+            console.error('❌ CoverCommentsModal: Failed to add comment:', error);
+            
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Ошибка добавления комментария', 'error');
+            }
+        } finally {
+            // Re-enable button and textarea
+            if (textarea) textarea.disabled = false;
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    }
                 this.comments.unshift(newComment);
                 
                 // Update cache
@@ -829,13 +875,19 @@ class CoverCommentsModal {
                 // Remove from local state
                 this.comments = this.comments.filter(c => (c._id || c.id) !== commentId);
                 
+                // 🔧 Update cache after delete
+                this._commentsCache.set(this.postId, {
+                    items: this.comments,
+                    ts: Date.now()
+                });
+                
                 // Update comment count in parent card
                 if (this.updateCountCallback) {
                     this.updateCountCallback(this.comments.length);
                 }
                 
-                // Rerender
-                this.render();
+                // Reload comments with cache-bust to get fresh data
+                await this.loadComments();
                 
                 // Show success toast
                 if (window.app && window.app.showToast) {
