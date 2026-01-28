@@ -41,6 +41,8 @@ class CoverCommentsModal {
         this._sheetHeight = 65; // Start at 65dvh
         this._lastScrollTop = 0;
         this._likeInProgress = new Map(); // commentId → boolean (prevent double-sends)
+        this._touchStartY = 0;
+        this._touchStartScrollTop = 0;
         
         // DOM elements
         this.modal = null;
@@ -52,6 +54,9 @@ class CoverCommentsModal {
         this.boundHandleEscape = this.handleEscape.bind(this);
         this.boundHandleBackButton = this.handleBackButton.bind(this);
         this.boundHandleScroll = this.handleScroll.bind(this);
+        this.boundHandleTouchStart = this.handleTouchStart.bind(this);
+        this.boundHandleTouchMove = this.handleTouchMove.bind(this);
+        this.boundHandleTouchEnd = this.handleTouchEnd.bind(this);
         this.boundDelegatedClickHandler = null; // Track delegated click handler
         
         // Track if BackButton handler is attached
@@ -122,13 +127,58 @@ class CoverCommentsModal {
             this.setSheetHeight(newHeight);
         }
         
-        // Scroll down when at top: close sheet
-        if (scrollTop === 0 && scrollDelta > 0) {
+        this._lastScrollTop = scrollTop;
+    }
+    
+    /**
+     * 👆 Handle touch start for pull-to-close gesture
+     */
+    handleTouchStart(e) {
+        if (!this.modalBody) return;
+        if (window.innerWidth > 480) return; // Only on mobile
+        
+        this._touchStartY = e.touches[0].clientY;
+        this._touchStartScrollTop = this.modalBody.scrollTop;
+    }
+    
+    /**
+     * 👆 Handle touch move for pull-to-close gesture
+     */
+    handleTouchMove(e) {
+        if (!this.modalBody) return;
+        if (window.innerWidth > 480) return; // Only on mobile
+        
+        // If already scrolled down, don't interfere
+        if (this.modalBody.scrollTop > 0) return;
+        
+        const touchY = e.touches[0].clientY;
+        const deltaY = touchY - this._touchStartY;
+        
+        // If user is pulling down (deltaY > 0) while at top (scrollTop = 0)
+        if (deltaY > 50 && this._touchStartScrollTop === 0) {
+            // Prevent default to stop overscroll
+            e.preventDefault();
+        }
+    }
+    
+    /**
+     * 👆 Handle touch end for pull-to-close gesture
+     */
+    handleTouchEnd(e) {
+        if (!this.modalBody) return;
+        if (window.innerWidth > 480) return; // Only on mobile
+        
+        const touchY = e.changedTouches[0].clientY;
+        const deltaY = touchY - this._touchStartY;
+        
+        // If user pulled down more than 100px while at top, close the modal
+        if (deltaY > 100 && this._touchStartScrollTop === 0 && this.modalBody.scrollTop === 0) {
             this.close();
-            return;
         }
         
-        this._lastScrollTop = scrollTop;
+        // Reset
+        this._touchStartY = 0;
+        this._touchStartScrollTop = 0;
     }
     
     /**
@@ -623,6 +673,11 @@ class CoverCommentsModal {
         // Attach scroll listener for bottom sheet behavior
         if (this.modalBody) {
             this.modalBody.addEventListener('scroll', this.boundHandleScroll);
+            
+            // Touch listeners for pull-to-close gesture
+            this.modalBody.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
+            this.modalBody.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
+            this.modalBody.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
         }
     }
     
@@ -723,9 +778,12 @@ class CoverCommentsModal {
         // Attach delegated click handler
         this.modal.addEventListener('click', this.boundDelegatedClickHandler);
         
-        // Reattach scroll listener after render
+        // Reattach scroll and touch listeners after render
         if (this.modalBody) {
             this.modalBody.addEventListener('scroll', this.boundHandleScroll);
+            this.modalBody.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
+            this.modalBody.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
+            this.modalBody.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
         }
     }
     
@@ -738,6 +796,9 @@ class CoverCommentsModal {
         
         if (this.modalBody) {
             this.modalBody.removeEventListener('scroll', this.boundHandleScroll);
+            this.modalBody.removeEventListener('touchstart', this.boundHandleTouchStart);
+            this.modalBody.removeEventListener('touchmove', this.boundHandleTouchMove);
+            this.modalBody.removeEventListener('touchend', this.boundHandleTouchEnd);
         }
         
         // Remove delegated click handler
