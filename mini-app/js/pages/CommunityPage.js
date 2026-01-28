@@ -45,8 +45,8 @@ class CommunityPage {
         
         // 🔧 FIX: Lazy initialization for CoverCommentsModal (don't create in constructor)
         // This prevents ReferenceError during Router initialization
-        this.coverCommentsModal = null;
-        this._coverCommentsModalInitialized = false;
+        this._commentsModal = null;
+        this._commentsModalLoadPromise = null; // single-flight guard
         
         // Store bound delegated handler reference for cleanup
         this._delegatedHandlerBound = null;
@@ -4951,36 +4951,72 @@ renderAchievementsSection() {
     }
     
     /**
-     * 🔧 Lazy initialize CoverCommentsModal (prevent ReferenceError during Router init)
-     * @returns {boolean} - True if modal is available
+     * 🔧 Lazy load and initialize CoverCommentsModal
+     * Dynamically loads the script if not available, with single-flight protection
+     * @returns {Promise<Object|null>} - Modal instance or null on failure
      */
-    _ensureCommentsModal() {
-        if (this.coverCommentsModal) {
-            return true;
+    async _ensureCommentsModal() {
+        // Return existing instance if available
+        if (this._commentsModal && this._commentsModal.open) {
+            return this._commentsModal;
         }
         
-        if (this._coverCommentsModalInitialized) {
-            // Already tried to initialize, failed
-            return false;
-        }
-        
-        // Lazy initialization on first use
-        const CCM = window.CoverCommentsModal;
-        if (CCM) {
+        // If class is already available, instantiate it
+        if (window.CoverCommentsModal) {
             try {
-                this.coverCommentsModal = new CCM(this.app);
-                this._coverCommentsModalInitialized = true;
-                console.log('✅ CoverCommentsModal: Lazy initialized successfully');
-                return true;
+                this._commentsModal = new window.CoverCommentsModal(this.app);
+                return this._commentsModal;
             } catch (error) {
                 console.error('❌ CoverCommentsModal: Failed to initialize:', error);
-                this._coverCommentsModalInitialized = true;
-                return false;
+                return null;
             }
         }
         
-        console.warn('⚠️ CoverCommentsModal: Class not available in window scope');
-        return false;
+        // Single-flight guard: if already loading, wait for that promise
+        if (this._commentsModalLoadPromise) {
+            return await this._commentsModalLoadPromise;
+        }
+        
+        // Dynamically load CoverCommentsModal.js with cache-busting
+        this._commentsModalLoadPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'js/components/CoverCommentsModal.js?ts=' + Date.now();
+            script.async = true;
+            
+            script.onload = () => {
+                try {
+                    if (window.CoverCommentsModal) {
+                        this._commentsModal = new window.CoverCommentsModal(this.app);
+                        console.log('✅ CoverCommentsModal: Dynamically loaded and initialized');
+                        resolve(this._commentsModal);
+                    } else {
+                        console.error('❌ CoverCommentsModal: Script loaded but class not exported');
+                        reject(new Error('CoverCommentsModal not exported'));
+                    }
+                } catch (error) {
+                    console.error('❌ CoverCommentsModal: Failed to initialize after loading:', error);
+                    reject(error);
+                }
+            };
+            
+            script.onerror = () => {
+                const error = new Error('Failed to load CoverCommentsModal.js');
+                console.error('❌ CoverCommentsModal:', error.message);
+                reject(error);
+            };
+            
+            document.head.appendChild(script);
+        }).finally(() => {
+            // Clear the promise guard after completion (success or failure)
+            this._commentsModalLoadPromise = null;
+        });
+        
+        try {
+            return await this._commentsModalLoadPromise;
+        } catch (error) {
+            // Return null on failure
+            return null;
+        }
     }
     
     /**
@@ -4990,12 +5026,11 @@ renderAchievementsSection() {
     async handleShowComments(postId) {
         if (!postId) return;
         
-        // 🔧 FIX: Lazy initialize modal on first use (guard against ReferenceError)
-        if (!this._ensureCommentsModal()) {
+        // 🔧 FIX: Lazy load modal on first use (with dynamic loading fallback)
+        const modal = await this._ensureCommentsModal();
+        if (!modal) {
             console.warn('⚠️ CoverCommentsModal not available');
-            if (window.app && window.app.showToast) {
-                window.app.showToast('Комментарии временно недоступны', 'error');
-            }
+            this.showNotification('Не удалось открыть комментарии. Попробуйте ещё раз.', 'error');
             return;
         }
         
@@ -5018,7 +5053,7 @@ renderAchievementsSection() {
         const initialComments = (cached && cached.comments) || [];
         
         // Open comments modal with initial cached data
-        this.coverCommentsModal.open(postId, updateCommentCount, { initialComments });
+        modal.open(postId, updateCommentCount, { initialComments });
         
         // Then fetch fresh comments with cache-busting
         try {
@@ -5033,8 +5068,8 @@ renderAchievementsSection() {
                 });
                 
                 // Update modal with fresh data
-                if (this.coverCommentsModal && this.coverCommentsModal.isOpen && this.coverCommentsModal.postId === postId) {
-                    this.coverCommentsModal.updateComments(freshComments);
+                if (modal && modal.isOpen && modal.postId === postId) {
+                    modal.updateComments(freshComments);
                     updateCommentCount(freshComments.length);
                 }
             }
