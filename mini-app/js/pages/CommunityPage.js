@@ -43,14 +43,10 @@ class CommunityPage {
             ? app.getProfileModal()
             : (window.profileModal || (window.profileModal = new ProfileModal(app)));
         
-        // Initialize CoverCommentsModal with safety check
-        const CCM = window.CoverCommentsModal || null;
-        if (CCM) {
-            this.coverCommentsModal = new CCM(app);
-        } else {
-            console.warn('⚠️ CoverCommentsModal not loaded yet, comments will be unavailable');
-            this.coverCommentsModal = null;
-        }
+        // 🔧 FIX: Lazy initialization for CoverCommentsModal (don't create in constructor)
+        // This prevents ReferenceError during Router initialization
+        this.coverCommentsModal = null;
+        this._coverCommentsModalInitialized = false;
         
         // Store bound delegated handler reference for cleanup
         this._delegatedHandlerBound = null;
@@ -4955,14 +4951,47 @@ renderAchievementsSection() {
     }
     
     /**
+     * 🔧 Lazy initialize CoverCommentsModal (prevent ReferenceError during Router init)
+     * @returns {boolean} - True if modal is available
+     */
+    _ensureCommentsModal() {
+        if (this.coverCommentsModal) {
+            return true;
+        }
+        
+        if (this._coverCommentsModalInitialized) {
+            // Already tried to initialize, failed
+            return false;
+        }
+        
+        // Lazy initialization on first use
+        const CCM = window.CoverCommentsModal;
+        if (CCM) {
+            try {
+                this.coverCommentsModal = new CCM(this.app);
+                this._coverCommentsModalInitialized = true;
+                console.log('✅ CoverCommentsModal: Lazy initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('❌ CoverCommentsModal: Failed to initialize:', error);
+                this._coverCommentsModalInitialized = true;
+                return false;
+            }
+        }
+        
+        console.warn('⚠️ CoverCommentsModal: Class not available in window scope');
+        return false;
+    }
+    
+    /**
      * 📸 Handle show/hide comments for a post (now opens modal)
      * @param {string} postId - Post ID
      */
     async handleShowComments(postId) {
         if (!postId) return;
         
-        // 🔧 HOTFIX: Check if modal is available
-        if (!this.coverCommentsModal) {
+        // 🔧 FIX: Lazy initialize modal on first use (guard against ReferenceError)
+        if (!this._ensureCommentsModal()) {
             console.warn('⚠️ CoverCommentsModal not available');
             if (window.app && window.app.showToast) {
                 window.app.showToast('Комментарии временно недоступны', 'error');
