@@ -47,6 +47,7 @@ class CommunityPage {
         // This prevents ReferenceError during Router initialization
         this.coverCommentsModal = null;
         this._coverCommentsModalInitialized = false;
+        this._loadingCommentsModal = false; // Single-flight protection flag
         
         // Store bound delegated handler reference for cleanup
         this._delegatedHandlerBound = null;
@@ -4951,26 +4952,41 @@ renderAchievementsSection() {
     }
     
     /**
-     * 🔧 Lazy initialize CoverCommentsModal (prevent ReferenceError during Router init)
-     * @returns {boolean} - True if modal is available
+     * 🔧 Lazy initialize CoverCommentsModal with dynamic loading (prevent ReferenceError)
+     * @returns {Promise<boolean>} - True if modal is available
      */
-    _ensureCommentsModal() {
+    async _ensureCommentsModal() {
+        // 1. If instance already exists, return it
         if (this.coverCommentsModal) {
             return true;
         }
         
-        if (this._coverCommentsModalInitialized) {
-            // Already tried to initialize, failed
+        // 2. If already tried and failed permanently, don't retry
+        if (this._coverCommentsModalInitialized && !window.CoverCommentsModal) {
             return false;
         }
         
-        // Lazy initialization on first use
-        const CCM = window.CoverCommentsModal;
-        if (CCM) {
+        // 3. Single-flight protection: if already loading, wait for that load
+        if (this._loadingCommentsModal) {
+            // Wait for the loading to complete (poll every 100ms, max 5 seconds)
+            const maxWait = 50; // 50 * 100ms = 5 seconds
+            for (let i = 0; i < maxWait; i++) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                if (!this._loadingCommentsModal) {
+                    // Loading completed, check if successful
+                    return this.coverCommentsModal !== null;
+                }
+            }
+            console.warn('⚠️ CoverCommentsModal: Timeout waiting for script load');
+            return false;
+        }
+        
+        // 4. Try to create instance if class is already available
+        if (window.CoverCommentsModal) {
             try {
-                this.coverCommentsModal = new CCM(this.app);
+                this.coverCommentsModal = new window.CoverCommentsModal(this.app);
                 this._coverCommentsModalInitialized = true;
-                console.log('✅ CoverCommentsModal: Lazy initialized successfully');
+                console.log('✅ CoverCommentsModal: Lazy initialized successfully (class already loaded)');
                 return true;
             } catch (error) {
                 console.error('❌ CoverCommentsModal: Failed to initialize:', error);
@@ -4979,8 +4995,47 @@ renderAchievementsSection() {
             }
         }
         
-        console.warn('⚠️ CoverCommentsModal: Class not available in window scope');
-        return false;
+        // 5. Class not available - dynamically load the script
+        console.log('🔄 CoverCommentsModal: Class not in window, loading script dynamically...');
+        this._loadingCommentsModal = true;
+        
+        try {
+            // Create script element
+            const script = document.createElement('script');
+            script.src = 'js/components/CoverCommentsModal.js';
+            script.async = true;
+            
+            // Wait for script to load
+            await new Promise((resolve, reject) => {
+                script.onload = () => {
+                    console.log('✅ CoverCommentsModal: Script loaded successfully');
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error('❌ CoverCommentsModal: Script failed to load');
+                    reject(new Error('Failed to load CoverCommentsModal.js'));
+                };
+                document.head.appendChild(script);
+            });
+            
+            // After script loads, verify class is available and create instance
+            if (window.CoverCommentsModal) {
+                this.coverCommentsModal = new window.CoverCommentsModal(this.app);
+                this._coverCommentsModalInitialized = true;
+                console.log('✅ CoverCommentsModal: Successfully initialized after dynamic load');
+                return true;
+            } else {
+                console.error('❌ CoverCommentsModal: Script loaded but class not found in window');
+                this._coverCommentsModalInitialized = true;
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ CoverCommentsModal: Dynamic loading failed:', error);
+            this._coverCommentsModalInitialized = true;
+            return false;
+        } finally {
+            this._loadingCommentsModal = false;
+        }
     }
     
     /**
@@ -4991,7 +5046,7 @@ renderAchievementsSection() {
         if (!postId) return;
         
         // 🔧 FIX: Lazy initialize modal on first use (guard against ReferenceError)
-        if (!this._ensureCommentsModal()) {
+        if (!(await this._ensureCommentsModal())) {
             console.warn('⚠️ CoverCommentsModal not available');
             if (window.app && window.app.showToast) {
                 window.app.showToast('Комментарии временно недоступны', 'error');
