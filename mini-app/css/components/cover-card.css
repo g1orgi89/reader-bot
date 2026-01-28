@@ -129,8 +129,12 @@
     color: var(--accent-color);
 }
 
+.cover-card__like-btn {
+    color: var(--text-secondary);
+}
+
 .cover-card__like-btn.liked {
-    color: var(--accent-color, #e91e63);
+    color: var(--primary-color, #D2452C);
 }
 
 .cover-card__like-btn .like-count {
