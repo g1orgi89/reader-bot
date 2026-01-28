@@ -47,7 +47,7 @@ class CommunityPage {
         // This prevents ReferenceError during Router initialization
         this.coverCommentsModal = null;
         this._coverCommentsModalInitialized = false;
-        this._loadingCommentsModal = false; // Single-flight protection flag
+        this._coverCommentsModalLoading = null; // Promise for single-flight protection
         
         // Store bound delegated handler reference for cleanup
         this._delegatedHandlerBound = null;
@@ -4961,27 +4961,12 @@ renderAchievementsSection() {
             return true;
         }
         
-        // 2. If already tried and failed permanently, don't retry
-        if (this._coverCommentsModalInitialized && !window.CoverCommentsModal) {
-            return false;
+        // 2. Single-flight protection: if already loading, wait for that Promise
+        if (this._coverCommentsModalLoading) {
+            return await this._coverCommentsModalLoading;
         }
         
-        // 3. Single-flight protection: if already loading, wait for that load
-        if (this._loadingCommentsModal) {
-            // Wait for the loading to complete (poll every 100ms, max 5 seconds)
-            const maxWait = 50; // 50 * 100ms = 5 seconds
-            for (let i = 0; i < maxWait; i++) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                if (!this._loadingCommentsModal) {
-                    // Loading completed, check if successful
-                    return this.coverCommentsModal !== null;
-                }
-            }
-            console.warn('⚠️ CoverCommentsModal: Timeout waiting for script load');
-            return false;
-        }
-        
-        // 4. Try to create instance if class is already available
+        // 3. Try to create instance if class is already available
         if (window.CoverCommentsModal) {
             try {
                 this.coverCommentsModal = new window.CoverCommentsModal(this.app);
@@ -4995,14 +4980,54 @@ renderAchievementsSection() {
             }
         }
         
-        // 5. Class not available - dynamically load the script
+        // 4. Class not available - dynamically load the script
         console.log('🔄 CoverCommentsModal: Class not in window, loading script dynamically...');
-        this._loadingCommentsModal = true;
+        
+        // Create and store the loading Promise for single-flight protection
+        this._coverCommentsModalLoading = this._loadCommentsModalScript();
+        
+        try {
+            return await this._coverCommentsModalLoading;
+        } finally {
+            // Clear the loading Promise after completion (success or failure)
+            this._coverCommentsModalLoading = null;
+        }
+    }
+    
+    /**
+     * 🔄 Load CoverCommentsModal script dynamically
+     * @private
+     * @returns {Promise<boolean>} - True if loaded and initialized successfully
+     */
+    async _loadCommentsModalScript() {
+        const scriptSrc = 'js/components/CoverCommentsModal.js';
+        
+        // Check if script already exists in DOM
+        const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
+        if (existingScript) {
+            console.log('🔄 CoverCommentsModal: Script already in DOM, waiting for class...');
+            // Script exists but class not loaded yet - wait a bit for it to execute
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (window.CoverCommentsModal) {
+                try {
+                    this.coverCommentsModal = new window.CoverCommentsModal(this.app);
+                    this._coverCommentsModalInitialized = true;
+                    console.log('✅ CoverCommentsModal: Initialized after waiting for existing script');
+                    return true;
+                } catch (error) {
+                    console.error('❌ CoverCommentsModal: Failed to initialize:', error);
+                    this._coverCommentsModalInitialized = true;
+                    return false;
+                }
+            }
+            console.warn('⚠️ CoverCommentsModal: Script exists but class not available');
+            return false;
+        }
         
         try {
             // Create script element
             const script = document.createElement('script');
-            script.src = 'js/components/CoverCommentsModal.js';
+            script.src = scriptSrc;
             script.async = true;
             
             // Wait for script to load
@@ -5026,15 +5051,14 @@ renderAchievementsSection() {
                 return true;
             } else {
                 console.error('❌ CoverCommentsModal: Script loaded but class not found in window');
-                this._coverCommentsModalInitialized = true;
+                // Don't set _coverCommentsModalInitialized to allow retry
                 return false;
             }
         } catch (error) {
             console.error('❌ CoverCommentsModal: Dynamic loading failed:', error);
+            // Set flag to prevent infinite retries on persistent errors
             this._coverCommentsModalInitialized = true;
             return false;
-        } finally {
-            this._loadingCommentsModal = false;
         }
     }
     
