@@ -76,6 +76,7 @@ class CommunityPage {
         this.coversHasMore = false;
         this.coversCursor = null;
         this.coverUploadForm = null; // Upload form component instance
+        this._confirmOpen = false; // Telegram popup debounce flag
 
         // 🌟 SPOTLIGHT CACHE (TTL система для предотвращения мигания)
         this._spotlightCache = {
@@ -4725,13 +4726,31 @@ renderAchievementsSection() {
             
             // Rerender immediately to show new post
             this.rerender();
+            
+            // Rebind upload form listeners after rerender
+            this.attachCoverUploadFormListeners();
         } else {
-            // Fallback: Refresh the covers feed to show the new post
+            // Fallback: Refresh the covers feed to show the new post with cache-busting
             this.coversPosts = null; // Show loading state
             this.coversCursor = null; // Reset cursor to load from beginning
             
             try {
-                await this.loadCovers(false); // Load fresh data
+                // Add cache-busting timestamp to API request
+                const timestamp = Date.now();
+                const response = await this.api.getCovers({ 
+                    feed: 'all', 
+                    cursor: null, 
+                    limit: 20,
+                    ts: timestamp 
+                });
+                
+                if (response && response.success) {
+                    this.coversPosts = response.data || [];
+                    this.coversHasMore = response.hasMore || false;
+                    this.coversCursor = response.nextCursor || null;
+                } else {
+                    this.coversPosts = [];
+                }
             } catch (error) {
                 console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
                 // Ensure we show empty state instead of infinite loader
@@ -4741,6 +4760,9 @@ renderAchievementsSection() {
             } finally {
                 // Always rerender to update UI
                 this.rerender();
+                
+                // Rebind upload form listeners after rerender
+                this.attachCoverUploadFormListeners();
             }
         }
     }
@@ -4827,6 +4849,46 @@ renderAchievementsSection() {
     }
     
     /**
+     * 🔒 Show Telegram confirm popup with debounce protection
+     * @param {string} message - Confirmation message
+     * @returns {Promise<boolean>} User's choice
+     */
+    async _confirm(message) {
+        // Check if popup is already open
+        if (this._confirmOpen) {
+            console.log('⚠️ CommunityPage: Confirm popup already open');
+            return false;
+        }
+        
+        this._confirmOpen = true;
+        
+        return new Promise((resolve) => {
+            // Subscribe to popup_closed event to reset flag
+            const handlePopupClosed = () => {
+                this._confirmOpen = false;
+                if (window.Telegram?.WebApp) {
+                    window.Telegram.WebApp.offEvent('popup_closed', handlePopupClosed);
+                }
+            };
+            
+            if (window.Telegram?.WebApp?.showConfirm) {
+                if (window.Telegram.WebApp.onEvent) {
+                    window.Telegram.WebApp.onEvent('popup_closed', handlePopupClosed);
+                }
+                window.Telegram.WebApp.showConfirm(message, (confirmed) => {
+                    handlePopupClosed();
+                    resolve(confirmed);
+                });
+            } else {
+                // Fallback to blocking confirm if Telegram API not available
+                const confirmed = confirm(message);
+                handlePopupClosed();
+                resolve(confirmed);
+            }
+        });
+    }
+    
+    /**
      * 📸 Handle delete cover post
      * @param {string} postId - Post ID
      */
@@ -4839,19 +4901,7 @@ renderAchievementsSection() {
             return;
         }
         
-        // 🔧 HOTFIX: Use non-blocking Telegram.WebApp.showConfirm (with fallback)
-        const showConfirm = (message) => {
-            return new Promise((resolve) => {
-                if (window.Telegram?.WebApp?.showConfirm) {
-                    window.Telegram.WebApp.showConfirm(message, resolve);
-                } else {
-                    // Fallback to blocking confirm if Telegram API not available
-                    resolve(confirm(message));
-                }
-            });
-        };
-        
-        const confirmed = await showConfirm('Удалить это фото?');
+        const confirmed = await this._confirm('Удалить это фото?');
         if (!confirmed) {
             // User cancelled - no side effects
             return;

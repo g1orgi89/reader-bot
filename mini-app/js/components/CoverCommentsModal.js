@@ -31,6 +31,12 @@ class CoverCommentsModal {
         // Reply state
         this.replyingTo = null; // { commentId, userName }
         
+        // Comments cache
+        this._commentsCache = new Map(); // postId → {items, ts}
+        
+        // Collapsed state for Instagram-style replies
+        this._repliesCollapsed = new Map(); // parentId → boolean
+        
         // DOM elements
         this.modal = null;
         this.backdrop = null;
@@ -87,7 +93,6 @@ class CoverCommentsModal {
         console.log(`📸 CoverCommentsModal: Opening for post ${postId}`);
         
         this.postId = postId;
-        this.comments = [];
         this.nextCursor = null;
         this.hasMore = false;
         this.replyingTo = null;
@@ -101,8 +106,16 @@ class CoverCommentsModal {
         this.backdrop.style.display = 'block';
         this.modal.style.display = 'block';
         
-        // Render loading state
-        this.render();
+        // Check cache first - render immediately if available
+        const cached = this._commentsCache.get(postId);
+        if (cached && cached.items) {
+            this.comments = cached.items;
+            this.render();
+        } else {
+            // No cache - show loading state
+            this.comments = [];
+            this.render();
+        }
         
         // Attach event listeners
         this.attachEventListeners();
@@ -110,7 +123,7 @@ class CoverCommentsModal {
         // Hide Telegram back button and attach our handler
         this.handleTelegramBackButton(true);
         
-        // Load comments
+        // Fetch fresh data with cache-busting
         await this.loadComments();
         
         // Trigger animation
@@ -162,7 +175,10 @@ class CoverCommentsModal {
         this.loading = true;
         
         try {
-            const options = { limit: 20 };
+            const options = { 
+                limit: 20,
+                ts: Date.now() // Cache-busting timestamp
+            };
             if (loadMore && this.nextCursor) {
                 options.cursor = this.nextCursor;
             }
@@ -185,6 +201,12 @@ class CoverCommentsModal {
                     this.comments = [...this.comments, ...uniqueNewComments];
                 } else {
                     this.comments = uniqueNewComments;
+                    
+                    // Update cache with fresh data
+                    this._commentsCache.set(this.postId, {
+                        items: this.comments,
+                        ts: Date.now()
+                    });
                 }
                 
                 this.hasMore = response.hasMore || false;
@@ -306,14 +328,62 @@ class CoverCommentsModal {
      */
     renderThread(thread) {
         const parentHtml = this.renderComment(thread.parent, false);
-        const repliesHtml = thread.replies.map(reply => this.renderComment(reply, true)).join('');
+        const parentId = thread.parent._id || thread.parent.id;
+        const replyCount = thread.replies.length;
+        const isCollapsed = this._repliesCollapsed.get(parentId) !== false; // Default collapsed
+        
+        let repliesSection = '';
+        if (replyCount > 0) {
+            if (isCollapsed) {
+                // Show "View replies" button
+                const replyText = this.getReplyCountText(replyCount);
+                repliesSection = `
+                    <div class="comment-replies-toggle">
+                        <button class="comment-replies-toggle__btn" 
+                                data-action="expand-replies" 
+                                data-parent-id="${parentId}">
+                            ${replyText}
+                        </button>
+                    </div>`;
+            } else {
+                // Show replies + "Hide replies" button
+                const repliesHtml = thread.replies.map(reply => this.renderComment(reply, true)).join('');
+                repliesSection = `
+                    <div class="comment-replies">${repliesHtml}</div>
+                    <div class="comment-replies-toggle">
+                        <button class="comment-replies-toggle__btn" 
+                                data-action="collapse-replies" 
+                                data-parent-id="${parentId}">
+                            Скрыть ответы
+                        </button>
+                    </div>`;
+            }
+        }
         
         return `
             <div class="comment-thread">
                 ${parentHtml}
-                ${repliesHtml ? `<div class="comment-replies">${repliesHtml}</div>` : ''}
+                ${repliesSection}
             </div>
         `;
+    }
+    
+    /**
+     * 📝 Get reply count text with pluralization
+     */
+    getReplyCountText(count) {
+        const lastDigit = count % 10;
+        const lastTwoDigits = count % 100;
+        
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+            return `Посмотреть ${count} ответов`;
+        } else if (lastDigit === 1) {
+            return `Посмотреть ${count} ответ`;
+        } else if (lastDigit >= 2 && lastDigit <= 4) {
+            return `Посмотреть ${count} ответа`;
+        } else {
+            return `Посмотреть ${count} ответов`;
+        }
     }
     
     /**
@@ -496,6 +566,30 @@ class CoverCommentsModal {
                 return;
             }
             
+            // Expand replies
+            if (target.dataset.action === 'expand-replies' || target.closest('[data-action="expand-replies"]')) {
+                e.preventDefault();
+                const btn = target.dataset.action === 'expand-replies' ? target : target.closest('[data-action="expand-replies"]');
+                const parentId = btn.dataset.parentId;
+                if (parentId) {
+                    this._repliesCollapsed.set(parentId, false);
+                    this.render();
+                }
+                return;
+            }
+            
+            // Collapse replies
+            if (target.dataset.action === 'collapse-replies' || target.closest('[data-action="collapse-replies"]')) {
+                e.preventDefault();
+                const btn = target.dataset.action === 'collapse-replies' ? target : target.closest('[data-action="collapse-replies"]');
+                const parentId = btn.dataset.parentId;
+                if (parentId) {
+                    this._repliesCollapsed.set(parentId, true);
+                    this.render();
+                }
+                return;
+            }
+            
             // Submit reply
             if (target.dataset.action === 'submit-reply') {
                 e.preventDefault();
@@ -608,10 +702,15 @@ class CoverCommentsModal {
         this.replyingTo = { commentId, userName };
         this.render();
         
-        // Focus on textarea after render completes
+        // Focus on textarea and prefill with @username
         requestAnimationFrame(() => {
             const textarea = this.modal.querySelector('.reply-form__input');
-            if (textarea) textarea.focus();
+            if (textarea) {
+                textarea.value = `@${userName} `;
+                textarea.focus();
+                // Move cursor to end
+                textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            }
         });
         
         // Haptic feedback
@@ -625,15 +724,24 @@ class CoverCommentsModal {
      */
     async handleSubmitReply() {
         const textarea = this.modal.querySelector('.reply-form__input');
+        const submitBtn = this.modal.querySelector('.reply-form__submit');
+        
         if (!textarea) return;
         
         const text = textarea.value.trim();
         if (!text) return;
         
+        // Guard: check if button is already disabled
+        if (submitBtn && submitBtn.disabled) {
+            return;
+        }
+        
         const parentId = this.replyingTo?.commentId || null;
         
         try {
-            textarea.disabled = true;
+            // Disable button and textarea while pending
+            if (textarea) textarea.disabled = true;
+            if (submitBtn) submitBtn.disabled = true;
             
             const response = await this.api.addCoverComment(this.postId, text, parentId);
             
@@ -642,12 +750,18 @@ class CoverCommentsModal {
                 const newComment = response.data;
                 this.comments.unshift(newComment);
                 
+                // Update cache
+                this._commentsCache.set(this.postId, {
+                    items: this.comments,
+                    ts: Date.now()
+                });
+                
                 // Update comment count in parent card
                 if (this.updateCountCallback) {
                     this.updateCountCallback(this.comments.length);
                 }
                 
-                // Clear form
+                // Clear input
                 textarea.value = '';
                 this.replyingTo = null;
                 
@@ -670,7 +784,9 @@ class CoverCommentsModal {
                 window.app.showToast('Ошибка добавления комментария', 'error');
             }
         } finally {
+            // Re-enable controls
             if (textarea) textarea.disabled = false;
+            if (submitBtn) submitBtn.disabled = false;
         }
     }
     
