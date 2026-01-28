@@ -20,6 +20,13 @@ class CoverCommentsModal {
         this.telegram = app.telegram;
         this.profileModal = app.getProfileModal ? app.getProfileModal() : null;
         
+        // Constants
+        this.MOBILE_BREAKPOINT = 480;
+        this.INITIAL_SHEET_HEIGHT = 65;
+        this.MAX_SHEET_HEIGHT = 96;
+        this.SCROLL_EXPANSION_FACTOR = 0.1; // How fast sheet expands on scroll up
+        this.PULL_TO_CLOSE_THRESHOLD = 100; // Pixels to pull down for close
+        
         // Modal state
         this.isOpen = false;
         this.postId = null;
@@ -37,14 +44,27 @@ class CoverCommentsModal {
         // Collapsed state for Instagram-style replies
         this._repliesCollapsed = new Map(); // parentId → boolean
         
+        // Bottom sheet state
+        this._sheetHeight = this.INITIAL_SHEET_HEIGHT; // Start at 65dvh
+        this._lastScrollTop = 0;
+        this._likeInProgress = new Map(); // commentId → boolean (prevent double-sends)
+        this._touchStartY = 0;
+        this._touchStartScrollTop = 0;
+        this._scrollThrottleTimer = null; // For throttling scroll updates
+        
         // DOM elements
         this.modal = null;
         this.backdrop = null;
+        this.modalBody = null;
         
         // Event handlers
         this.boundHandleBackdropClick = this.handleBackdropClick.bind(this);
         this.boundHandleEscape = this.handleEscape.bind(this);
         this.boundHandleBackButton = this.handleBackButton.bind(this);
+        this.boundHandleScroll = this.handleScroll.bind(this);
+        this.boundHandleTouchStart = this.handleTouchStart.bind(this);
+        this.boundHandleTouchMove = this.handleTouchMove.bind(this);
+        this.boundHandleTouchEnd = this.handleTouchEnd.bind(this);
         this.boundDelegatedClickHandler = null; // Track delegated click handler
         
         // Track if BackButton handler is attached
@@ -76,7 +96,103 @@ class CoverCommentsModal {
         document.body.appendChild(this.backdrop);
         document.body.appendChild(this.modal);
         
+        // Set initial sheet height
+        this.setSheetHeight(this.INITIAL_SHEET_HEIGHT);
+        
         console.log('✅ CoverCommentsModal: DOM elements created');
+    }
+    
+    /**
+     * 📐 Set sheet height (for bottom sheet behavior)
+     */
+    setSheetHeight(heightDvh) {
+        // Clamp between INITIAL and MAX sheet heights
+        heightDvh = Math.max(this.INITIAL_SHEET_HEIGHT, Math.min(this.MAX_SHEET_HEIGHT, heightDvh));
+        this._sheetHeight = heightDvh;
+        
+        // Update CSS variable
+        document.documentElement.style.setProperty('--sheet-height', `${heightDvh}dvh`);
+        
+        // Update modal height directly for mobile
+        if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            this.modal.style.height = `${heightDvh}dvh`;
+        }
+    }
+    
+    /**
+     * 📜 Handle scroll for bottom sheet expansion/collapse (throttled)
+     */
+    handleScroll() {
+        if (!this.modalBody) return;
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
+        
+        // Throttle updates using requestAnimationFrame
+        if (this._scrollThrottleTimer) return;
+        
+        this._scrollThrottleTimer = requestAnimationFrame(() => {
+            const scrollTop = this.modalBody.scrollTop;
+            const scrollDelta = scrollTop - this._lastScrollTop;
+            
+            // Scroll up: expand sheet
+            if (scrollDelta < 0 && this._sheetHeight < this.MAX_SHEET_HEIGHT) {
+                const newHeight = this._sheetHeight + Math.abs(scrollDelta) * this.SCROLL_EXPANSION_FACTOR;
+                this.setSheetHeight(newHeight);
+            }
+            
+            this._lastScrollTop = scrollTop;
+            this._scrollThrottleTimer = null;
+        });
+    }
+    
+    /**
+     * 👆 Handle touch start for pull-to-close gesture
+     */
+    handleTouchStart(e) {
+        if (!this.modalBody) return;
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
+        
+        this._touchStartY = e.touches[0].clientY;
+        this._touchStartScrollTop = this.modalBody.scrollTop;
+    }
+    
+    /**
+     * 👆 Handle touch move for pull-to-close gesture
+     */
+    handleTouchMove(e) {
+        if (!this.modalBody) return;
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
+        
+        // If already scrolled down, don't interfere
+        if (this.modalBody.scrollTop > 0) return;
+        
+        const touchY = e.touches[0].clientY;
+        const deltaY = touchY - this._touchStartY;
+        
+        // If user is pulling down (deltaY > threshold) while at top (scrollTop = 0)
+        if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._touchStartScrollTop === 0) {
+            // Prevent default to stop overscroll
+            e.preventDefault();
+        }
+    }
+    
+    /**
+     * 👆 Handle touch end for pull-to-close gesture
+     */
+    handleTouchEnd(e) {
+        if (!this.modalBody) return;
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
+        
+        const touchY = e.changedTouches[0].clientY;
+        const deltaY = touchY - this._touchStartY;
+        
+        // If user pulled down more than threshold while at top, close the modal
+        if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._touchStartScrollTop === 0 && this.modalBody.scrollTop === 0) {
+            this.close();
+        }
+        
+        // Reset
+        this._touchStartY = 0;
+        this._touchStartScrollTop = 0;
     }
     
     /**
@@ -98,6 +214,7 @@ class CoverCommentsModal {
         this.hasMore = false;
         this.replyingTo = null;
         this.updateCountCallback = updateCountCallback; // Store callback
+        this._lastScrollTop = 0;
         
         // Create modal if needed
         this.createModal();
@@ -106,6 +223,9 @@ class CoverCommentsModal {
         this.isOpen = true;
         this.backdrop.style.display = 'block';
         this.modal.style.display = 'block';
+        
+        // Add body class for content shift
+        document.body.classList.add('sheet-open');
         
         // Use initial comments if provided for instant UI
         if (options.initialComments && options.initialComments.length > 0) {
@@ -152,6 +272,12 @@ class CoverCommentsModal {
         this.backdrop.classList.remove('active');
         this.modal.classList.remove('active');
         
+        // Remove body class
+        document.body.classList.remove('sheet-open');
+        
+        // Reset sheet height to initial
+        this.setSheetHeight(this.INITIAL_SHEET_HEIGHT);
+        
         // Hide after animation
         setTimeout(() => {
             if (this.backdrop) this.backdrop.style.display = 'none';
@@ -169,6 +295,7 @@ class CoverCommentsModal {
         this.postId = null;
         this.comments = [];
         this.replyingTo = null;
+        this._likeInProgress.clear();
     }
     
     /**
@@ -274,9 +401,8 @@ class CoverCommentsModal {
         
         this.modal.innerHTML = `
             <div class="cover-comments-modal__content">
-                <div class="cover-comments-modal__header">
+                <div class="cover-comments-modal__header" aria-label="Потяните вниз чтобы закрыть">
                     <h2 id="coverCommentsTitle" class="cover-comments-modal__title">Комментарии</h2>
-                    <button class="cover-comments-modal__close" aria-label="Закрыть">✕</button>
                 </div>
                 <div class="cover-comments-modal__body">
                     ${this.loading && this.comments.length === 0 ? this.renderLoading() : commentsHtml}
@@ -287,9 +413,32 @@ class CoverCommentsModal {
             </div>
         `;
         
-        // Reattach event listeners after render
+        // Store reference to modal body for scroll handling
+        this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
+        
+        // Reattach event listeners after render (modalBody changed)
         if (this.isOpen) {
             this.attachInternalListeners();
+            this.reattachModalBodyListeners(); // Reattach scroll/touch listeners to new modalBody
+        }
+    }
+    
+    /**
+     * 🎯 Reattach modal body event listeners after render
+     */
+    reattachModalBodyListeners() {
+        if (this.modalBody) {
+            // Remove old listeners if they exist (defensive)
+            this.modalBody.removeEventListener('scroll', this.boundHandleScroll);
+            this.modalBody.removeEventListener('touchstart', this.boundHandleTouchStart);
+            this.modalBody.removeEventListener('touchmove', this.boundHandleTouchMove);
+            this.modalBody.removeEventListener('touchend', this.boundHandleTouchEnd);
+            
+            // Attach new listeners
+            this.modalBody.addEventListener('scroll', this.boundHandleScroll);
+            this.modalBody.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
+            this.modalBody.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
+            this.modalBody.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
         }
     }
     
@@ -449,12 +598,23 @@ class CoverCommentsModal {
                     <div class="comment__header">
                         <span class="comment__name" data-user-id="${userId}">${displayName}</span>
                         <span class="comment__time">${timeStr}</span>
+                    </div>
+                    <div class="comment__text">${this.escapeHtml(comment.text)}</div>
+                    <div class="comment__actions">
+                        ${!isReply ? `
+                            <button class="comment__action-btn comment__reply-btn" 
+                                    data-action="reply" 
+                                    data-comment-id="${commentId}"
+                                    data-user-name="${this.escapeHtml(user.name || 'Пользователь')}">
+                                Ответить
+                            </button>
+                        ` : ''}
                         ${isOwnComment ? `
                             <button class="comment__delete-btn comment__action-btn" 
                                     data-action="delete-comment" 
                                     data-comment-id="${commentId}" 
                                     title="Удалить">
-                                ✕
+                                Удалить
                             </button>
                         ` : ''}
                         <button class="comment__action-btn comment__like-btn${liked ? ' liked' : ''}" 
@@ -464,15 +624,6 @@ class CoverCommentsModal {
                             ${liked ? '❤️' : '♡'} <span class="comment__like-count">${likesCount}</span>
                         </button>
                     </div>
-                    <div class="comment__text">${this.escapeHtml(comment.text)}</div>
-                    ${!isReply ? `
-                        <button class="comment__action-btn comment__reply-btn" 
-                                data-action="reply" 
-                                data-comment-id="${commentId}"
-                                data-user-name="${this.escapeHtml(user.name || 'Пользователь')}">
-                            Ответить
-                        </button>
-                    ` : ''}
                 </div>
             </div>
         `;
@@ -497,7 +648,7 @@ class CoverCommentsModal {
                     <textarea class="reply-form__input" 
                               placeholder="${placeholder}"
                               maxlength="500"
-                              rows="2"></textarea>
+                              rows="1"></textarea>
                     <button class="reply-form__submit" data-action="submit-reply">
                         Отправить
                     </button>
@@ -555,18 +706,22 @@ class CoverCommentsModal {
     attachEventListeners() {
         this.backdrop.addEventListener('click', this.boundHandleBackdropClick);
         document.addEventListener('keydown', this.boundHandleEscape);
+        
+        // Attach scroll listener for bottom sheet behavior
+        if (this.modalBody) {
+            this.modalBody.addEventListener('scroll', this.boundHandleScroll);
+            
+            // Touch listeners for pull-to-close gesture
+            this.modalBody.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
+            this.modalBody.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
+            this.modalBody.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
+        }
     }
     
     /**
      * 🎯 Attach internal listeners (for modal content)
      */
     attachInternalListeners() {
-        // Close button
-        const closeBtn = this.modal.querySelector('.cover-comments-modal__close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.close());
-        }
-        
         // Load more button
         const loadMoreBtn = this.modal.querySelector('.cover-comments-modal__load-more');
         if (loadMoreBtn) {
@@ -668,6 +823,13 @@ class CoverCommentsModal {
         this.backdrop.removeEventListener('click', this.boundHandleBackdropClick);
         document.removeEventListener('keydown', this.boundHandleEscape);
         
+        if (this.modalBody) {
+            this.modalBody.removeEventListener('scroll', this.boundHandleScroll);
+            this.modalBody.removeEventListener('touchstart', this.boundHandleTouchStart);
+            this.modalBody.removeEventListener('touchmove', this.boundHandleTouchMove);
+            this.modalBody.removeEventListener('touchend', this.boundHandleTouchEnd);
+        }
+        
         // Remove delegated click handler
         if (this.boundDelegatedClickHandler && this.modal) {
             this.modal.removeEventListener('click', this.boundDelegatedClickHandler);
@@ -682,8 +844,18 @@ class CoverCommentsModal {
         if (!button) return;
         
         const commentId = button.dataset.commentId;
+        
+        // Prevent double-sends
+        if (this._likeInProgress.get(commentId)) {
+            console.log('⚠️ Like already in progress for comment', commentId);
+            return;
+        }
+        
         const wasLiked = button.dataset.liked === 'true';
         const likeCountSpan = button.querySelector('.comment__like-count');
+        
+        // Mark as in-progress
+        this._likeInProgress.set(commentId, true);
         
         // Optimistic UI update
         button.dataset.liked = wasLiked ? 'false' : 'true';
@@ -727,6 +899,9 @@ class CoverCommentsModal {
             if (likeCountSpan) {
                 likeCountSpan.textContent = currentCount;
             }
+        } finally {
+            // Mark as complete
+            this._likeInProgress.delete(commentId);
         }
     }
     
