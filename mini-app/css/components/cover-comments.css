@@ -449,7 +449,8 @@
         transform: translateY(0);
     }
     
-    /* 🔧 Shift page content up when sheet is open */
+    /* 🔧 Shift page content up when sheet is open 
+     * Note: Requires #page-content element in DOM */
     body.sheet-open #page-content {
         padding-bottom: var(--sheet-height, 65dvh);
         transition: padding-bottom 0.2s ease;
@@ -487,6 +488,20 @@
     .cover-comments-modal__title {
         text-align: center;
         flex: 1;
+    }
+    
+    /* 🔧 Add aria-label hint for screen readers */
+    .cover-comments-modal__header::after {
+        content: attr(aria-label);
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
     }
     
     .comment-replies {

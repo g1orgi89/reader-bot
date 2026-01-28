@@ -20,6 +20,13 @@ class CoverCommentsModal {
         this.telegram = app.telegram;
         this.profileModal = app.getProfileModal ? app.getProfileModal() : null;
         
+        // Constants
+        this.MOBILE_BREAKPOINT = 480;
+        this.INITIAL_SHEET_HEIGHT = 65;
+        this.MAX_SHEET_HEIGHT = 96;
+        this.SCROLL_EXPANSION_FACTOR = 0.1; // How fast sheet expands on scroll up
+        this.PULL_TO_CLOSE_THRESHOLD = 100; // Pixels to pull down for close
+        
         // Modal state
         this.isOpen = false;
         this.postId = null;
@@ -38,11 +45,12 @@ class CoverCommentsModal {
         this._repliesCollapsed = new Map(); // parentId → boolean
         
         // Bottom sheet state
-        this._sheetHeight = 65; // Start at 65dvh
+        this._sheetHeight = this.INITIAL_SHEET_HEIGHT; // Start at 65dvh
         this._lastScrollTop = 0;
         this._likeInProgress = new Map(); // commentId → boolean (prevent double-sends)
         this._touchStartY = 0;
         this._touchStartScrollTop = 0;
+        this._scrollThrottleTimer = null; // For throttling scroll updates
         
         // DOM elements
         this.modal = null;
@@ -89,7 +97,7 @@ class CoverCommentsModal {
         document.body.appendChild(this.modal);
         
         // Set initial sheet height
-        this.setSheetHeight(65);
+        this.setSheetHeight(this.INITIAL_SHEET_HEIGHT);
         
         console.log('✅ CoverCommentsModal: DOM elements created');
     }
@@ -98,36 +106,42 @@ class CoverCommentsModal {
      * 📐 Set sheet height (for bottom sheet behavior)
      */
     setSheetHeight(heightDvh) {
-        // Clamp between 65dvh and 96dvh
-        heightDvh = Math.max(65, Math.min(96, heightDvh));
+        // Clamp between INITIAL and MAX sheet heights
+        heightDvh = Math.max(this.INITIAL_SHEET_HEIGHT, Math.min(this.MAX_SHEET_HEIGHT, heightDvh));
         this._sheetHeight = heightDvh;
         
         // Update CSS variable
         document.documentElement.style.setProperty('--sheet-height', `${heightDvh}dvh`);
         
         // Update modal height directly for mobile
-        if (this.modal && window.innerWidth <= 480) {
+        if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
             this.modal.style.height = `${heightDvh}dvh`;
         }
     }
     
     /**
-     * 📜 Handle scroll for bottom sheet expansion/collapse
+     * 📜 Handle scroll for bottom sheet expansion/collapse (throttled)
      */
     handleScroll() {
         if (!this.modalBody) return;
-        if (window.innerWidth > 480) return; // Only on mobile
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
         
-        const scrollTop = this.modalBody.scrollTop;
-        const scrollDelta = scrollTop - this._lastScrollTop;
+        // Throttle updates using requestAnimationFrame
+        if (this._scrollThrottleTimer) return;
         
-        // Scroll up: expand sheet
-        if (scrollDelta < 0 && this._sheetHeight < 96) {
-            const newHeight = this._sheetHeight + Math.abs(scrollDelta) * 0.1;
-            this.setSheetHeight(newHeight);
-        }
-        
-        this._lastScrollTop = scrollTop;
+        this._scrollThrottleTimer = requestAnimationFrame(() => {
+            const scrollTop = this.modalBody.scrollTop;
+            const scrollDelta = scrollTop - this._lastScrollTop;
+            
+            // Scroll up: expand sheet
+            if (scrollDelta < 0 && this._sheetHeight < this.MAX_SHEET_HEIGHT) {
+                const newHeight = this._sheetHeight + Math.abs(scrollDelta) * this.SCROLL_EXPANSION_FACTOR;
+                this.setSheetHeight(newHeight);
+            }
+            
+            this._lastScrollTop = scrollTop;
+            this._scrollThrottleTimer = null;
+        });
     }
     
     /**
@@ -135,7 +149,7 @@ class CoverCommentsModal {
      */
     handleTouchStart(e) {
         if (!this.modalBody) return;
-        if (window.innerWidth > 480) return; // Only on mobile
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
         
         this._touchStartY = e.touches[0].clientY;
         this._touchStartScrollTop = this.modalBody.scrollTop;
@@ -146,7 +160,7 @@ class CoverCommentsModal {
      */
     handleTouchMove(e) {
         if (!this.modalBody) return;
-        if (window.innerWidth > 480) return; // Only on mobile
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
         
         // If already scrolled down, don't interfere
         if (this.modalBody.scrollTop > 0) return;
@@ -154,8 +168,8 @@ class CoverCommentsModal {
         const touchY = e.touches[0].clientY;
         const deltaY = touchY - this._touchStartY;
         
-        // If user is pulling down (deltaY > 0) while at top (scrollTop = 0)
-        if (deltaY > 50 && this._touchStartScrollTop === 0) {
+        // If user is pulling down (deltaY > threshold) while at top (scrollTop = 0)
+        if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._touchStartScrollTop === 0) {
             // Prevent default to stop overscroll
             e.preventDefault();
         }
@@ -166,13 +180,13 @@ class CoverCommentsModal {
      */
     handleTouchEnd(e) {
         if (!this.modalBody) return;
-        if (window.innerWidth > 480) return; // Only on mobile
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
         
         const touchY = e.changedTouches[0].clientY;
         const deltaY = touchY - this._touchStartY;
         
-        // If user pulled down more than 100px while at top, close the modal
-        if (deltaY > 100 && this._touchStartScrollTop === 0 && this.modalBody.scrollTop === 0) {
+        // If user pulled down more than threshold while at top, close the modal
+        if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._touchStartScrollTop === 0 && this.modalBody.scrollTop === 0) {
             this.close();
         }
         
@@ -260,6 +274,9 @@ class CoverCommentsModal {
         
         // Remove body class
         document.body.classList.remove('sheet-open');
+        
+        // Reset sheet height to initial
+        this.setSheetHeight(this.INITIAL_SHEET_HEIGHT);
         
         // Hide after animation
         setTimeout(() => {
@@ -384,7 +401,7 @@ class CoverCommentsModal {
         
         this.modal.innerHTML = `
             <div class="cover-comments-modal__content">
-                <div class="cover-comments-modal__header">
+                <div class="cover-comments-modal__header" aria-label="Потяните вниз чтобы закрыть">
                     <h2 id="coverCommentsTitle" class="cover-comments-modal__title">Комментарии</h2>
                 </div>
                 <div class="cover-comments-modal__body">
@@ -399,9 +416,29 @@ class CoverCommentsModal {
         // Store reference to modal body for scroll handling
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
         
-        // Reattach event listeners after render
+        // Reattach event listeners after render (modalBody changed)
         if (this.isOpen) {
             this.attachInternalListeners();
+            this.reattachModalBodyListeners(); // Reattach scroll/touch listeners to new modalBody
+        }
+    }
+    
+    /**
+     * 🎯 Reattach modal body event listeners after render
+     */
+    reattachModalBodyListeners() {
+        if (this.modalBody) {
+            // Remove old listeners if they exist (defensive)
+            this.modalBody.removeEventListener('scroll', this.boundHandleScroll);
+            this.modalBody.removeEventListener('touchstart', this.boundHandleTouchStart);
+            this.modalBody.removeEventListener('touchmove', this.boundHandleTouchMove);
+            this.modalBody.removeEventListener('touchend', this.boundHandleTouchEnd);
+            
+            // Attach new listeners
+            this.modalBody.addEventListener('scroll', this.boundHandleScroll);
+            this.modalBody.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
+            this.modalBody.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
+            this.modalBody.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
         }
     }
     
@@ -777,14 +814,6 @@ class CoverCommentsModal {
         
         // Attach delegated click handler
         this.modal.addEventListener('click', this.boundDelegatedClickHandler);
-        
-        // Reattach scroll and touch listeners after render
-        if (this.modalBody) {
-            this.modalBody.addEventListener('scroll', this.boundHandleScroll);
-            this.modalBody.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
-            this.modalBody.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
-            this.modalBody.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
-        }
     }
     
     /**
