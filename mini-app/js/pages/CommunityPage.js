@@ -4674,9 +4674,11 @@ renderAchievementsSection() {
      * 📸 Attach cover upload form event listeners
      */
     attachCoverUploadFormListeners() {
-        // 🔧 FIX: Always attach listeners if form exists, don't check feedFilter
+        // 🔧 FIX: Reset listener flag and attach if form exists
         // The form is only rendered when feedFilter === 'covers', so this is safe
         if (this.coverUploadForm) {
+            // Reset flag to allow reattachment after rerender
+            this.coverUploadForm._listenersAttached = false;
             this.coverUploadForm.attachEventListeners();
         }
     }

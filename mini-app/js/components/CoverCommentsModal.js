@@ -123,6 +123,9 @@ class CoverCommentsModal {
         // Hide Telegram back button and attach our handler
         this.handleTelegramBackButton(true);
         
+        // Setup keyboard animation
+        this.setupKeyboardAnimation();
+        
         // Fetch fresh data with cache-busting
         await this.loadComments();
         
@@ -154,6 +157,12 @@ class CoverCommentsModal {
         
         // Detach event listeners
         this.detachEventListeners();
+        
+        // Detach drag gesture
+        this.detachDragGesture();
+        
+        // Cleanup keyboard animation
+        this.cleanupKeyboardAnimation();
         
         // Restore Telegram back button
         this.handleTelegramBackButton(false);
@@ -242,6 +251,7 @@ class CoverCommentsModal {
         this.modal.innerHTML = `
             <div class="cover-comments-modal__content">
                 <div class="cover-comments-modal__header">
+                    <div class="cover-comments-modal__handle"></div>
                     <h2 id="coverCommentsTitle" class="cover-comments-modal__title">Комментарии</h2>
                     <button class="cover-comments-modal__close" aria-label="Закрыть">✕</button>
                 </div>
@@ -257,6 +267,7 @@ class CoverCommentsModal {
         // Reattach event listeners after render
         if (this.isOpen) {
             this.attachInternalListeners();
+            this.attachDragGesture();
         }
     }
     
@@ -913,6 +924,12 @@ class CoverCommentsModal {
     destroy() {
         this.close();
         
+        // Cleanup drag gesture
+        this.detachDragGesture();
+        
+        // Cleanup keyboard animation
+        this.cleanupKeyboardAnimation();
+        
         if (this.modal) {
             this.modal.remove();
             this.modal = null;
@@ -925,6 +942,163 @@ class CoverCommentsModal {
         
         console.log('🧹 CoverCommentsModal: Destroyed');
     }
+    
+    /**
+     * 📱 Attach drag gesture for bottom sheet (mobile)
+     */
+    attachDragGesture() {
+        if (!this.modal) return;
+        
+        // Only enable drag on mobile
+        if (window.innerWidth > 820) return;
+        
+        const handle = this.modal.querySelector('.cover-comments-modal__handle');
+        const header = this.modal.querySelector('.cover-comments-modal__header');
+        const body = this.modal.querySelector('.cover-comments-modal__body');
+        
+        if (!handle || !header || !body) return;
+        
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+        let isExpanded = false;
+        
+        const handleTouchStart = (e) => {
+            // Only drag from handle or when body is scrolled to top
+            const isHandle = e.target.closest('.cover-comments-modal__handle');
+            const isHeader = e.target.closest('.cover-comments-modal__header');
+            const bodyAtTop = body.scrollTop === 0;
+            
+            if (!isHandle && !isHeader && !bodyAtTop) return;
+            
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            this.modal.style.transition = 'none';
+        };
+        
+        const handleTouchMove = (e) => {
+            if (!isDragging) return;
+            
+            currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+            
+            // Only allow downward drag or upward drag if not expanded
+            if (deltaY > 0 || (!isExpanded && deltaY < 0)) {
+                e.preventDefault();
+                
+                if (deltaY > 0) {
+                    // Drag down to close
+                    this.modal.style.transform = `translateY(${deltaY}px)`;
+                } else if (!isExpanded) {
+                    // Drag up to expand
+                    const maxHeight = window.innerHeight - 20;
+                    const currentHeight = this.modal.offsetHeight;
+                    const expansion = Math.min(Math.abs(deltaY), maxHeight - currentHeight);
+                    this.modal.style.height = `${currentHeight + expansion}px`;
+                }
+            }
+        };
+        
+        const handleTouchEnd = (e) => {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            const deltaY = currentY - startY;
+            
+            this.modal.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            
+            // Close if dragged down more than 100px
+            if (deltaY > 100) {
+                this.close();
+            } 
+            // Expand if dragged up more than 50px
+            else if (deltaY < -50 && !isExpanded) {
+                isExpanded = true;
+                this.modal.classList.add('expanded');
+                this.modal.style.transform = 'translateY(0)';
+                this.modal.style.height = '';
+            } 
+            // Reset position
+            else {
+                this.modal.style.transform = 'translateY(0)';
+                this.modal.style.height = '';
+            }
+        };
+        
+        // Attach touch events to header for dragging
+        header.addEventListener('touchstart', handleTouchStart, { passive: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd);
+        
+        // Store handlers for cleanup
+        this._dragHandlers = {
+            touchstart: handleTouchStart,
+            touchmove: handleTouchMove,
+            touchend: handleTouchEnd,
+            header,
+            document
+        };
+    }
+    
+    /**
+     * 🧹 Detach drag gesture
+     */
+    detachDragGesture() {
+        if (!this._dragHandlers) return;
+        
+        const { header, touchstart, touchmove, touchend } = this._dragHandlers;
+        
+        if (header) {
+            header.removeEventListener('touchstart', touchstart);
+        }
+        document.removeEventListener('touchmove', touchmove);
+        document.removeEventListener('touchend', touchend);
+        
+        this._dragHandlers = null;
+    }
+    
+    /**
+     * ⌨️ Handle keyboard showing/hiding with smooth animation
+     */
+    setupKeyboardAnimation() {
+        if (!window.visualViewport) return;
+        
+        const handleResize = () => {
+            if (!this.isOpen || !this.modal) return;
+            
+            const viewportHeight = window.visualViewport.height;
+            const windowHeight = window.innerHeight;
+            const keyboardHeight = windowHeight - viewportHeight;
+            
+            // Keyboard is showing
+            if (keyboardHeight > 100) {
+                const replyForm = this.modal.querySelector('.cover-comments-modal__reply-form');
+                if (replyForm) {
+                    replyForm.style.transform = `translateY(-${keyboardHeight}px)`;
+                }
+            } else {
+                // Keyboard is hidden
+                const replyForm = this.modal.querySelector('.cover-comments-modal__reply-form');
+                if (replyForm) {
+                    replyForm.style.transform = 'translateY(0)';
+                }
+            }
+        };
+        
+        window.visualViewport.addEventListener('resize', handleResize);
+        this._viewportResizeHandler = handleResize;
+    }
+    
+    /**
+     * 🧹 Cleanup keyboard animation
+     */
+    cleanupKeyboardAnimation() {
+        if (this._viewportResizeHandler && window.visualViewport) {
+            window.visualViewport.removeEventListener('resize', this._viewportResizeHandler);
+            this._viewportResizeHandler = null;
+        }
+    }
+}
 }
 
 // Export for use in other modules
