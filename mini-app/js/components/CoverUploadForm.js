@@ -34,6 +34,9 @@ class CoverUploadForm {
         this.MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (increased for HEIC/HEIF support)
         this.MAX_CAPTION_LENGTH = 300;
         this.ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        
+        // Guard flag to prevent duplicate listener attachment
+        this._listenersAttached = false;
     }
     
     /**
@@ -95,6 +98,12 @@ class CoverUploadForm {
      * Attach event listeners after rendering
      */
     attachEventListeners() {
+        // Guard: Prevent duplicate listener attachment
+        if (this._listenersAttached) {
+            console.log('📸 CoverUploadForm: Listeners already attached, skipping');
+            return;
+        }
+        
         const uploadBtn = document.getElementById('coverUploadBtn');
         const fileInput = document.getElementById('coverFileInput');
         const submitBtn = document.getElementById('coverSubmitBtn');
@@ -106,30 +115,30 @@ class CoverUploadForm {
             return;
         }
         
+        // Store bound handlers for later removal if needed
+        this._handleUploadClick = () => fileInput.click();
+        this._handleFileSelect = (e) => this.handleFileSelect(e);
+        this._handleRemove = () => this.clearPreview();
+        this._handleCaptionInput = (e) => this.updateCharCount(e.target.value.length);
+        this._handleSubmit = () => this.handleSubmit();
+        
         // Open file picker when button clicked
-        uploadBtn.addEventListener('click', () => {
-            fileInput.click();
-        });
+        uploadBtn.addEventListener('click', this._handleUploadClick);
         
         // Handle file selection
-        fileInput.addEventListener('change', (e) => {
-            this.handleFileSelect(e);
-        });
+        fileInput.addEventListener('change', this._handleFileSelect);
         
         // Handle remove button
-        removeBtn.addEventListener('click', () => {
-            this.clearPreview();
-        });
+        removeBtn.addEventListener('click', this._handleRemove);
         
         // Handle caption input
-        captionInput.addEventListener('input', (e) => {
-            this.updateCharCount(e.target.value.length);
-        });
+        captionInput.addEventListener('input', this._handleCaptionInput);
         
         // Handle submit
-        submitBtn.addEventListener('click', () => {
-            this.handleSubmit();
-        });
+        submitBtn.addEventListener('click', this._handleSubmit);
+        
+        this._listenersAttached = true;
+        console.log('✅ CoverUploadForm: Event listeners attached');
     }
     
     /**
@@ -195,7 +204,7 @@ class CoverUploadForm {
         
         this.selectedFile = null;
         
-        if (fileInput) fileInput.value = '';
+        if (fileInput) fileInput.value = ''; // Reset file input
         if (captionInput) captionInput.value = '';
         if (previewContainer) previewContainer.style.display = 'none';
         if (uploadBtn) uploadBtn.style.display = 'flex';
@@ -337,6 +346,33 @@ class CoverUploadForm {
      * Destroy component and clean up
      */
     destroy() {
+        // Detach event listeners if attached
+        if (this._listenersAttached) {
+            const uploadBtn = document.getElementById('coverUploadBtn');
+            const fileInput = document.getElementById('coverFileInput');
+            const removeBtn = document.getElementById('coverRemoveBtn');
+            const captionInput = document.getElementById('coverCaptionInput');
+            const submitBtn = document.getElementById('coverSubmitBtn');
+            
+            if (uploadBtn && this._handleUploadClick) {
+                uploadBtn.removeEventListener('click', this._handleUploadClick);
+            }
+            if (fileInput && this._handleFileSelect) {
+                fileInput.removeEventListener('change', this._handleFileSelect);
+            }
+            if (removeBtn && this._handleRemove) {
+                removeBtn.removeEventListener('click', this._handleRemove);
+            }
+            if (captionInput && this._handleCaptionInput) {
+                captionInput.removeEventListener('input', this._handleCaptionInput);
+            }
+            if (submitBtn && this._handleSubmit) {
+                submitBtn.removeEventListener('click', this._handleSubmit);
+            }
+            
+            this._listenersAttached = false;
+        }
+        
         this.selectedFile = null;
         this.uploading = false;
     }
