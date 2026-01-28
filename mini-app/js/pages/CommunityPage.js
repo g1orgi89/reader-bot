@@ -705,7 +705,7 @@ class CommunityPage {
      * 📸 ЗАГРУЗКА ЛЕНТЫ ОБЛОЖЕК (COVERS)
      * @param {boolean} loadMore - Load more posts (use cursor)
      */
-    async loadCovers(loadMore = false) {
+    async loadCovers(loadMore = false, options = {}) {
         // 🔒 Prevent concurrent loads
         if (this.loadingStates.covers) {
             console.log('📸 CommunityPage: Covers already loading, skipping...');
@@ -720,9 +720,15 @@ class CommunityPage {
             const cursor = loadMore ? this.coversCursor : null;
             const limit = 20;
             
-            console.log(`📸 CommunityPage: Загружаем обложки (feed=${feed}, cursor=${cursor}, loadMore=${loadMore})...`);
+            // Support cache-busting via options.ts
+            const params = { feed, cursor, limit };
+            if (options.ts) {
+                params.ts = options.ts;
+            }
             
-            const response = await this.api.getCovers({ feed, cursor, limit });
+            console.log(`📸 CommunityPage: Загружаем обложки (feed=${feed}, cursor=${cursor}, loadMore=${loadMore}, ts=${options.ts || 'none'})...`);
+            
+            const response = await this.api.getCovers(params);
             
             if (response && response.success) {
                 const newPosts = response.data || [];
@@ -4737,22 +4743,8 @@ renderAchievementsSection() {
             this.coversCursor = null; // Reset cursor to load from beginning
             
             try {
-                // Add cache-busting timestamp to API request
-                const timestamp = Date.now();
-                const response = await this.api.getCovers({ 
-                    feed: 'all', 
-                    cursor: null, 
-                    limit: 20,
-                    ts: timestamp 
-                });
-                
-                if (response && response.success) {
-                    this.coversPosts = response.data || [];
-                    this.coversHasMore = response.hasMore || false;
-                    this.coversCursor = response.nextCursor || null;
-                } else {
-                    this.coversPosts = [];
-                }
+                // Use loadCovers with cache-busting timestamp
+                await this.loadCovers(false, { ts: Date.now() });
             } catch (error) {
                 console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
                 // Ensure we show empty state instead of infinite loader
@@ -5304,9 +5296,9 @@ renderAchievementsSection() {
                 await this.loadFollowingFeed();
                 this._scheduleRerender();
             } else if (this.feedFilter === 'covers') {
-                // Refresh covers - reset cursor and reload
+                // Refresh covers - reset cursor and reload with cache-busting
                 this.coversCursor = null;
-                await this.loadCovers(false);
+                await this.loadCovers(false, { ts: Date.now() });
                 this._scheduleRerender();
             }
         } else if (this.activeTab === 'top') {

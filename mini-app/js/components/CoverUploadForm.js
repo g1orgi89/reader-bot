@@ -115,6 +115,23 @@ class CoverUploadForm {
             return;
         }
         
+        // Remove old listeners if they exist
+        if (this._handleUploadClick) {
+            uploadBtn.removeEventListener('click', this._handleUploadClick);
+        }
+        if (this._handleFileSelect) {
+            fileInput.removeEventListener('change', this._handleFileSelect);
+        }
+        if (this._handleRemove) {
+            removeBtn.removeEventListener('click', this._handleRemove);
+        }
+        if (this._handleCaptionInput) {
+            captionInput.removeEventListener('input', this._handleCaptionInput);
+        }
+        if (this._handleSubmit) {
+            submitBtn.removeEventListener('click', this._handleSubmit);
+        }
+        
         // Store bound handlers for later removal if needed
         this._handleUploadClick = () => fileInput.click();
         this._handleFileSelect = (e) => this.handleFileSelect(e);
