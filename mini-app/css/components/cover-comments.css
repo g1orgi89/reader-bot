@@ -300,6 +300,26 @@
     grid-row: 1;
     align-self: start;
     justify-self: end;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 18px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.comment__delete-btn:hover {
+    color: var(--error-color, #f44336);
+}
+
+.comment__delete-btn:active {
+    transform: scale(0.95);
 }
 
 .comment__header {

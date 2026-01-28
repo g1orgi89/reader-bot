@@ -427,7 +427,6 @@ class CoverCommentsModal {
                     <div class="comment__header">
                         <span class="comment__name" data-user-id="${userId}">${displayName}</span>
                         <span class="comment__time">${timeStr}</span>
-                        ${isOwnComment ? `<button class="comment__delete-btn" data-action="delete-comment" data-comment-id="${commentId}" title="Удалить" style="margin-left: auto; background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px 8px; font-size: 14px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">🗑️</button>` : ''}
                     </div>
                     <div class="comment__text">${this.escapeHtml(comment.text)}</div>
                     <div class="comment__actions">
@@ -445,6 +444,7 @@ class CoverCommentsModal {
                         </button>` : ''}
                     </div>
                 </div>
+                ${isOwnComment ? `<button class="comment__delete-btn" data-action="delete-comment" data-comment-id="${commentId}" title="Удалить" aria-label="Удалить комментарий">🗑️</button>` : ''}
             </div>
         `;
     }
