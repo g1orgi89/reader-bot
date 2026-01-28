@@ -83,6 +83,8 @@ class CommunityPage {
         this._sheetReplyingTo = null; // {commentId, userName}
         this._sheetSendBound = false; // Guard flag for send handler
         this.lastMutationTs = 0; // Track last mutation for cache busting
+        this._sheetAbortController = null; // AbortController for canceling comment requests
+        this._sheetOpenDebounce = null; // Debounce timer for sheet opening
 
         // 🌟 SPOTLIGHT CACHE (TTL система для предотвращения мигания)
         this._spotlightCache = {
@@ -4731,14 +4733,24 @@ renderAchievementsSection() {
                 this.coversPosts = [];
             }
             
+            // Insert at beginning
             this.coversPosts = [newPost, ...this.coversPosts];
-            this.coversCursor = null;
-            this.hasMoreCovers = false;
             
+            // Immediately re-render to show the new post
             this.rerender();
             this.attachCoverUploadFormListeners();
+            
+            // Then fetch fresh data with cache-busting to ensure consistency
+            try {
+                await this.loadCovers(false, { ts: Date.now() });
+                // Full replacement after server confirms
+                this.rerender();
+                this.attachCoverUploadFormListeners();
+            } catch (error) {
+                console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
+            }
         } else {
-            // Fetch fresh with cache-busting
+            // Fallback: Fetch fresh with cache-busting
             this.coversPosts = null;
             this.coversCursor = null;
             
@@ -4882,10 +4894,17 @@ renderAchievementsSection() {
         
         this._deletingCover = true;
         
-        // Optimistic UI: dim card
+        // Find card in DOM
         const card = document.querySelector(`[data-post-id="${postId}"]`);
+        
+        // Optimistic UI: remove immediately from array
+        if (Array.isArray(this.coversPosts)) {
+            this.coversPosts = this.coversPosts.filter(p => (p._id || p.id) !== postId);
+        }
+        
+        // Remove from DOM immediately
         if (card) {
-            card.classList.add('deleting');
+            card.remove();
         }
         
         try {
@@ -4897,15 +4916,10 @@ renderAchievementsSection() {
                 // Update mutation timestamp
                 this.lastMutationTs = Date.now();
                 
-                // Remove from array
-                if (Array.isArray(this.coversPosts)) {
-                    this.coversPosts = this.coversPosts.filter(p => (p._id || p.id) !== postId);
-                }
-                
-                // Remove from DOM
-                if (card) {
-                    card.remove();
-                }
+                // Cache-bust and reload to ensure deleted doesn't come back
+                await this.loadCovers(false, { ts: Date.now() });
+                this.rerender();
+                this.attachCoverUploadFormListeners();
                 
                 if (window.app && window.app.showToast) {
                     window.app.showToast('Фото удалено', 'success');
@@ -4920,10 +4934,10 @@ renderAchievementsSection() {
         } catch (error) {
             console.error('❌ CommunityPage: Failed to delete cover:', error);
             
-            // Restore state on error
-            if (card) {
-                card.classList.remove('deleting');
-            }
+            // On error, reload fresh data to restore correct state
+            await this.loadCovers(false, { ts: Date.now() });
+            this.rerender();
+            this.attachCoverUploadFormListeners();
             
             if (window.app && window.app.showToast) {
                 window.app.showToast('Ошибка удаления фото', 'error');
@@ -4948,9 +4962,24 @@ renderAchievementsSection() {
      * @param {string} postId - Post ID
      */
     async openCommentsSheet(postId) {
+        // Debounce: prevent opening multiple sheets in rapid succession
+        if (this._sheetOpenDebounce) {
+            clearTimeout(this._sheetOpenDebounce);
+        }
+        
+        // If sheet is already open, close it first
         if (this._sheetOpen) {
-            console.warn('⚠️ Sheet already open');
-            return;
+            this.closeCommentsSheet();
+            // Wait a bit before reopening
+            await new Promise(resolve => {
+                this._sheetOpenDebounce = setTimeout(resolve, 350);
+            });
+        }
+        
+        // Cancel any pending comment request
+        if (this._sheetAbortController) {
+            this._sheetAbortController.abort();
+            this._sheetAbortController = null;
         }
         
         this._sheetOpen = true;
@@ -4971,9 +5000,10 @@ renderAchievementsSection() {
         sheet.className = 'comments-bottom-sheet';
         sheet.id = 'comments-sheet';
         
-        // Prevent body scroll
+        // Prevent body scroll with overscroll-behavior
         document.documentElement.style.overflow = 'hidden';
         document.body.style.overflow = 'hidden';
+        sheet.style.overscrollBehavior = 'contain';
         
         // Add to DOM
         document.body.appendChild(backdrop);
@@ -5002,13 +5032,23 @@ renderAchievementsSection() {
             sheet.classList.add('active');
         });
         
+        // Create AbortController for this request
+        this._sheetAbortController = new AbortController();
+        const signal = this._sheetAbortController.signal;
+        
         // Fetch comments with cache busting if needed
         const now = Date.now();
         const shouldBust = (now - this.lastMutationTs) < 15000;
         const params = shouldBust ? { ts: now } : {};
         
         try {
-            const response = await this.api.getCoverComments(postId, params);
+            const response = await this.api.getCoverComments(postId, params, { signal });
+            
+            // Check if request was aborted
+            if (signal.aborted) {
+                console.log('📱 Comment request aborted');
+                return;
+            }
             
             if (response && response.success) {
                 this._sheetComments = response.data || [];
@@ -5027,10 +5067,21 @@ renderAchievementsSection() {
                 }
             }
         } catch (error) {
+            // Ignore abort errors
+            if (error.name === 'AbortError') {
+                console.log('📱 Comment request aborted');
+                return;
+            }
+            
             console.error('❌ Failed to load comments:', error);
             const sheetBody = sheet.querySelector('.comments-sheet__body');
             if (sheetBody) {
                 sheetBody.innerHTML = '<div class="comments-sheet__empty"><div class="comments-sheet__empty-text">Ошибка загрузки комментариев</div></div>';
+            }
+        } finally {
+            // Clean up AbortController
+            if (this._sheetAbortController && !this._sheetAbortController.signal.aborted) {
+                this._sheetAbortController = null;
             }
         }
         
@@ -5079,11 +5130,17 @@ renderAchievementsSection() {
             sheetHeader.addEventListener('touchend', handleTouchEnd, { passive: true });
         }
         
-        // Keyboard handling with visualViewport
+        // Keyboard handling with visualViewport - use `bottom` instead of `translateY`
         if (window.visualViewport) {
             const handleViewportResize = () => {
-                const offset = window.innerHeight - window.visualViewport.height;
-                sheet.style.transform = offset > 0 ? `translateY(-${offset}px)` : '';
+                const keyboardHeight = window.innerHeight - window.visualViewport.height;
+                if (keyboardHeight > 0) {
+                    // Keyboard is open: move sheet up by setting bottom position
+                    sheet.style.bottom = `${keyboardHeight}px`;
+                } else {
+                    // Keyboard is closed: reset to default
+                    sheet.style.bottom = '0';
+                }
             };
             
             window.visualViewport.addEventListener('resize', handleViewportResize);
@@ -5095,6 +5152,12 @@ renderAchievementsSection() {
      * 📱 Close comments bottom sheet
      */
     closeCommentsSheet() {
+        // Cancel any pending request
+        if (this._sheetAbortController) {
+            this._sheetAbortController.abort();
+            this._sheetAbortController = null;
+        }
+        
         const backdrop = document.getElementById('comments-sheet-backdrop');
         const sheet = document.getElementById('comments-sheet');
         
@@ -5205,6 +5268,14 @@ renderAchievementsSection() {
                     textarea.disabled = false;
                     submitBtn.disabled = false;
                 }
+                return;
+            }
+            
+            // Delete comment
+            if (target.dataset.action === 'delete-comment' || target.closest('[data-action="delete-comment"]')) {
+                e.preventDefault();
+                const btn = target.dataset.action === 'delete-comment' ? target : target.closest('[data-action="delete-comment"]');
+                await this.handleSheetDeleteComment(btn, postId);
                 return;
             }
             
@@ -5364,9 +5435,18 @@ renderAchievementsSection() {
         const liked = comment.liked || false;
         const commentId = comment._id || comment.id;
         
+        // Check if this is the current user's comment
+        const currentUserId = this.api && typeof this.api.resolveUserId === 'function' ? this.api.resolveUserId() : null;
+        const isOwnComment = currentUserId && userId && currentUserId === userId;
+        
         const avatarHtml = avatarUrl 
             ? `<img src="${this.escapeHtml(avatarUrl)}" alt="${this.escapeHtml(displayName)}" class="comment__avatar" data-user-id="${userId}">`
             : `<div class="comment__avatar comment__avatar--placeholder" data-user-id="${userId}">👤</div>`;
+        
+        // Delete button (trash icon) for own comments
+        const deleteButtonHtml = isOwnComment 
+            ? `<button class="comment__delete-btn" data-action="delete-comment" data-comment-id="${commentId}" title="Удалить">🗑️</button>`
+            : '';
         
         return `
             <div class="comment ${isReply ? 'comment--reply' : ''}" data-comment-id="${commentId}">
@@ -5376,14 +5456,16 @@ renderAchievementsSection() {
                         <span class="comment__name" data-user-id="${userId}">${displayName}</span>
                         <span class="comment__time">${timeStr}</span>
                     </div>
-                    <div class="comment__text">${this.escapeHtml(comment.text)}</div>
-                    <div class="comment__actions">
-                        <button class="comment__action-btn comment__like-btn${liked ? ' liked' : ''}" 
+                    <div class="comment__text-row">
+                        <div class="comment__text">${this.escapeHtml(comment.text)}</div>
+                        <button class="comment__like-btn${liked ? ' liked' : ''}" 
                                 data-action="like-comment" 
                                 data-comment-id="${commentId}"
                                 data-liked="${liked}">
                             ❤️ <span class="comment__like-count">${likesCount}</span>
                         </button>
+                    </div>
+                    <div class="comment__actions">
                         ${!isReply ? `<button class="comment__action-btn comment__reply-btn" 
                                 data-action="reply" 
                                 data-comment-id="${commentId}"
@@ -5392,6 +5474,7 @@ renderAchievementsSection() {
                         </button>` : ''}
                     </div>
                 </div>
+                ${deleteButtonHtml}
             </div>
         `;
     }
@@ -5462,6 +5545,72 @@ renderAchievementsSection() {
             textarea.value = `@${userName} `;
             textarea.focus();
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        }
+    }
+    
+    /**
+     * 📱 Handle delete comment in sheet
+     */
+    async handleSheetDeleteComment(button, postId) {
+        if (!button) return;
+        
+        const commentId = button.dataset.commentId;
+        if (!commentId) return;
+        
+        // Confirm deletion
+        const confirmed = await this._confirm('Удалить комментарий?');
+        if (!confirmed) return;
+        
+        // Find comment element
+        const commentElement = button.closest('.comment');
+        if (!commentElement) return;
+        
+        // Optimistic UI: make comment semi-transparent
+        commentElement.style.opacity = '0.5';
+        commentElement.style.pointerEvents = 'none';
+        
+        try {
+            const response = await this.api.deleteCoverComment(postId, commentId);
+            
+            if (response && response.success) {
+                // Update mutation timestamp for cache busting
+                this.lastMutationTs = Date.now();
+                
+                // Fetch fresh comments with cache busting
+                const freshResponse = await this.api.getCoverComments(postId, { ts: Date.now() });
+                
+                if (freshResponse && freshResponse.success) {
+                    this._sheetComments = freshResponse.data || [];
+                    
+                    // Update comment count immediately
+                    const commentBtn = document.querySelector(`[data-action="show-comments"][data-post-id="${postId}"]`);
+                    if (commentBtn) {
+                        const count = this._sheetComments.length;
+                        commentBtn.textContent = count > 0 ? `💬 ${count}` : '💬 Комментарии';
+                    }
+                    
+                    // Full list replacement
+                    const sheet = document.getElementById('comments-sheet');
+                    const sheetBody = sheet?.querySelector('.comments-sheet__body');
+                    if (sheetBody) {
+                        sheetBody.innerHTML = this.renderSheetComments();
+                    }
+                }
+                
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Комментарий удалён', 'success');
+                }
+            }
+        } catch (error) {
+            console.error('❌ Failed to delete comment:', error);
+            
+            // Restore on error
+            commentElement.style.opacity = '1';
+            commentElement.style.pointerEvents = 'auto';
+            
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Ошибка удаления комментария', 'error');
+            }
         }
     }
     

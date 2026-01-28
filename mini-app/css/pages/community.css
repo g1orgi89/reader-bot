@@ -2612,6 +2612,7 @@
     gap: 12px;
     padding: 12px 0;
     align-items: start;
+    position: relative;
 }
 
 .comment--reply {
@@ -2702,13 +2703,57 @@
     color: var(--text-secondary);
 }
 
+/* Text row with like button on the right */
+.comment__text-row {
+    display: flex;
+    align-items: start;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
 .comment__text {
+    flex: 1;
     font-size: 14px;
     line-height: 1.5;
     color: var(--text-primary);
-    margin-bottom: 8px;
     word-wrap: break-word;
     white-space: pre-wrap;
+}
+
+/* Like button on right edge of text row */
+.comment__like-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    font-size: 13px;
+    color: var(--text-secondary, #8D6E63);
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 0.2s ease, color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    min-width: 44px;
+    margin-left: auto;
+}
+
+.comment__like-btn:hover {
+    background: var(--bg-secondary, #FEFCF8);
+}
+
+.comment__like-btn:active {
+    transform: scale(0.95);
+}
+
+/* Like button: default gray, terracotta when liked */
+.comment__like-btn.liked {
+    color: var(--primary-color, #D2452C);
+}
+
+.comment__like-count {
+    font-size: 13px;
 }
 
 .comment__actions {
@@ -2717,7 +2762,7 @@
     gap: 12px;
 }
 
-/* Comment action buttons */
+/* Comment action buttons (Reply) - positioned under nickname and message */
 .comment__action-btn {
     background: none;
     border: none;
@@ -2730,8 +2775,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 32px;
 }
 
 .comment__action-btn:hover {
@@ -2741,19 +2785,6 @@
 
 .comment__action-btn:active {
     transform: scale(0.95);
-}
-
-/* Like button: default gray/transparent, terracotta when liked */
-.comment-like-btn {
-    color: var(--text-secondary, #5D4037);
-}
-
-.comment-like-btn.liked {
-    color: var(--primary-color, #D2452C);
-}
-
-.comment__like-count {
-    font-size: 13px;
 }
 
 /* Replies toggle button (Instagram-style) */
