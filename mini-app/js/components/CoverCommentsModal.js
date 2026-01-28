@@ -416,23 +416,30 @@ class CoverCommentsModal {
                     <div class="comment__header">
                         <span class="comment__name" data-user-id="${userId}">${displayName}</span>
                         <span class="comment__time">${timeStr}</span>
-                        ${isOwnComment ? `<button class="comment__delete-btn" data-action="delete-comment" data-comment-id="${commentId}" title="Удалить" style="margin-left: auto; background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px 8px; font-size: 14px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">🗑️</button>` : ''}
-                    </div>
-                    <div class="comment__text">${this.escapeHtml(comment.text)}</div>
-                    <div class="comment__actions">
+                        ${isOwnComment ? `
+                            <button class="comment__delete-btn comment__action-btn" 
+                                    data-action="delete-comment" 
+                                    data-comment-id="${commentId}" 
+                                    title="Удалить">
+                                ✕
+                            </button>
+                        ` : ''}
                         <button class="comment__action-btn comment__like-btn${liked ? ' liked' : ''}" 
                                 data-action="like-comment" 
                                 data-comment-id="${commentId}"
                                 data-liked="${liked}">
-                            ❤️ <span class="comment__like-count">${likesCount}</span>
+                            ${liked ? '❤️' : '♡'} <span class="comment__like-count">${likesCount}</span>
                         </button>
-                        ${!isReply ? `<button class="comment__action-btn comment__reply-btn" 
+                    </div>
+                    <div class="comment__text">${this.escapeHtml(comment.text)}</div>
+                    ${!isReply ? `
+                        <button class="comment__action-btn comment__reply-btn" 
                                 data-action="reply" 
                                 data-comment-id="${commentId}"
                                 data-user-name="${this.escapeHtml(user.name || 'Пользователь')}">
                             Ответить
-                        </button>` : ''}
-                    </div>
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         `;
