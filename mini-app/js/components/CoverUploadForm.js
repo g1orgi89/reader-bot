@@ -106,6 +106,9 @@ class CoverUploadForm {
             return;
         }
         
+        // 🔧 FIX: Remove capture attribute for better compatibility
+        fileInput.removeAttribute('capture');
+        
         // Open file picker when button clicked
         uploadBtn.addEventListener('click', () => {
             fileInput.click();
@@ -126,9 +129,11 @@ class CoverUploadForm {
             this.updateCharCount(e.target.value.length);
         });
         
-        // Handle submit
+        // 🔧 FIX: Single submit handler with guard to prevent double-submit
         submitBtn.addEventListener('click', () => {
-            this.handleSubmit();
+            if (!this.uploading) { // Guard against double-click
+                this.handleSubmit();
+            }
         });
     }
     

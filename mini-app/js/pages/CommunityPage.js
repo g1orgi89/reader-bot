@@ -77,6 +77,10 @@ class CommunityPage {
         this.coversCursor = null;
         this.coverUploadForm = null; // Upload form component instance
         this._confirmOpen = false; // Telegram popup debounce flag
+        this._lastMutationTs = 0; // Track last mutation timestamp for cache-busting
+        
+        // 💬 COMMENTS CACHE (persist comments by postId)
+        this._commentsCache = new Map(); // postId → {comments: [], ts: timestamp}
 
         // 🌟 SPOTLIGHT CACHE (TTL система для предотвращения мигания)
         this._spotlightCache = {
@@ -720,9 +724,14 @@ class CommunityPage {
             const cursor = loadMore ? this.coversCursor : null;
             const limit = 20;
             
-            console.log(`📸 CommunityPage: Загружаем обложки (feed=${feed}, cursor=${cursor}, loadMore=${loadMore})...`);
+            // 🔧 CACHE-BUST: Add timestamp if within 30 seconds of last mutation
+            const now = Date.now();
+            const shouldCacheBust = (now - this._lastMutationTs) < 30000; // 30 seconds
+            const ts = shouldCacheBust ? now : undefined;
             
-            const response = await this.api.getCovers({ feed, cursor, limit });
+            console.log(`📸 CommunityPage: Загружаем обложки (feed=${feed}, cursor=${cursor}, loadMore=${loadMore}, cacheBust=${shouldCacheBust})...`);
+            
+            const response = await this.api.getCovers({ feed, cursor, limit, ts });
             
             if (response && response.success) {
                 const newPosts = response.data || [];
@@ -4698,6 +4707,9 @@ renderAchievementsSection() {
     async handleUploadSuccess(result) {
         console.log('📸 CommunityPage: Handling upload success...', result);
         
+        // 🔧 Set mutation timestamp for cache-busting
+        this._lastMutationTs = Date.now();
+        
         // Show success message/toast if available
         if (window.app && window.app.showToast) {
             window.app.showToast('Фото успешно добавлено! 📸', 'success');
@@ -4708,7 +4720,7 @@ renderAchievementsSection() {
             window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
         
-        // 🔧 HOTFIX: Optimistic refresh - prepend new post immediately if available
+        // 🔧 OPTIMISTIC UPDATE: Prepend new post immediately if available
         if (result && result.data) {
             const newPost = result.data;
             
@@ -4720,51 +4732,24 @@ renderAchievementsSection() {
             // Prepend new post to the beginning
             this.coversPosts = [newPost, ...this.coversPosts];
             
-            // Reset pagination to ensure fresh data
-            this.coversCursor = null;
-            this.hasMoreCovers = false;
-            
             // Rerender immediately to show new post
             this.rerender();
             
             // Rebind upload form listeners after rerender
             this.attachCoverUploadFormListeners();
-        } else {
-            // Fallback: Refresh the covers feed to show the new post with cache-busting
-            this.coversPosts = null; // Show loading state
-            this.coversCursor = null; // Reset cursor to load from beginning
-            
+        }
+        
+        // 🔧 CACHE-BUST REFRESH: Load fresh data with timestamp
+        setTimeout(async () => {
             try {
-                // Add cache-busting timestamp to API request
-                const timestamp = Date.now();
-                const response = await this.api.getCovers({ 
-                    feed: 'all', 
-                    cursor: null, 
-                    limit: 20,
-                    ts: timestamp 
-                });
-                
-                if (response && response.success) {
-                    this.coversPosts = response.data || [];
-                    this.coversHasMore = response.hasMore || false;
-                    this.coversCursor = response.nextCursor || null;
-                } else {
-                    this.coversPosts = [];
-                }
+                this.coversCursor = null; // Reset cursor to load from beginning
+                await this.loadCovers(false); // Cache-bust will be applied automatically
+                this.rerender();
+                this.attachCoverUploadFormListeners();
             } catch (error) {
                 console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
-                // Ensure we show empty state instead of infinite loader
-                if (this.coversPosts === null) {
-                    this.coversPosts = [];
-                }
-            } finally {
-                // Always rerender to update UI
-                this.rerender();
-                
-                // Rebind upload form listeners after rerender
-                this.attachCoverUploadFormListeners();
             }
-        }
+        }, 500); // Small delay to allow server to process
     }
     
     /**
@@ -4922,6 +4907,9 @@ renderAchievementsSection() {
             const response = await this.api.deleteCover(postId);
             
             if (response && response.success) {
+                // 🔧 Set mutation timestamp for cache-busting
+                this._lastMutationTs = Date.now();
+                
                 // Remove from local state
                 if (Array.isArray(this.coversPosts)) {
                     this.coversPosts = this.coversPosts.filter(p => (p._id || p.id) !== postId);

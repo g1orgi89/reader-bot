@@ -416,23 +416,30 @@ class CoverCommentsModal {
                     <div class="comment__header">
                         <span class="comment__name" data-user-id="${userId}">${displayName}</span>
                         <span class="comment__time">${timeStr}</span>
-                        ${isOwnComment ? `<button class="comment__delete-btn" data-action="delete-comment" data-comment-id="${commentId}" title="Удалить" style="margin-left: auto; background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px 8px; font-size: 14px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">🗑️</button>` : ''}
-                    </div>
-                    <div class="comment__text">${this.escapeHtml(comment.text)}</div>
-                    <div class="comment__actions">
+                        ${isOwnComment ? `
+                            <button class="comment__delete-btn comment__action-btn" 
+                                    data-action="delete-comment" 
+                                    data-comment-id="${commentId}" 
+                                    title="Удалить">
+                                ✕
+                            </button>
+                        ` : ''}
                         <button class="comment__action-btn comment__like-btn${liked ? ' liked' : ''}" 
                                 data-action="like-comment" 
                                 data-comment-id="${commentId}"
                                 data-liked="${liked}">
-                            ❤️ <span class="comment__like-count">${likesCount}</span>
+                            ${liked ? '❤️' : '♡'} <span class="comment__like-count">${likesCount}</span>
                         </button>
-                        ${!isReply ? `<button class="comment__action-btn comment__reply-btn" 
+                    </div>
+                    <div class="comment__text">${this.escapeHtml(comment.text)}</div>
+                    ${!isReply ? `
+                        <button class="comment__action-btn comment__reply-btn" 
                                 data-action="reply" 
                                 data-comment-id="${commentId}"
                                 data-user-name="${this.escapeHtml(user.name || 'Пользователь')}">
                             Ответить
-                        </button>` : ''}
-                    </div>
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -748,6 +755,52 @@ class CoverCommentsModal {
             if (response && response.success) {
                 // Add new comment to list
                 const newComment = response.data;
+                if (newComment) {
+                    this.comments = [newComment, ...this.comments];
+                    
+                    // 🔧 Update cache with new comment
+                    this._commentsCache.set(this.postId, {
+                        items: this.comments,
+                        ts: Date.now()
+                    });
+                }
+                
+                // Clear form and reply state
+                textarea.value = '';
+                this.replyingTo = null;
+                
+                // Update comment count in parent card
+                if (this.updateCountCallback) {
+                    this.updateCountCallback(this.comments.length);
+                }
+                
+                // Reload comments with cache-bust to get fresh data
+                await this.loadComments();
+                
+                // Show success toast
+                if (window.app && window.app.showToast) {
+                    window.app.showToast('Комментарий добавлен', 'success');
+                }
+                
+                // Haptic feedback
+                if (window.Telegram?.WebApp?.HapticFeedback) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+            } else {
+                throw new Error(response?.error || 'Failed to add comment');
+            }
+        } catch (error) {
+            console.error('❌ CoverCommentsModal: Failed to add comment:', error);
+            
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Ошибка добавления комментария', 'error');
+            }
+        } finally {
+            // Re-enable button and textarea
+            if (textarea) textarea.disabled = false;
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    }
                 this.comments.unshift(newComment);
                 
                 // Update cache
@@ -829,13 +882,19 @@ class CoverCommentsModal {
                 // Remove from local state
                 this.comments = this.comments.filter(c => (c._id || c.id) !== commentId);
                 
+                // 🔧 Update cache after delete
+                this._commentsCache.set(this.postId, {
+                    items: this.comments,
+                    ts: Date.now()
+                });
+                
                 // Update comment count in parent card
                 if (this.updateCountCallback) {
                     this.updateCountCallback(this.comments.length);
                 }
                 
-                // Rerender
-                this.render();
+                // Reload comments with cache-bust to get fresh data
+                await this.loadComments();
                 
                 // Show success toast
                 if (window.app && window.app.showToast) {

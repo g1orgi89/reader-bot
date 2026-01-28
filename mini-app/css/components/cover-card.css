@@ -131,10 +131,13 @@
 
 .cover-card__like-btn {
     color: var(--text-secondary);
+    opacity: 0.7;
+    transition: color 0.2s, opacity 0.2s;
 }
 
 .cover-card__like-btn.liked {
     color: var(--primary-color, #D2452C);
+    opacity: 1;
 }
 
 .cover-card__like-btn .like-count {

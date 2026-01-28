@@ -1853,8 +1853,9 @@ class ApiService {
         if (options.feed) params.append('feed', options.feed);
         if (options.cursor) params.append('cursor', options.cursor);
         if (options.limit) params.append('limit', options.limit);
+        if (options.ts) params.append('ts', options.ts); // Cache-busting timestamp
         
-        console.log(`📸 ApiService: Getting covers (feed=${options.feed}, cursor=${options.cursor})...`);
+        console.log(`📸 ApiService: Getting covers (feed=${options.feed}, cursor=${options.cursor}, ts=${options.ts})...`);
         return this.request('GET', `/covers?${params.toString()}`);
     }
     
@@ -1902,8 +1903,9 @@ class ApiService {
         const params = new URLSearchParams();
         if (options.cursor) params.append('cursor', options.cursor);
         if (options.limit) params.append('limit', options.limit);
+        if (options.ts) params.append('ts', options.ts); // Cache-busting timestamp
         
-        console.log(`📸 ApiService: Getting comments for post ${postId}...`);
+        console.log(`📸 ApiService: Getting comments for post ${postId} (ts=${options.ts})...`);
         return this.request('GET', `/covers/${postId}/comments?${params.toString()}`);
     }
     
