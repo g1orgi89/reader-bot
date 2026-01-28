@@ -1099,7 +1099,6 @@ class CoverCommentsModal {
         }
     }
 }
-}
 
 // Export for use in other modules
 if (typeof window !== 'undefined') {
