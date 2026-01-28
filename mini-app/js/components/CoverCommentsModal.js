@@ -689,14 +689,14 @@ class CoverCommentsModal {
         button.dataset.liked = wasLiked ? 'false' : 'true';
         button.classList.toggle('liked', !wasLiked);
         
-        const currentCount = parseInt(likeCountSpan?.textContent || '0');
+        const currentCount = parseInt((likeCountSpan && likeCountSpan.textContent) || '0');
         const newCount = wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
         if (likeCountSpan) {
             likeCountSpan.textContent = newCount;
         }
         
         // Haptic feedback
-        if (this.telegram?.hapticFeedback) {
+        if (this.telegram && this.telegram.hapticFeedback) {
             this.telegram.hapticFeedback('light');
         }
         
@@ -754,7 +754,7 @@ class CoverCommentsModal {
         });
         
         // Haptic feedback
-        if (this.telegram?.hapticFeedback) {
+        if (this.telegram && this.telegram.hapticFeedback) {
             this.telegram.hapticFeedback('light');
         }
     }
@@ -776,7 +776,7 @@ class CoverCommentsModal {
             return;
         }
         
-        const parentId = this.replyingTo?.commentId || null;
+        const parentId = (this.replyingTo && this.replyingTo.commentId) || null;
         
         try {
             // Disable button and textarea while pending
@@ -816,11 +816,11 @@ class CoverCommentsModal {
                 }
                 
                 // Haptic feedback
-                if (window.Telegram?.WebApp?.HapticFeedback) {
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
                     window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
                 }
             } else {
-                throw new Error(response?.error || 'Failed to add comment');
+                throw new Error((response && response.error) || 'Failed to add comment');
             }
         } catch (error) {
             console.error('❌ CoverCommentsModal: Failed to add comment:', error);
@@ -830,47 +830,6 @@ class CoverCommentsModal {
             }
         } finally {
             // Re-enable button and textarea
-            if (textarea) textarea.disabled = false;
-            if (submitBtn) submitBtn.disabled = false;
-        }
-    }
-                this.comments.unshift(newComment);
-                
-                // Update cache
-                this._commentsCache.set(this.postId, {
-                    items: this.comments,
-                    ts: Date.now()
-                });
-                
-                // Update comment count in parent card
-                if (this.updateCountCallback) {
-                    this.updateCountCallback(this.comments.length);
-                }
-                
-                // Clear input
-                textarea.value = '';
-                this.replyingTo = null;
-                
-                // Rerender
-                this.render();
-                
-                // Show success toast
-                if (window.app && window.app.showToast) {
-                    window.app.showToast('Комментарий добавлен', 'success');
-                }
-                
-                // Haptic feedback
-                if (this.telegram?.hapticFeedback) {
-                    this.telegram.hapticFeedback('success');
-                }
-            }
-        } catch (error) {
-            console.error('❌ CoverCommentsModal: Failed to add comment:', error);
-            if (window.app && window.app.showToast) {
-                window.app.showToast('Ошибка добавления комментария', 'error');
-            }
-        } finally {
-            // Re-enable controls
             if (textarea) textarea.disabled = false;
             if (submitBtn) submitBtn.disabled = false;
         }
@@ -888,7 +847,7 @@ class CoverCommentsModal {
         // 🔧 HOTFIX: Use non-blocking Telegram.WebApp.showConfirm (with fallback)
         const showConfirm = (message) => {
             return new Promise((resolve) => {
-                if (window.Telegram?.WebApp?.showConfirm) {
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showConfirm) {
                     window.Telegram.WebApp.showConfirm(message, resolve);
                 } else {
                     // Fallback to blocking confirm if Telegram API not available
@@ -935,11 +894,11 @@ class CoverCommentsModal {
                 }
                 
                 // Haptic feedback
-                if (window.Telegram?.WebApp?.HapticFeedback) {
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
                     window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
                 }
             } else {
-                throw new Error(response?.error || 'Failed to delete comment');
+                throw new Error((response && response.error) || 'Failed to delete comment');
             }
         } catch (error) {
             console.error('❌ CoverCommentsModal: Failed to delete comment:', error);
@@ -986,7 +945,7 @@ class CoverCommentsModal {
      * 🔧 Handle Telegram back button visibility
      */
     handleTelegramBackButton(show) {
-        if (!this.telegram?.BackButton) return;
+        if (!this.telegram || !this.telegram.BackButton) return;
         
         if (show && !this.backButtonAttached) {
             this.telegram.BackButton.show();
@@ -1021,7 +980,7 @@ class CoverCommentsModal {
 
 // Export for use in other modules
 if (typeof window !== 'undefined') {
-    window.CoverCommentsModal = window.CoverCommentsModal || CoverCommentsModal;
+    window.CoverCommentsModal = CoverCommentsModal;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
