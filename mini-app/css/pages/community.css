@@ -2454,3 +2454,412 @@
     pointer-events: none;
     transition: opacity 0.2s ease;
 }
+
+/* =============================================
+   📱 COMMENTS BOTTOM SHEET (Instagram-style)
+   ============================================= */
+
+/* Backdrop overlay */
+.comments-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.comments-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Bottom sheet container */
+.comments-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-primary, #FFFFFF);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+    /* Use dvh for mobile viewport height support */
+    height: 65dvh;
+    max-height: 65dvh;
+    overscroll-behavior: contain;
+}
+
+.comments-bottom-sheet.active {
+    transform: translateY(0);
+}
+
+/* Full height when expanded */
+.comments-bottom-sheet.expanded {
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 20px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 20px);
+}
+
+/* Sheet header with handle */
+.comments-sheet__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 20px 12px;
+    border-bottom: 1px solid var(--border, #E0D6D0);
+    flex-shrink: 0;
+    position: relative;
+}
+
+/* Top handle for drag gesture */
+.comments-sheet__handle {
+    width: 36px;
+    height: 4px;
+    background: var(--text-muted, #8D6E63);
+    border-radius: 2px;
+    margin-bottom: 12px;
+    opacity: 0.3;
+    cursor: grab;
+}
+
+.comments-sheet__handle:active {
+    cursor: grabbing;
+}
+
+.comments-sheet__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #2C1810);
+    margin: 0;
+    text-align: center;
+    width: 100%;
+}
+
+/* Scrollable body */
+.comments-sheet__body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 20px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Hide scrollbar */
+.comments-sheet__body::-webkit-scrollbar {
+    display: none;
+}
+
+/* Loading/empty states */
+.comments-sheet__loading,
+.comments-sheet__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+.comments-sheet__empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.comments-sheet__empty-text {
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+}
+
+/* Comments list */
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* Comment thread */
+.comment-thread {
+    margin-bottom: 16px;
+}
+
+.comment-thread:last-child {
+    margin-bottom: 0;
+}
+
+/* Comment replies container */
+.comment-replies {
+    margin-left: 40px;
+    margin-top: 8px;
+    border-left: 2px solid var(--border-color);
+    padding-left: 12px;
+}
+
+/* Individual comment */
+.comment {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 12px;
+    padding: 12px 0;
+    align-items: start;
+}
+
+.comment--reply {
+    padding: 8px 0;
+    grid-template-columns: 32px 1fr auto;
+}
+
+.comment__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.comment__avatar:hover {
+    opacity: 0.8;
+}
+
+.comment__avatar--placeholder {
+    background: var(--bg-secondary, #FEFCF8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.comment--reply .comment__avatar {
+    width: 32px;
+    height: 32px;
+}
+
+.comment__content {
+    min-width: 0;
+    grid-column: 2;
+}
+
+/* Trash icon aligned in same row as avatar */
+.comment__delete-btn {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: start;
+    justify-self: end;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 18px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.comment__delete-btn:hover {
+    color: var(--error-color, #f44336);
+}
+
+.comment__delete-btn:active {
+    transform: scale(0.95);
+}
+
+.comment__header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.comment__name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.comment__name:hover {
+    opacity: 0.8;
+}
+
+.comment__time {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.comment__text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.comment__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Comment action buttons */
+.comment__action-btn {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    font-size: 13px;
+    color: var(--text-secondary, #5D4037);
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 0.2s ease, color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    min-width: 44px;
+}
+
+.comment__action-btn:hover {
+    background: var(--bg-secondary, #FEFCF8);
+    color: var(--text-primary, #2C1810);
+}
+
+.comment__action-btn:active {
+    transform: scale(0.95);
+}
+
+/* Like button: default gray/transparent, terracotta when liked */
+.comment-like-btn {
+    color: var(--text-secondary, #5D4037);
+}
+
+.comment-like-btn.liked {
+    color: var(--primary-color, #D2452C);
+}
+
+.comment__like-count {
+    font-size: 13px;
+}
+
+/* Replies toggle button (Instagram-style) */
+.comment-replies-toggle {
+    margin-left: 52px;
+    margin-top: 8px;
+}
+
+.comment-replies-toggle__btn {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 500;
+    min-height: 32px;
+}
+
+.comment-replies-toggle__btn:hover,
+.comment-replies-toggle__btn:active {
+    color: var(--text-primary);
+}
+
+/* Input form - fixed at bottom */
+.comments-sheet__input {
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border, #E0D6D0);
+    background: var(--bg-primary, #FFFFFF);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.comments-input-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+}
+
+.comments-input-form__cancel {
+    position: absolute;
+    top: -24px;
+    left: 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary, #5D4037);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+    min-height: 32px;
+}
+
+.comments-input-form__cancel:hover {
+    background: var(--bg-secondary, #FEFCF8);
+}
+
+.comments-input-form__textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 12px;
+    border: 1px solid var(--border, #E0D6D0);
+    border-radius: 12px;
+    background: var(--bg-secondary, #FEFCF8);
+    color: var(--text-primary, #2C1810);
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+}
+
+.comments-input-form__textarea:focus {
+    outline: none;
+    border-color: var(--primary-color, #D2452C);
+}
+
+.comments-input-form__textarea::placeholder {
+    color: var(--text-secondary, #5D4037);
+}
+
+.comments-input-form__submit {
+    align-self: flex-end;
+    padding: 12px 24px;
+    background: var(--primary-color, #D2452C);
+    color: var(--text-inverse, #FFFFFF);
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    min-height: 44px;
+    min-width: 100px;
+}
+
+.comments-input-form__submit:hover {
+    opacity: 0.9;
+}
+
+.comments-input-form__submit:active {
+    transform: scale(0.97);
+}
+
+.comments-input-form__submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
