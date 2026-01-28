@@ -106,7 +106,8 @@ class CoverUploadForm {
             return;
         }
         
-        // 🔧 FIX: Remove capture attribute for better compatibility
+        // 🔧 FIX: Set accept attribute for iOS media library compatibility
+        fileInput.accept = 'image/*';
         fileInput.removeAttribute('capture');
         
         // Open file picker when button clicked

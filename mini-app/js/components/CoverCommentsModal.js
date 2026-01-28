@@ -83,8 +83,9 @@ class CoverCommentsModal {
      * 🎭 Open modal
      * @param {string} postId - Post ID to load comments for
      * @param {Function} updateCountCallback - Callback to update comment count in parent
+     * @param {Object} options - Options including initialComments
      */
-    async open(postId, updateCountCallback = null) {
+    async open(postId, updateCountCallback = null, options = {}) {
         if (!postId) {
             console.error('❌ CoverCommentsModal: No postId provided');
             return;
@@ -106,15 +107,21 @@ class CoverCommentsModal {
         this.backdrop.style.display = 'block';
         this.modal.style.display = 'block';
         
-        // Check cache first - render immediately if available
-        const cached = this._commentsCache.get(postId);
-        if (cached && cached.items) {
-            this.comments = cached.items;
+        // Use initial comments if provided for instant UI
+        if (options.initialComments && options.initialComments.length > 0) {
+            this.comments = options.initialComments;
             this.render();
         } else {
-            // No cache - show loading state
-            this.comments = [];
-            this.render();
+            // Check cache first - render immediately if available
+            const cached = this._commentsCache.get(postId);
+            if (cached && cached.items) {
+                this.comments = cached.items;
+                this.render();
+            } else {
+                // No cache - show loading state
+                this.comments = [];
+                this.render();
+            }
         }
         
         // Attach event listeners
@@ -228,6 +235,32 @@ class CoverCommentsModal {
             this.loading = false;
             this.render();
         }
+    }
+    
+    /**
+     * 🔄 Update comments list from external source (e.g., cache refresh)
+     * @param {Array} commentsList - New comments list
+     */
+    updateComments(commentsList) {
+        if (!Array.isArray(commentsList)) return;
+        
+        this.comments = commentsList;
+        
+        // Update cache
+        if (this.postId) {
+            this._commentsCache.set(this.postId, {
+                items: this.comments,
+                ts: Date.now()
+            });
+        }
+        
+        // Update count callback
+        if (this.updateCountCallback) {
+            this.updateCountCallback(this.comments.length);
+        }
+        
+        // Re-render
+        this.render();
     }
     
     /**
@@ -775,7 +808,7 @@ class CoverCommentsModal {
                 }
                 
                 // Reload comments with cache-bust to get fresh data
-                await this.loadComments();
+                await this.loadComments(false);
                 
                 // Show success toast
                 if (window.app && window.app.showToast) {
@@ -894,7 +927,7 @@ class CoverCommentsModal {
                 }
                 
                 // Reload comments with cache-bust to get fresh data
-                await this.loadComments();
+                await this.loadComments(false);
                 
                 // Show success toast
                 if (window.app && window.app.showToast) {
@@ -988,7 +1021,7 @@ class CoverCommentsModal {
 
 // Export for use in other modules
 if (typeof window !== 'undefined') {
-    window.CoverCommentsModal = CoverCommentsModal;
+    window.CoverCommentsModal = window.CoverCommentsModal || CoverCommentsModal;
 }
 
 if (typeof module !== 'undefined' && module.exports) {

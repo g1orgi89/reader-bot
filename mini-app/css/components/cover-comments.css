@@ -458,7 +458,7 @@
         right: 0;
         transform: translateY(100%);
         max-height: 96dvh;
-        /* 🔧 Instagram-style: Start at ~60dvh (keyboard height) */
+        /* 🔧 Instagram-style: Start at ~60-65dvh (keyboard height) */
         height: auto;
         min-height: 60dvh;
     }
@@ -491,7 +491,7 @@
     
     /* Center title */
     .cover-comments-modal__header {
-        padding-top: 24px;
+        padding-top: 28px;
         justify-content: center;
         position: relative;
     }
@@ -506,6 +506,7 @@
         right: 16px;
         top: 50%;
         transform: translateY(-50%);
+        margin-top: 6px; /* Adjust for handle spacing */
     }
     
     .comment-replies {

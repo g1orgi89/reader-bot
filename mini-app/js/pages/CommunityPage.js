@@ -43,8 +43,14 @@ class CommunityPage {
             ? app.getProfileModal()
             : (window.profileModal || (window.profileModal = new ProfileModal(app)));
         
-        // Initialize CoverCommentsModal
-        this.coverCommentsModal = new CoverCommentsModal(app);
+        // Initialize CoverCommentsModal with safety check
+        const CCM = window.CoverCommentsModal || null;
+        if (CCM) {
+            this.coverCommentsModal = new CCM(app);
+        } else {
+            console.warn('⚠️ CoverCommentsModal not loaded yet, comments will be unavailable');
+            this.coverCommentsModal = null;
+        }
         
         // Store bound delegated handler reference for cleanup
         this._delegatedHandlerBound = null;
@@ -4955,17 +4961,56 @@ renderAchievementsSection() {
     async handleShowComments(postId) {
         if (!postId) return;
         
+        // 🔧 HOTFIX: Check if modal is available
+        if (!this.coverCommentsModal) {
+            console.warn('⚠️ CoverCommentsModal not available');
+            if (window.app && window.app.showToast) {
+                window.app.showToast('Комментарии временно недоступны', 'error');
+            }
+            return;
+        }
+        
         // 🔧 HOTFIX: Pass callback to update comment count after loading
         const updateCommentCount = (count) => {
             const commentBtn = document.querySelector(`[data-action="show-comments"][data-post-id="${postId}"]`);
             if (commentBtn) {
                 commentBtn.textContent = count > 0 ? `💬 ${count}` : '💬 Комментарии';
             }
+            
+            // Update coversPosts cache with new count
+            const postIndex = this.coversPosts.findIndex(p => (p._id || p.id) === postId);
+            if (postIndex !== -1) {
+                this.coversPosts[postIndex].commentsCount = count;
+            }
         };
         
-        // Open comments modal
-        if (this.coverCommentsModal) {
-            this.coverCommentsModal.open(postId, updateCommentCount);
+        // Check cache first and open with cached comments for instant UI
+        const cached = this._commentsCache.get(postId);
+        const initialComments = (cached && cached.comments) || [];
+        
+        // Open comments modal with initial cached data
+        this.coverCommentsModal.open(postId, updateCommentCount, { initialComments });
+        
+        // Then fetch fresh comments with cache-busting
+        try {
+            const response = await this.api.getCoverComments(postId, { ts: Date.now() });
+            if (response && response.success) {
+                const freshComments = response.data || [];
+                
+                // Update cache
+                this._commentsCache.set(postId, {
+                    comments: freshComments,
+                    ts: Date.now()
+                });
+                
+                // Update modal with fresh data
+                if (this.coverCommentsModal && this.coverCommentsModal.isOpen && this.coverCommentsModal.postId === postId) {
+                    this.coverCommentsModal.updateComments(freshComments);
+                    updateCommentCount(freshComments.length);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Failed to fetch fresh comments:', error);
         }
     }
     
