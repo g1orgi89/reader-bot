@@ -289,6 +289,7 @@
 .comment__like-btn.liked {
     color: var(--primary-color, #D2452C);
     opacity: 1;
+    font-weight: bold;
 }
 
 .comment__like-count {
@@ -452,7 +453,7 @@
 
 /* Responsive adjustments - Bottom Sheet on Mobile */
 @media (max-width: 480px) {
-    /* Instagram-style bottom sheet */
+    /* Instagram-style bottom sheet with three-position state machine */
     .cover-comments-modal {
         width: 100%;
         max-width: none;
@@ -461,13 +462,27 @@
         bottom: 0;
         left: 0;
         right: 0;
-        transform: translateY(100%);
+        transform: translateY(100dvh); /* Start closed */
         max-height: 96dvh;
-        height: var(--sheet-height, 65dvh);
-        transition: transform 0.3s ease, height 0.2s ease;
+        height: 96dvh; /* Always full height, use transform to position */
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    .cover-comments-modal.active {
+    /* State-based positioning */
+    .cover-comments-modal.sheet-state-closed {
+        transform: translateY(100dvh); /* Completely off-screen */
+    }
+    
+    .cover-comments-modal.sheet-state-initial {
+        transform: translateY(40dvh); /* Input form visible */
+    }
+    
+    .cover-comments-modal.sheet-state-full {
+        transform: translateY(0dvh); /* Fully expanded */
+    }
+    
+    /* Legacy support for .active class (will be overridden by state classes) */
+    .cover-comments-modal.active:not(.sheet-state-closed):not(.sheet-state-initial):not(.sheet-state-full) {
         transform: translateY(0);
     }
     

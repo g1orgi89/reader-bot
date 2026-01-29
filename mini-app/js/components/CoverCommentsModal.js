@@ -22,10 +22,25 @@ class CoverCommentsModal {
         
         // Constants
         this.MOBILE_BREAKPOINT = 480;
-        this.INITIAL_SHEET_HEIGHT = 65;
-        this.MAX_SHEET_HEIGHT = 96;
-        this.SCROLL_EXPANSION_FACTOR = 0.1; // How fast sheet expands on scroll up
-        this.PULL_TO_CLOSE_THRESHOLD = 100; // Pixels to pull down for close
+        
+        // State machine constants for three-position drawer
+        this.SHEET_STATES = {
+            CLOSED: 'CLOSED',
+            INITIAL: 'INITIAL',
+            FULL: 'FULL'
+        };
+        
+        // Translate Y values for each state (in dvh units)
+        this.SHEET_POSITIONS = {
+            CLOSED: 100,   // translateY(100dvh) - completely off screen
+            INITIAL: 40,   // translateY(40dvh) - input form visible
+            FULL: 0        // translateY(0dvh) - fully expanded
+        };
+        
+        this.INITIAL_SHEET_HEIGHT = 65; // Deprecated - kept for compatibility
+        this.MAX_SHEET_HEIGHT = 96;     // Deprecated - kept for compatibility
+        this.SCROLL_EXPANSION_FACTOR = 0.1; // Deprecated - removing scroll-to-expand
+        this.PULL_TO_CLOSE_THRESHOLD = 100; // Deprecated - using state-based swipes
         
         // Modal state
         this.isOpen = false;
@@ -44,7 +59,11 @@ class CoverCommentsModal {
         // Collapsed state for Instagram-style replies
         this._repliesCollapsed = new Map(); // parentId → boolean
         
-        // Bottom sheet state
+        // State machine for three-position drawer
+        this.sheetState = this.SHEET_STATES.CLOSED; // Current state: CLOSED, INITIAL, FULL
+        this._keyboardTriggeredFull = false; // Track if FULL state was triggered by keyboard
+        
+        // Bottom sheet state (deprecated - kept for compatibility)
         this._sheetHeight = this.INITIAL_SHEET_HEIGHT; // Start at 65dvh
         this._lastScrollTop = 0;
         this._likeInProgress = new Map(); // commentId → boolean (prevent double-sends)
@@ -99,15 +118,61 @@ class CoverCommentsModal {
         document.body.appendChild(this.backdrop);
         document.body.appendChild(this.modal);
         
-        // Set initial sheet height
-        this.setSheetPosition(this.INITIAL_SHEET_HEIGHT);
+        // 🔧 Initialize in CLOSED state (off-screen)
+        this.sheetState = this.SHEET_STATES.CLOSED;
+        if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            this.modal.style.transform = `translateY(${this.SHEET_POSITIONS.CLOSED}dvh)`;
+            this.modal.classList.add('sheet-state-closed');
+        }
         
         console.log('✅ CoverCommentsModal: DOM elements created');
     }
     
     /**
-     * 📐 Set sheet position (for bottom sheet behavior)
+     * 🎯 Set sheet state (State Machine control method)
+     * Manages transitions between CLOSED, INITIAL, and FULL states
+     * Uses transform: translateY() for hardware-accelerated animations
+     * @param {string} newState - Target state (CLOSED, INITIAL, FULL)
+     * @param {boolean} animated - Whether to animate the transition (default: true)
+     */
+    _setSheetState(newState, animated = true) {
+        if (!this.SHEET_STATES[newState]) {
+            console.warn(`⚠️ Invalid sheet state: ${newState}`);
+            return;
+        }
+        
+        // Allow re-applying same state to reset visual position (for snap-back after drag)
+        const isReapplying = this.sheetState === newState;
+        
+        if (!isReapplying) {
+            const previousState = this.sheetState;
+            this.sheetState = newState;
+            console.log(`🎯 Sheet state transition: ${previousState} → ${newState}`);
+        }
+        
+        // Apply CSS transformation
+        if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            const translateY = this.SHEET_POSITIONS[newState];
+            
+            // Set transition based on animated flag
+            this.modal.style.transition = animated 
+                ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                : 'none';
+            
+            this.modal.style.transform = `translateY(${translateY}dvh)`;
+            
+            // Update CSS class for styling hooks (only if actually changing state)
+            if (!isReapplying) {
+                this.modal.classList.remove('sheet-state-closed', 'sheet-state-initial', 'sheet-state-full');
+                this.modal.classList.add(`sheet-state-${newState.toLowerCase()}`);
+            }
+        }
+    }
+    
+    /**
+     * 📐 Set sheet position (for bottom sheet behavior) - DEPRECATED
      * 🔧 FIX: Using transform: translateY() instead of height for hardware-accelerated animations
+     * @deprecated Use _setSheetState() instead
      */
     setSheetPosition(heightDvh) {
         // Clamp between INITIAL and MAX sheet heights
@@ -133,28 +198,12 @@ class CoverCommentsModal {
     }
     
     /**
-     * 📜 Handle scroll for bottom sheet expansion/collapse (throttled)
+     * 📜 Handle scroll for bottom sheet - DISABLED
+     * 🔧 Removed scroll-to-expand behavior for cleaner three-position state machine
      */
     handleScroll() {
-        if (!this.modalBody) return;
-        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
-        
-        // Throttle updates using requestAnimationFrame
-        if (this._scrollThrottleTimer) return;
-        
-        this._scrollThrottleTimer = requestAnimationFrame(() => {
-            const scrollTop = this.modalBody.scrollTop;
-            const scrollDelta = scrollTop - this._lastScrollTop;
-            
-            // Scroll up: expand sheet
-            if (scrollDelta < 0 && this._sheetHeight < this.MAX_SHEET_HEIGHT) {
-                const newHeight = this._sheetHeight + Math.abs(scrollDelta) * this.SCROLL_EXPANSION_FACTOR;
-                this.setSheetPosition(newHeight);
-            }
-            
-            this._lastScrollTop = scrollTop;
-            this._scrollThrottleTimer = null;
-        });
+        // Disabled - using three-position state machine instead
+        return;
     }
     
     /**
@@ -162,6 +211,7 @@ class CoverCommentsModal {
      */
     /**
      * 👆 Handle touch start for swipe gestures on header
+     * Tracks initial touch position for state-based swipe detection
      */
     handleTouchStart(e) {
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
@@ -177,7 +227,7 @@ class CoverCommentsModal {
     
     /**
      * 👆 Handle touch move for swipe gestures
-     * 🔧 FIX: Using transform for smooth animation
+     * 🔧 Provides immediate visual feedback during drag
      */
     handleTouchMove(e) {
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
@@ -189,40 +239,25 @@ class CoverCommentsModal {
         // Prevent default to stop page scrolling while dragging header
         e.preventDefault();
         
-        // 🔧 FIX: Disable transition during drag for immediate feedback
+        // 🔧 Disable transition during drag for immediate feedback
         if (this.modal) {
             this.modal.style.transition = 'none';
-        }
-        
-        // Dragging up: expand sheet
-        if (deltaY < 0) {
-            const progress = Math.abs(deltaY) / window.innerHeight;
-            const heightIncrease = progress * (this.MAX_SHEET_HEIGHT - this.INITIAL_SHEET_HEIGHT);
-            const newHeight = Math.min(this.MAX_SHEET_HEIGHT, this._sheetHeight + heightIncrease);
-            this.setSheetPosition(newHeight);
-        }
-        // Dragging down: prepare to close or collapse
-        else if (deltaY > 0) {
-            if (this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
-                // At max height: visual feedback for pull-to-close
-                const additionalTranslate = Math.min(deltaY, 100); // Cap at 100px
-                const currentTranslate = 0; // Already at max height (translateY = 0)
-                if (this.modal) {
-                    this.modal.style.transform = `translateY(${additionalTranslate}px)`;
-                }
-            } else {
-                // Not at max: collapse sheet
-                const progress = deltaY / window.innerHeight;
-                const heightDecrease = progress * (this.MAX_SHEET_HEIGHT - this.INITIAL_SHEET_HEIGHT);
-                const newHeight = Math.max(this.INITIAL_SHEET_HEIGHT, this._sheetHeight - heightDecrease);
-                this.setSheetPosition(newHeight);
-            }
+            
+            // Calculate new position based on drag
+            const currentPosition = this.SHEET_POSITIONS[this.sheetState];
+            const dragPercent = (deltaY / window.innerHeight) * 100; // Convert to dvh
+            const newPosition = Math.max(0, Math.min(100, currentPosition + dragPercent));
+            
+            this.modal.style.transform = `translateY(${newPosition}dvh)`;
         }
     }
     
     /**
      * 👆 Handle touch end for swipe gestures
-     * 🔧 FIX: Re-enable transitions and handle close threshold
+     * 🔧 Implements three-position state machine logic:
+     * - Swipe up from INITIAL → FULL
+     * - Swipe down from FULL → INITIAL
+     * - Swipe down from INITIAL → CLOSED
      */
     handleTouchEnd(e) {
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
@@ -230,23 +265,39 @@ class CoverCommentsModal {
         
         const touchY = e.changedTouches[0].clientY;
         const deltaY = touchY - this._touchStartY;
+        const swipeThreshold = 50; // Minimum swipe distance in pixels
         
-        // 🔧 FIX: Re-enable transition for smooth snap-back
+        // 🔧 Re-enable transition for smooth snap
         if (this.modal) {
-            this.modal.style.transition = 'transform 0.2s ease-out';
+            this.modal.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
         }
         
-        // 🔧 FIX: Close only if dragged down > 50% of modal height
-        const modalHeight = this.modal ? this.modal.offsetHeight : window.innerHeight * 0.65;
-        const closeThreshold = modalHeight * 0.5; // 50% of modal height
+        // Determine state transition based on swipe direction and current state
+        let targetState = this.sheetState;
         
-        // If dragged down more than 50% of height while at max height, close
-        if (deltaY > closeThreshold && this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
-            this.close();
-        } else {
-            // Snap back to current position
-            this.setSheetPosition(this._sheetHeight);
+        if (Math.abs(deltaY) >= swipeThreshold) {
+            if (deltaY < 0) {
+                // Swipe UP
+                if (this.sheetState === this.SHEET_STATES.INITIAL) {
+                    targetState = this.SHEET_STATES.FULL;
+                    // User manually swiped to FULL, so clear keyboard trigger flag
+                    this._keyboardTriggeredFull = false;
+                }
+                // From FULL, can't go higher - stay at FULL
+                // From CLOSED, shouldn't happen - ignore
+            } else {
+                // Swipe DOWN
+                if (this.sheetState === this.SHEET_STATES.FULL) {
+                    targetState = this.SHEET_STATES.INITIAL;
+                } else if (this.sheetState === this.SHEET_STATES.INITIAL) {
+                    targetState = this.SHEET_STATES.CLOSED;
+                }
+                // From CLOSED, already closed - ignore
+            }
         }
+        
+        // Apply state transition
+        this._setSheetState(targetState);
         
         // Reset state
         this._isDraggingSheet = false;
@@ -256,6 +307,7 @@ class CoverCommentsModal {
     
     /**
      * ⌨️ Setup keyboard resize handler for mobile
+     * 🔧 When keyboard shows, force FULL state; when hidden, return to INITIAL only if keyboard-triggered
      */
     setupKeyboardHandler() {
         if (!window.visualViewport) return; // Not supported
@@ -272,16 +324,18 @@ class CoverCommentsModal {
             
             // If keyboard is showing (viewport height decreased significantly)
             if (viewportHeightDiff > 150) {
-                // Adjust sheet height to keep input visible
-                // Calculate height as percentage of visible viewport
-                const newHeightPx = currentViewportHeight * 0.95; // 95% of visible viewport
-                const newHeightDvh = (newHeightPx / window.innerHeight) * 100;
-                
-                this.setSheetPosition(newHeightDvh);
+                // 🔧 Force transition to FULL state to keep input visible
+                console.log('⌨️ Keyboard shown - forcing FULL state');
+                if (this.sheetState !== this.SHEET_STATES.FULL) {
+                    this._keyboardTriggeredFull = true;
+                    this._setSheetState(this.SHEET_STATES.FULL);
+                }
             } else {
-                // Keyboard hidden, restore to max height if was expanded
-                if (this._sheetHeight > this.INITIAL_SHEET_HEIGHT) {
-                    this.setSheetPosition(this.MAX_SHEET_HEIGHT);
+                // Keyboard hidden - return to INITIAL only if FULL was keyboard-triggered
+                if (this.sheetState === this.SHEET_STATES.FULL && this._keyboardTriggeredFull) {
+                    console.log('⌨️ Keyboard hidden - returning to INITIAL state');
+                    this._setSheetState(this.SHEET_STATES.INITIAL);
+                    this._keyboardTriggeredFull = false;
                 }
             }
         };
@@ -360,10 +414,13 @@ class CoverCommentsModal {
         // Fetch fresh data with cache-busting
         await this.loadComments();
         
-        // Trigger animation
+        // Trigger animation and set initial state
         requestAnimationFrame(() => {
             this.backdrop.classList.add('active');
             this.modal.classList.add('active');
+            
+            // 🔧 Set sheet to INITIAL state (input form visible)
+            this._setSheetState(this.SHEET_STATES.INITIAL);
         });
     }
     
@@ -382,14 +439,24 @@ class CoverCommentsModal {
         // Remove body class
         document.body.classList.remove('sheet-open');
         
-        // Reset sheet height to initial
-        this.setSheetPosition(this.INITIAL_SHEET_HEIGHT);
+        // 🔧 Animate transition to CLOSED state on mobile
+        if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            this._setSheetState(this.SHEET_STATES.CLOSED, true);
+            // The _setSheetState will handle the cleanup via setTimeout
+            // Just set isOpen to false after animation
+            setTimeout(() => {
+                this.isOpen = false;
+            }, 300);
+        } else {
+            // Desktop: immediate hide
+            this.sheetState = this.SHEET_STATES.CLOSED;
+            this.isOpen = false;
+        }
         
         // Hide after animation
         setTimeout(() => {
             if (this.backdrop) this.backdrop.style.display = 'none';
             if (this.modal) this.modal.style.display = 'none';
-            this.isOpen = false;
         }, 300);
         
         // Detach event listeners
