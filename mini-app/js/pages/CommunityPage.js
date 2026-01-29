@@ -4740,18 +4740,6 @@ renderAchievementsSection() {
             // Rebind upload form listeners after rerender
             this.attachCoverUploadFormListeners();
         }
-        
-        // 🔧 CACHE-BUST REFRESH: Load fresh data with timestamp
-        setTimeout(async () => {
-            try {
-                this.coversCursor = null; // Reset cursor to load from beginning
-                await this.loadCovers(false); // Cache-bust will be applied automatically
-                this.rerender();
-                this.attachCoverUploadFormListeners();
-            } catch (error) {
-                console.error('❌ CommunityPage: Failed to refresh covers after upload:', error);
-            }
-        }, 500); // Small delay to allow server to process
     }
     
     /**
@@ -4896,13 +4884,21 @@ renderAchievementsSection() {
         
         this._deletingCover = true;
         
+        // 🔧 Save original state for rollback
+        const originalCoversPosts = this.coversPosts ? [...this.coversPosts] : [];
+        
         try {
             console.log('📸 CommunityPage: Deleting cover post:', postId);
             
-            // Show deleting state on the card
+            // 🔧 OPTIMISTIC DELETE: Remove from local state immediately
+            if (Array.isArray(this.coversPosts)) {
+                this.coversPosts = this.coversPosts.filter(p => (p._id || p.id) !== postId);
+            }
+            
+            // Remove from DOM immediately
             const card = document.querySelector(`[data-post-id="${postId}"]`);
             if (card) {
-                card.classList.add('deleting');
+                card.remove();
             }
             
             // Call API to delete
@@ -4911,11 +4907,6 @@ renderAchievementsSection() {
             if (response && response.success) {
                 // 🔧 Set mutation timestamp for cache-busting
                 this._lastMutationTs = Date.now();
-                
-                // Remove from local state
-                if (Array.isArray(this.coversPosts)) {
-                    this.coversPosts = this.coversPosts.filter(p => (p._id || p.id) !== postId);
-                }
                 
                 // Show success message
                 if (window.app && window.app.showToast) {
@@ -4926,20 +4917,15 @@ renderAchievementsSection() {
                 if (window.Telegram?.WebApp?.HapticFeedback) {
                     window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
                 }
-                
-                // Rerender to update UI (removes card immediately)
-                this.rerender();
             } else {
                 throw new Error(response?.error || 'Failed to delete');
             }
         } catch (error) {
             console.error('❌ CommunityPage: Failed to delete cover:', error);
             
-            // Restore card state on error
-            const card = document.querySelector(`[data-post-id="${postId}"]`);
-            if (card) {
-                card.classList.remove('deleting');
-            }
+            // 🔧 ROLLBACK: Restore original state
+            this.coversPosts = originalCoversPosts;
+            this.rerender();
             
             // Show error message
             if (window.app && window.app.showToast) {
