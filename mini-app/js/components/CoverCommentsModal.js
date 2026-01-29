@@ -236,8 +236,12 @@ class CoverCommentsModal {
             this.modal.style.transition = 'transform 0.2s ease-out';
         }
         
-        // If dragged down more than threshold while at max height, close
-        if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
+        // 🔧 FIX: Close only if dragged down > 50% of modal height
+        const modalHeight = this.modal ? this.modal.offsetHeight : window.innerHeight * 0.65;
+        const closeThreshold = modalHeight * 0.5; // 50% of modal height
+        
+        // If dragged down more than 50% of height while at max height, close
+        if (deltaY > closeThreshold && this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
             this.close();
         } else {
             // Snap back to current position
@@ -713,7 +717,7 @@ class CoverCommentsModal {
                         <span class="comment__time">${timeStr}</span>
                     </div>
                     <div class="comment__body">
-                        <div class="comment__text">${this.escapeHtml(comment.text)}</div>
+                        <div class="comment__text">${this.highlightMentions(this.escapeHtml(comment.text))}</div>
                         <button class="comment__action-btn comment__like-btn${liked ? ' liked' : ''}" 
                                 data-action="like-comment" 
                                 data-comment-id="${commentId}"
@@ -726,7 +730,7 @@ class CoverCommentsModal {
                             <button class="comment__action-btn comment__reply-btn" 
                                     data-action="reply" 
                                     data-comment-id="${commentId}"
-                                    data-user-name="${this.escapeHtml(user.name || 'Пользователь')}">
+                                    data-user-name="${this.escapeHtml(user.telegramUsername || user.name || 'user')}">
                                 Ответить
                             </button>
                         ` : ''}
@@ -813,6 +817,17 @@ class CoverCommentsModal {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    /**
+     * 🎨 Highlight mentions in text
+     * @param {string} text - Escaped HTML text
+     * @returns {string} HTML with highlighted mentions
+     */
+    highlightMentions(text) {
+        if (!text) return '';
+        // Match @username pattern (already escaped HTML)
+        return text.replace(/@(\w+)/g, '<span class="comment__mention">@$1</span>');
     }
     
     /**
@@ -1154,9 +1169,11 @@ class CoverCommentsModal {
         const confirmed = await showConfirm('Удалить комментарий?');
         if (!confirmed) return;
         
+        // 🔧 FIX: Declare originalComments before try block so it's available in catch
+        const originalComments = [...this.comments];
+        
         try {
             // 🔧 OPTIMISTIC DELETE: Remove from local state immediately
-            const originalComments = [...this.comments];
             this.comments = this.comments.filter(c => (c._id || c.id) !== commentId);
             
             // Update cache after optimistic delete

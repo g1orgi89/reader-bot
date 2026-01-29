@@ -5889,6 +5889,50 @@ router.post('/covers/:postId/comments/:commentId/like', telegramAuth, async (req
 });
 
 /**
+ * @description DELETE /api/reader/covers/:postId/comments/:commentId - Delete a comment
+ * @route DELETE /api/reader/covers/:postId/comments/:commentId
+ * @access Private (telegramAuth, author or admin only)
+ */
+router.delete('/covers/:postId/comments/:commentId', telegramAuth, communityLimiter, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { commentId } = req.params;
+    
+    // Find the comment
+    const comment = await PhotoComment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'Комментарий не найден' });
+    }
+    
+    // Check if user is author or admin
+    const user = await UserProfile.findOne({ userId }).lean();
+    const isCommentAuthor = comment.userId === userId;
+    const isUserAdmin = user && (user.telegramUsername === 'anna_busel' || isAdmin(req));
+    
+    if (!isCommentAuthor && !isUserAdmin) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'У вас нет прав на удаление этого комментария' 
+      });
+    }
+    
+    // Delete the comment
+    await PhotoComment.findByIdAndDelete(commentId);
+    
+    // Also delete all replies to this comment
+    await PhotoComment.deleteMany({ parentId: commentId });
+    
+    console.log(`✅ Comment ${commentId} deleted by user ${userId}`);
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('❌ Error deleting comment:', error);
+    res.status(500).json({ success: false, error: 'Ошибка при удалении комментария' });
+  }
+});
+
+/**
  * @description DELETE /api/reader/covers/:id - Delete a cover post
  * @route DELETE /api/reader/covers/:id
  * @access Private (telegramAuth, author only)
