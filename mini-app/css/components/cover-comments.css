@@ -481,8 +481,8 @@
         transform: translateY(0dvh); /* Fully expanded */
     }
     
-    /* Legacy support for .active class */
-    .cover-comments-modal.active:not([class*="sheet-state-"]) {
+    /* Legacy support for .active class (will be overridden by state classes) */
+    .cover-comments-modal.active:not(.sheet-state-closed):not(.sheet-state-initial):not(.sheet-state-full) {
         transform: translateY(0);
     }
     

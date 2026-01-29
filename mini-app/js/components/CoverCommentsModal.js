@@ -61,6 +61,7 @@ class CoverCommentsModal {
         
         // State machine for three-position drawer
         this.sheetState = this.SHEET_STATES.CLOSED; // Current state: CLOSED, INITIAL, FULL
+        this._keyboardTriggeredFull = false; // Track if FULL state was triggered by keyboard
         
         // Bottom sheet state (deprecated - kept for compatibility)
         this._sheetHeight = this.INITIAL_SHEET_HEIGHT; // Start at 65dvh
@@ -140,15 +141,14 @@ class CoverCommentsModal {
             return;
         }
         
-        // Don't update if already in this state
-        if (this.sheetState === newState) {
-            return;
+        // Allow re-applying same state to reset visual position (for snap-back after drag)
+        const isReapplying = this.sheetState === newState;
+        
+        if (!isReapplying) {
+            const previousState = this.sheetState;
+            this.sheetState = newState;
+            console.log(`🎯 Sheet state transition: ${previousState} → ${newState}`);
         }
-        
-        const previousState = this.sheetState;
-        this.sheetState = newState;
-        
-        console.log(`🎯 Sheet state transition: ${previousState} → ${newState}`);
         
         // Apply CSS transformation
         if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
@@ -161,17 +161,10 @@ class CoverCommentsModal {
             
             this.modal.style.transform = `translateY(${translateY}dvh)`;
             
-            // Update CSS class for styling hooks
-            this.modal.classList.remove('sheet-state-closed', 'sheet-state-initial', 'sheet-state-full');
-            this.modal.classList.add(`sheet-state-${newState.toLowerCase()}`);
-            
-            // Handle CLOSED state - trigger close callback after animation
-            if (newState === this.SHEET_STATES.CLOSED && animated) {
-                setTimeout(() => {
-                    if (this.sheetState === this.SHEET_STATES.CLOSED) {
-                        this.close();
-                    }
-                }, 300); // Match animation duration
+            // Update CSS class for styling hooks (only if actually changing state)
+            if (!isReapplying) {
+                this.modal.classList.remove('sheet-state-closed', 'sheet-state-initial', 'sheet-state-full');
+                this.modal.classList.add(`sheet-state-${newState.toLowerCase()}`);
             }
         }
     }
@@ -229,7 +222,6 @@ class CoverCommentsModal {
             this._isDraggingSheet = true;
             this._touchStartY = e.touches[0].clientY;
             this._touchStartScrollTop = this.modalBody ? this.modalBody.scrollTop : 0;
-            this._dragStartState = this.sheetState; // Remember state when drag started
         }
     }
     
@@ -288,6 +280,8 @@ class CoverCommentsModal {
                 // Swipe UP
                 if (this.sheetState === this.SHEET_STATES.INITIAL) {
                     targetState = this.SHEET_STATES.FULL;
+                    // User manually swiped to FULL, so clear keyboard trigger flag
+                    this._keyboardTriggeredFull = false;
                 }
                 // From FULL, can't go higher - stay at FULL
                 // From CLOSED, shouldn't happen - ignore
@@ -309,12 +303,11 @@ class CoverCommentsModal {
         this._isDraggingSheet = false;
         this._touchStartY = 0;
         this._touchStartScrollTop = 0;
-        this._dragStartState = null;
     }
     
     /**
      * ⌨️ Setup keyboard resize handler for mobile
-     * 🔧 When keyboard shows, force FULL state; when hidden, return to INITIAL
+     * 🔧 When keyboard shows, force FULL state; when hidden, return to INITIAL only if keyboard-triggered
      */
     setupKeyboardHandler() {
         if (!window.visualViewport) return; // Not supported
@@ -333,12 +326,16 @@ class CoverCommentsModal {
             if (viewportHeightDiff > 150) {
                 // 🔧 Force transition to FULL state to keep input visible
                 console.log('⌨️ Keyboard shown - forcing FULL state');
-                this._setSheetState(this.SHEET_STATES.FULL);
+                if (this.sheetState !== this.SHEET_STATES.FULL) {
+                    this._keyboardTriggeredFull = true;
+                    this._setSheetState(this.SHEET_STATES.FULL);
+                }
             } else {
-                // Keyboard hidden - return to INITIAL state
-                if (this.sheetState === this.SHEET_STATES.FULL) {
+                // Keyboard hidden - return to INITIAL only if FULL was keyboard-triggered
+                if (this.sheetState === this.SHEET_STATES.FULL && this._keyboardTriggeredFull) {
                     console.log('⌨️ Keyboard hidden - returning to INITIAL state');
                     this._setSheetState(this.SHEET_STATES.INITIAL);
+                    this._keyboardTriggeredFull = false;
                 }
             }
         };
@@ -442,14 +439,24 @@ class CoverCommentsModal {
         // Remove body class
         document.body.classList.remove('sheet-open');
         
-        // 🔧 Reset sheet state to CLOSED
-        this.sheetState = this.SHEET_STATES.CLOSED;
+        // 🔧 Animate transition to CLOSED state on mobile
+        if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            this._setSheetState(this.SHEET_STATES.CLOSED, true);
+            // The _setSheetState will handle the cleanup via setTimeout
+            // Just set isOpen to false after animation
+            setTimeout(() => {
+                this.isOpen = false;
+            }, 300);
+        } else {
+            // Desktop: immediate hide
+            this.sheetState = this.SHEET_STATES.CLOSED;
+            this.isOpen = false;
+        }
         
         // Hide after animation
         setTimeout(() => {
             if (this.backdrop) this.backdrop.style.display = 'none';
             if (this.modal) this.modal.style.display = 'none';
-            this.isOpen = false;
         }, 300);
         
         // Detach event listeners
