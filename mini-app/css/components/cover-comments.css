@@ -218,21 +218,31 @@
     color: var(--text-secondary);
 }
 
+/* 🔧 FIX: Comment body with text and like button on same line */
+.comment__body {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 4px;
+}
 
 .comment__text {
     font-size: 14px;
     line-height: 1.5;
     color: var(--text-primary);
-    margin-bottom: 8px;
     word-wrap: break-word;
     white-space: pre-wrap;
+    flex: 1;
+    min-width: 0;
 }
 
+/* 🔧 FIX: Action buttons positioned below text */
 .comment__actions {
     display: flex;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+    margin-top: 0;
 }
 
 .comment__action-btn {
@@ -259,11 +269,16 @@
     transform: scale(0.95);
 }
 
-/* 🔧 Like button: push to right, transparent by default, terracotta when liked */
+/* 🔧 FIX: Like button positioned on same line as text, to the right */
 .comment__like-btn {
     color: var(--text-secondary);
     opacity: 0.7;
-    margin-left: auto; /* Push to right edge */
+    flex-shrink: 0;
+    align-self: flex-start;
+    /* Remove margin-left: auto since it's in a flex container with the text */
+    padding: 0 4px;
+    min-height: auto;
+    min-width: auto;
 }
 
 .comment__like-btn.liked {
@@ -275,21 +290,23 @@
     font-size: 13px;
 }
 
-/* 🔧 Reply button: positioned under text */
+/* 🔧 FIX: Reply button positioned under text */
 .comment__reply-btn {
     align-self: flex-start;
     margin-top: 0;
+    padding: 4px 8px;
+    min-height: 32px;
 }
 
-/* 🔧 Delete button: compact text button (not icon) */
+/* 🔧 FIX: Delete button positioned under text */
 .comment__delete-btn {
     padding: 4px 8px;
     font-size: 13px;
     border-radius: 8px;
     background: transparent;
     color: var(--text-secondary);
-    min-width: 44px; /* 🔧 Touch target ≥44px */
-    min-height: 44px; /* 🔧 Touch target ≥44px */
+    min-width: auto;
+    min-height: 32px;
 }
 
 .comment__delete-btn:hover {

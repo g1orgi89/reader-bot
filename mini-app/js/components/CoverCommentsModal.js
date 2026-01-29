@@ -712,7 +712,15 @@ class CoverCommentsModal {
                         <span class="comment__name" data-user-id="${userId}">${displayName}</span>
                         <span class="comment__time">${timeStr}</span>
                     </div>
-                    <div class="comment__text">${this.escapeHtml(comment.text)}</div>
+                    <div class="comment__body">
+                        <div class="comment__text">${this.escapeHtml(comment.text)}</div>
+                        <button class="comment__action-btn comment__like-btn${liked ? ' liked' : ''}" 
+                                data-action="like-comment" 
+                                data-comment-id="${commentId}"
+                                data-liked="${liked}">
+                            ${liked ? '❤️' : '♡'} <span class="comment__like-count">${likesCount}</span>
+                        </button>
+                    </div>
                     <div class="comment__actions">
                         ${!isReply ? `
                             <button class="comment__action-btn comment__reply-btn" 
@@ -730,12 +738,6 @@ class CoverCommentsModal {
                                 Удалить
                             </button>
                         ` : ''}
-                        <button class="comment__action-btn comment__like-btn${liked ? ' liked' : ''}" 
-                                data-action="like-comment" 
-                                data-comment-id="${commentId}"
-                                data-liked="${liked}">
-                            ${liked ? '❤️' : '♡'} <span class="comment__like-count">${likesCount}</span>
-                        </button>
                     </div>
                 </div>
             </div>
