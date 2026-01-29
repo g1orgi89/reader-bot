@@ -324,14 +324,20 @@ class CoverCommentsModal {
                 if (this.sheetState === this.SHEET_STATES.FULL) {
                     targetState = this.SHEET_STATES.INITIAL;
                 } else if (this.sheetState === this.SHEET_STATES.INITIAL) {
+                    // 🔧 FIX: Use unified close method to ensure backdrop is removed
                     targetState = this.SHEET_STATES.CLOSED;
                 }
                 // From CLOSED, already closed - ignore
             }
         }
         
-        // Apply state transition
-        this._setSheetState(targetState);
+        // Apply state transition or close
+        if (targetState === this.SHEET_STATES.CLOSED && this.sheetState !== this.SHEET_STATES.CLOSED) {
+            // 🔧 Call unified close method instead of just setting state
+            this._triggerClose();
+        } else {
+            this._setSheetState(targetState);
+        }
         
         // Reset state
         this._isDraggingSheet = false;
@@ -354,7 +360,9 @@ class CoverCommentsModal {
             if (!this.isOpen || !this.modal) return;
             
             // 🔧 FIX: Prevent double animation if already in FULL state or currently animating
-            if (this.sheetState === this.SHEET_STATES.FULL || this.isAnimating) return;
+            if (this.sheetState === this.SHEET_STATES.FULL || this.isAnimating) {
+                return;
+            }
             
             const currentViewportHeight = window.visualViewport.height;
             const viewportHeightDiff = initialViewportHeight - currentViewportHeight;
@@ -471,6 +479,15 @@ class CoverCommentsModal {
             // 🔧 Set sheet to INITIAL state (input form visible)
             this._setSheetState(this.SHEET_STATES.INITIAL);
         });
+    }
+    
+    /**
+     * 🎯 Trigger unified close action
+     * 🔧 FIX: Single method that handles both backdrop removal and sheet animation
+     * Used by both backdrop click and swipe-to-close to ensure consistent behavior
+     */
+    _triggerClose() {
+        this.close();
     }
     
     /**
@@ -1382,7 +1399,7 @@ class CoverCommentsModal {
      */
     handleBackdropClick(event) {
         if (event.target === this.backdrop) {
-            this.close();
+            this._triggerClose();
         }
     }
     

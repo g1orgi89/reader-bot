@@ -46,7 +46,11 @@ class ImageViewer {
     
     attachEventListeners() {
         // Close button click
-        this.closeButton.addEventListener('click', () => this.close());
+        this.closeButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            this.close();
+        });
         
         // Click on overlay background to close
         this.overlay.addEventListener('click', (e) => {
