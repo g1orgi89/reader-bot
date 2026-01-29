@@ -1146,6 +1146,16 @@ class CoverCommentsModal {
             const response = await this.api.deleteCoverComment(this.postId, commentId);
             
             if (response && response.success) {
+                // 🔧 FIX: Dispatch global event for cache synchronization
+                const event = new CustomEvent('comment:deleted', {
+                    detail: {
+                        postId: this.postId,
+                        commentId: commentId,
+                        remainingCount: this.comments.length
+                    }
+                });
+                window.dispatchEvent(event);
+                
                 // Show success toast
                 if (window.app && window.app.showToast) {
                     window.app.showToast('Комментарий удален', 'success');

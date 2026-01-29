@@ -278,7 +278,43 @@ class CommunityPage {
         };
         window.addEventListener('follow:changed', this._followChangedHandler);
         
-        console.log('✅ CommunityPage: Subscriptions set up (bridged followStateChanged + follow:changed)');
+        // ✅ Subscribe to comment:deleted event for cache synchronization
+        this._commentDeletedHandler = (event) => {
+            const { postId, commentId, remainingCount } = event.detail;
+            console.log(`[COMMENT_SYNC] CommunityPage: Comment deleted - postId=${postId}, commentId=${commentId}, count=${remainingCount}`);
+            
+            // Update comments cache
+            const cached = this._commentsCache.get(postId);
+            if (cached && cached.comments) {
+                // Remove deleted comment from cache
+                const updatedComments = cached.comments.filter(c => (c._id || c.id) !== commentId);
+                this._commentsCache.set(postId, {
+                    comments: updatedComments,
+                    ts: Date.now()
+                });
+                console.log(`[COMMENT_SYNC] CommunityPage: Updated cache for postId=${postId}, new count=${updatedComments.length}`);
+            }
+            
+            // Update comment count in UI card
+            const postIndex = this.coversPosts.findIndex(p => (p._id || p.id) === postId);
+            if (postIndex !== -1) {
+                this.coversPosts[postIndex].commentsCount = remainingCount;
+                // Re-render the post card to update the comment count
+                const postCard = document.querySelector(`[data-post-id="${postId}"]`);
+                if (postCard) {
+                    const commentBtn = postCard.querySelector('.cover-card__comments-btn');
+                    if (commentBtn) {
+                        const countSpan = commentBtn.querySelector('.cover-card__comments-count');
+                        if (countSpan) {
+                            countSpan.textContent = remainingCount;
+                        }
+                    }
+                }
+            }
+        };
+        window.addEventListener('comment:deleted', this._commentDeletedHandler);
+        
+        console.log('✅ CommunityPage: Subscriptions set up (bridged followStateChanged + follow:changed + comment:deleted)');
     }
     
     async loadCommunityData() {
