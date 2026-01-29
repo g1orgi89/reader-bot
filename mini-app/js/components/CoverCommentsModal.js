@@ -100,25 +100,35 @@ class CoverCommentsModal {
         document.body.appendChild(this.modal);
         
         // Set initial sheet height
-        this.setSheetHeight(this.INITIAL_SHEET_HEIGHT);
+        this.setSheetPosition(this.INITIAL_SHEET_HEIGHT);
         
         console.log('✅ CoverCommentsModal: DOM elements created');
     }
     
     /**
-     * 📐 Set sheet height (for bottom sheet behavior)
+     * 📐 Set sheet position (for bottom sheet behavior)
+     * 🔧 FIX: Using transform: translateY() instead of height for hardware-accelerated animations
      */
-    setSheetHeight(heightDvh) {
+    setSheetPosition(heightDvh) {
         // Clamp between INITIAL and MAX sheet heights
         heightDvh = Math.max(this.INITIAL_SHEET_HEIGHT, Math.min(this.MAX_SHEET_HEIGHT, heightDvh));
         this._sheetHeight = heightDvh;
         
-        // Update CSS variable
+        // Calculate translateY based on height difference from max
+        // When at MAX_SHEET_HEIGHT, translateY = 0
+        // When at INITIAL_SHEET_HEIGHT, translateY = positive value (pushed down)
+        const heightDiff = this.MAX_SHEET_HEIGHT - heightDvh;
+        const translateYPercent = heightDiff; // dvh units
+        
+        // Update CSS variable for reference
         document.documentElement.style.setProperty('--sheet-height', `${heightDvh}dvh`);
         
-        // Update modal height directly for mobile
+        // 🔧 FIX: Use transform for smooth hardware-accelerated animation
         if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-            this.modal.style.height = `${heightDvh}dvh`;
+            // Keep height at max, use transform to position
+            this.modal.style.height = `${this.MAX_SHEET_HEIGHT}dvh`;
+            this.modal.style.transform = `translateY(${translateYPercent}dvh)`;
+            this.modal.style.transition = 'transform 0.2s ease-out';
         }
     }
     
@@ -139,7 +149,7 @@ class CoverCommentsModal {
             // Scroll up: expand sheet
             if (scrollDelta < 0 && this._sheetHeight < this.MAX_SHEET_HEIGHT) {
                 const newHeight = this._sheetHeight + Math.abs(scrollDelta) * this.SCROLL_EXPANSION_FACTOR;
-                this.setSheetHeight(newHeight);
+                this.setSheetPosition(newHeight);
             }
             
             this._lastScrollTop = scrollTop;
@@ -167,6 +177,7 @@ class CoverCommentsModal {
     
     /**
      * 👆 Handle touch move for swipe gestures
+     * 🔧 FIX: Using transform for smooth animation
      */
     handleTouchMove(e) {
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
@@ -178,25 +189,40 @@ class CoverCommentsModal {
         // Prevent default to stop page scrolling while dragging header
         e.preventDefault();
         
+        // 🔧 FIX: Disable transition during drag for immediate feedback
+        if (this.modal) {
+            this.modal.style.transition = 'none';
+        }
+        
         // Dragging up: expand sheet
         if (deltaY < 0) {
             const progress = Math.abs(deltaY) / window.innerHeight;
             const heightIncrease = progress * (this.MAX_SHEET_HEIGHT - this.INITIAL_SHEET_HEIGHT);
             const newHeight = Math.min(this.MAX_SHEET_HEIGHT, this._sheetHeight + heightIncrease);
-            this.setSheetHeight(newHeight);
+            this.setSheetPosition(newHeight);
         }
-        // Dragging down: prepare to close if at max height
-        else if (deltaY > 0 && this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
-            // Visual feedback - slightly translate the modal down
-            if (this.modal) {
-                const translateY = Math.min(deltaY, 100); // Cap at 100px
-                this.modal.style.transform = `translateY(${translateY}px)`;
+        // Dragging down: prepare to close or collapse
+        else if (deltaY > 0) {
+            if (this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
+                // At max height: visual feedback for pull-to-close
+                const additionalTranslate = Math.min(deltaY, 100); // Cap at 100px
+                const currentTranslate = 0; // Already at max height (translateY = 0)
+                if (this.modal) {
+                    this.modal.style.transform = `translateY(${additionalTranslate}px)`;
+                }
+            } else {
+                // Not at max: collapse sheet
+                const progress = deltaY / window.innerHeight;
+                const heightDecrease = progress * (this.MAX_SHEET_HEIGHT - this.INITIAL_SHEET_HEIGHT);
+                const newHeight = Math.max(this.INITIAL_SHEET_HEIGHT, this._sheetHeight - heightDecrease);
+                this.setSheetPosition(newHeight);
             }
         }
     }
     
     /**
      * 👆 Handle touch end for swipe gestures
+     * 🔧 FIX: Re-enable transitions and handle close threshold
      */
     handleTouchEnd(e) {
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
@@ -205,14 +231,17 @@ class CoverCommentsModal {
         const touchY = e.changedTouches[0].clientY;
         const deltaY = touchY - this._touchStartY;
         
-        // Reset transform
+        // 🔧 FIX: Re-enable transition for smooth snap-back
         if (this.modal) {
-            this.modal.style.transform = '';
+            this.modal.style.transition = 'transform 0.2s ease-out';
         }
         
         // If dragged down more than threshold while at max height, close
         if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
             this.close();
+        } else {
+            // Snap back to current position
+            this.setSheetPosition(this._sheetHeight);
         }
         
         // Reset state
@@ -244,11 +273,11 @@ class CoverCommentsModal {
                 const newHeightPx = currentViewportHeight * 0.95; // 95% of visible viewport
                 const newHeightDvh = (newHeightPx / window.innerHeight) * 100;
                 
-                this.setSheetHeight(newHeightDvh);
+                this.setSheetPosition(newHeightDvh);
             } else {
                 // Keyboard hidden, restore to max height if was expanded
                 if (this._sheetHeight > this.INITIAL_SHEET_HEIGHT) {
-                    this.setSheetHeight(this.MAX_SHEET_HEIGHT);
+                    this.setSheetPosition(this.MAX_SHEET_HEIGHT);
                 }
             }
         };
@@ -350,7 +379,7 @@ class CoverCommentsModal {
         document.body.classList.remove('sheet-open');
         
         // Reset sheet height to initial
-        this.setSheetHeight(this.INITIAL_SHEET_HEIGHT);
+        this.setSheetPosition(this.INITIAL_SHEET_HEIGHT);
         
         // Hide after animation
         setTimeout(() => {
