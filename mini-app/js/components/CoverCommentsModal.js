@@ -50,12 +50,15 @@ class CoverCommentsModal {
         this._likeInProgress = new Map(); // commentId → boolean (prevent double-sends)
         this._touchStartY = 0;
         this._touchStartScrollTop = 0;
+        this._isDraggingSheet = false; // Track if user is dragging the sheet
         this._scrollThrottleTimer = null; // For throttling scroll updates
+        this._keyboardResizeHandler = null; // Handler for keyboard resize events
         
         // DOM elements
         this.modal = null;
         this.backdrop = null;
         this.modalBody = null;
+        this.modalHeader = null;
         
         // Event handlers
         this.boundHandleBackdropClick = this.handleBackdropClick.bind(this);
@@ -147,52 +150,120 @@ class CoverCommentsModal {
     /**
      * 👆 Handle touch start for pull-to-close gesture
      */
+    /**
+     * 👆 Handle touch start for swipe gestures on header
+     */
     handleTouchStart(e) {
-        if (!this.modalBody) return;
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
         
-        this._touchStartY = e.touches[0].clientY;
-        this._touchStartScrollTop = this.modalBody.scrollTop;
+        // Check if touch started on header
+        const header = e.target.closest('.cover-comments-modal__header');
+        if (header) {
+            this._isDraggingSheet = true;
+            this._touchStartY = e.touches[0].clientY;
+            this._touchStartScrollTop = this.modalBody ? this.modalBody.scrollTop : 0;
+        }
     }
     
     /**
-     * 👆 Handle touch move for pull-to-close gesture
+     * 👆 Handle touch move for swipe gestures
      */
     handleTouchMove(e) {
-        if (!this.modalBody) return;
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
-        
-        // If already scrolled down, don't interfere
-        if (this.modalBody.scrollTop > 0) return;
+        if (!this._isDraggingSheet) return;
         
         const touchY = e.touches[0].clientY;
         const deltaY = touchY - this._touchStartY;
         
-        // If user is pulling down (deltaY > threshold) while at top (scrollTop = 0)
-        if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._touchStartScrollTop === 0) {
-            // Prevent default to stop overscroll
-            e.preventDefault();
+        // Prevent default to stop page scrolling while dragging header
+        e.preventDefault();
+        
+        // Dragging up: expand sheet
+        if (deltaY < 0) {
+            const progress = Math.abs(deltaY) / window.innerHeight;
+            const heightIncrease = progress * (this.MAX_SHEET_HEIGHT - this.INITIAL_SHEET_HEIGHT);
+            const newHeight = Math.min(this.MAX_SHEET_HEIGHT, this._sheetHeight + heightIncrease);
+            this.setSheetHeight(newHeight);
+        }
+        // Dragging down: prepare to close if at max height
+        else if (deltaY > 0 && this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
+            // Visual feedback - slightly translate the modal down
+            if (this.modal) {
+                const translateY = Math.min(deltaY, 100); // Cap at 100px
+                this.modal.style.transform = `translateY(${translateY}px)`;
+            }
         }
     }
     
     /**
-     * 👆 Handle touch end for pull-to-close gesture
+     * 👆 Handle touch end for swipe gestures
      */
     handleTouchEnd(e) {
-        if (!this.modalBody) return;
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
+        if (!this._isDraggingSheet) return;
         
         const touchY = e.changedTouches[0].clientY;
         const deltaY = touchY - this._touchStartY;
         
-        // If user pulled down more than threshold while at top, close the modal
-        if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._touchStartScrollTop === 0 && this.modalBody.scrollTop === 0) {
+        // Reset transform
+        if (this.modal) {
+            this.modal.style.transform = '';
+        }
+        
+        // If dragged down more than threshold while at max height, close
+        if (deltaY > this.PULL_TO_CLOSE_THRESHOLD && this._sheetHeight >= this.MAX_SHEET_HEIGHT - 1) {
             this.close();
         }
         
-        // Reset
+        // Reset state
+        this._isDraggingSheet = false;
         this._touchStartY = 0;
         this._touchStartScrollTop = 0;
+    }
+    
+    /**
+     * ⌨️ Setup keyboard resize handler for mobile
+     */
+    setupKeyboardHandler() {
+        if (!window.visualViewport) return; // Not supported
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
+        
+        // Store initial viewport height
+        const initialViewportHeight = window.visualViewport.height;
+        
+        this._keyboardResizeHandler = () => {
+            if (!this.isOpen || !this.modal) return;
+            
+            const currentViewportHeight = window.visualViewport.height;
+            const viewportHeightDiff = initialViewportHeight - currentViewportHeight;
+            
+            // If keyboard is showing (viewport height decreased significantly)
+            if (viewportHeightDiff > 150) {
+                // Adjust sheet height to keep input visible
+                // Calculate height as percentage of visible viewport
+                const newHeightPx = currentViewportHeight * 0.95; // 95% of visible viewport
+                const newHeightDvh = (newHeightPx / window.innerHeight) * 100;
+                
+                this.setSheetHeight(newHeightDvh);
+            } else {
+                // Keyboard hidden, restore to max height if was expanded
+                if (this._sheetHeight > this.INITIAL_SHEET_HEIGHT) {
+                    this.setSheetHeight(this.MAX_SHEET_HEIGHT);
+                }
+            }
+        };
+        
+        window.visualViewport.addEventListener('resize', this._keyboardResizeHandler);
+    }
+    
+    /**
+     * ⌨️ Remove keyboard resize handler
+     */
+    removeKeyboardHandler() {
+        if (this._keyboardResizeHandler && window.visualViewport) {
+            window.visualViewport.removeEventListener('resize', this._keyboardResizeHandler);
+            this._keyboardResizeHandler = null;
+        }
     }
     
     /**
@@ -247,6 +318,9 @@ class CoverCommentsModal {
         // Attach event listeners
         this.attachEventListeners();
         
+        // Setup keyboard handler for mobile
+        this.setupKeyboardHandler();
+        
         // Hide Telegram back button and attach our handler
         this.handleTelegramBackButton(true);
         
@@ -287,6 +361,9 @@ class CoverCommentsModal {
         
         // Detach event listeners
         this.detachEventListeners();
+        
+        // Remove keyboard handler
+        this.removeKeyboardHandler();
         
         // Restore Telegram back button
         this.handleTelegramBackButton(false);
@@ -413,13 +490,14 @@ class CoverCommentsModal {
             </div>
         `;
         
-        // Store reference to modal body for scroll handling
+        // Store references to modal elements for event handling
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
+        this.modalHeader = this.modal.querySelector('.cover-comments-modal__header');
         
         // Reattach event listeners after render (modalBody changed)
         if (this.isOpen) {
             this.attachInternalListeners();
-            this.reattachModalBodyListeners(); // Reattach scroll/touch listeners to new modalBody
+            this.reattachModalBodyListeners(); // Reattach scroll/touch listeners
         }
     }
     
@@ -427,18 +505,24 @@ class CoverCommentsModal {
      * 🎯 Reattach modal body event listeners after render
      */
     reattachModalBodyListeners() {
+        // Remove old listeners if they exist (defensive)
         if (this.modalBody) {
-            // Remove old listeners if they exist (defensive)
             this.modalBody.removeEventListener('scroll', this.boundHandleScroll);
-            this.modalBody.removeEventListener('touchstart', this.boundHandleTouchStart);
-            this.modalBody.removeEventListener('touchmove', this.boundHandleTouchMove);
-            this.modalBody.removeEventListener('touchend', this.boundHandleTouchEnd);
-            
-            // Attach new listeners
+        }
+        if (this.modalHeader) {
+            this.modalHeader.removeEventListener('touchstart', this.boundHandleTouchStart);
+            this.modalHeader.removeEventListener('touchmove', this.boundHandleTouchMove);
+            this.modalHeader.removeEventListener('touchend', this.boundHandleTouchEnd);
+        }
+        
+        // Attach new listeners
+        if (this.modalBody) {
             this.modalBody.addEventListener('scroll', this.boundHandleScroll);
-            this.modalBody.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
-            this.modalBody.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
-            this.modalBody.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
+        }
+        if (this.modalHeader) {
+            this.modalHeader.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
+            this.modalHeader.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
+            this.modalHeader.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
         }
     }
     
@@ -710,11 +794,13 @@ class CoverCommentsModal {
         // Attach scroll listener for bottom sheet behavior
         if (this.modalBody) {
             this.modalBody.addEventListener('scroll', this.boundHandleScroll);
-            
-            // Touch listeners for pull-to-close gesture
-            this.modalBody.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
-            this.modalBody.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
-            this.modalBody.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
+        }
+        
+        // Touch listeners for swipe gestures on header
+        if (this.modalHeader) {
+            this.modalHeader.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
+            this.modalHeader.addEventListener('touchmove', this.boundHandleTouchMove, { passive: false });
+            this.modalHeader.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
         }
     }
     
@@ -825,9 +911,12 @@ class CoverCommentsModal {
         
         if (this.modalBody) {
             this.modalBody.removeEventListener('scroll', this.boundHandleScroll);
-            this.modalBody.removeEventListener('touchstart', this.boundHandleTouchStart);
-            this.modalBody.removeEventListener('touchmove', this.boundHandleTouchMove);
-            this.modalBody.removeEventListener('touchend', this.boundHandleTouchEnd);
+        }
+        
+        if (this.modalHeader) {
+            this.modalHeader.removeEventListener('touchstart', this.boundHandleTouchStart);
+            this.modalHeader.removeEventListener('touchmove', this.boundHandleTouchMove);
+            this.modalHeader.removeEventListener('touchend', this.boundHandleTouchEnd);
         }
         
         // Remove delegated click handler
