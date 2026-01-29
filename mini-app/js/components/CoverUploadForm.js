@@ -116,8 +116,11 @@ class CoverUploadForm {
         });
         
         // Handle file selection
+        // 🔧 FIX: Use requestAnimationFrame to reliably get file from iOS media library
         fileInput.addEventListener('change', (e) => {
-            this.handleFileSelect(e);
+            requestAnimationFrame(() => {
+                this.handleFileSelect(e);
+            });
         });
         
         // Handle remove button
@@ -141,25 +144,55 @@ class CoverUploadForm {
     /**
      * Handle file selection
      * @param {Event} event - File input change event
+     * 
+     * 🔧 FIX: Uses requestAnimationFrame to reliably get file from iOS media library
+     * iOS Safari can have timing issues where event.target.files[0] is not immediately
+     * available after selection. Using requestAnimationFrame ensures we process the file
+     * after the browser has fully updated the input element's files property.
      */
     handleFileSelect(event) {
-        const file = event.target.files[0];
+        const fileInput = event.target;
         
-        if (!file) {
-            return;
-        }
+        // 🔧 FIX: Wait for next frame to ensure file is fully loaded (iOS compatibility)
+        const processFile = () => {
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                // Try one more time with a longer delay for slower devices
+                setTimeout(() => {
+                    const retryFile = fileInput.files[0];
+                    if (!retryFile) {
+                        console.warn('⚠️ CoverUploadForm: No file selected after retry');
+                        return;
+                    }
+                    this.validateAndStoreFile(retryFile, fileInput);
+                }, 100);
+                return;
+            }
+            
+            this.validateAndStoreFile(file, fileInput);
+        };
         
+        processFile();
+    }
+    
+    /**
+     * Validate and store the selected file
+     * @param {File} file - Selected file
+     * @param {HTMLInputElement} fileInput - File input element (for reset on error)
+     */
+    validateAndStoreFile(file, fileInput) {
         // Validate file type
         if (!this.ALLOWED_TYPES.includes(file.type)) {
             this.showError('Поддерживаются только JPEG, PNG, WebP, HEIC и HEIF изображения');
-            event.target.value = '';
+            if (fileInput) fileInput.value = '';
             return;
         }
         
         // Validate file size
         if (file.size > this.MAX_FILE_SIZE) {
             this.showError('Размер файла не должен превышать 10 МБ');
-            event.target.value = '';
+            if (fileInput) fileInput.value = '';
             return;
         }
         
