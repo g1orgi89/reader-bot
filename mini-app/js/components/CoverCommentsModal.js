@@ -826,8 +826,8 @@ class CoverCommentsModal {
      */
     highlightMentions(text) {
         if (!text) return '';
-        // Match @username pattern (already escaped HTML)
-        return text.replace(/@(\w+)/g, '<span class="comment__mention">@$1</span>');
+        // Match @username pattern (supports alphanumeric, dots, hyphens, underscores)
+        return text.replace(/@([\w.-]+)/g, '<span class="comment__mention">@$1</span>');
     }
     
     /**

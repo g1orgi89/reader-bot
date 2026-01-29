@@ -5896,12 +5896,20 @@ router.post('/covers/:postId/comments/:commentId/like', telegramAuth, async (req
 router.delete('/covers/:postId/comments/:commentId', telegramAuth, communityLimiter, async (req, res) => {
   try {
     const userId = req.userId;
-    const { commentId } = req.params;
+    const { postId, commentId } = req.params;
     
     // Find the comment
     const comment = await PhotoComment.findById(commentId);
     if (!comment) {
       return res.status(404).json({ success: false, error: 'Комментарий не найден' });
+    }
+    
+    // 🔧 SECURITY: Verify comment belongs to the specified post
+    if (comment.postId.toString() !== postId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Комментарий не принадлежит указанному посту' 
+      });
     }
     
     // Check if user is author or admin
@@ -5922,7 +5930,7 @@ router.delete('/covers/:postId/comments/:commentId', telegramAuth, communityLimi
     // Also delete all replies to this comment
     await PhotoComment.deleteMany({ parentId: commentId });
     
-    console.log(`✅ Comment ${commentId} deleted by user ${userId}`);
+    console.log(`✅ Comment ${commentId} deleted by user ${userId} from post ${postId}`);
     
     res.json({ success: true });
     
