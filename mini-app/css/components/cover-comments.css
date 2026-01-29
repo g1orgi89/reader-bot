@@ -290,6 +290,8 @@
     color: var(--primary-color, #D2452C);
     opacity: 1;
     font-weight: bold;
+    font-variation-settings: 'FILL' 1; /* For variable fonts - immediate fill */
+    -webkit-text-stroke: 1px var(--primary-color, #D2452C); /* Guaranteed fill of outline */
 }
 
 .comment__like-count {
@@ -474,7 +476,7 @@
     }
     
     .cover-comments-modal.sheet-state-initial {
-        transform: translateY(40dvh); /* Input form visible */
+        transform: translateY(50vh); /* Input form visible - 50% of viewport */
     }
     
     .cover-comments-modal.sheet-state-full {

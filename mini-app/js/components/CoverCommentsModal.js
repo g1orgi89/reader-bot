@@ -30,10 +30,10 @@ class CoverCommentsModal {
             FULL: 'FULL'
         };
         
-        // Translate Y values for each state (in dvh units)
+        // Translate Y values for each state (in vh units for INITIAL, dvh for others)
         this.SHEET_POSITIONS = {
             CLOSED: 100,   // translateY(100dvh) - completely off screen
-            INITIAL: 40,   // translateY(40dvh) - input form visible
+            INITIAL: 50,   // translateY(50vh) - input form visible, exactly 50% of viewport
             FULL: 0        // translateY(0dvh) - fully expanded
         };
         
@@ -159,7 +159,9 @@ class CoverCommentsModal {
                 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
                 : 'none';
             
-            this.modal.style.transform = `translateY(${translateY}dvh)`;
+            // Use 'vh' for INITIAL state (50% of viewport), 'dvh' for others
+            const unit = newState === this.SHEET_STATES.INITIAL ? 'vh' : 'dvh';
+            this.modal.style.transform = `translateY(${translateY}${unit})`;
             
             // Update CSS class for styling hooks (only if actually changing state)
             if (!isReapplying) {
@@ -319,6 +321,9 @@ class CoverCommentsModal {
         this._keyboardResizeHandler = () => {
             if (!this.isOpen || !this.modal) return;
             
+            // 🔧 FIX: Prevent double animation if already in FULL state
+            if (this.sheetState === this.SHEET_STATES.FULL) return;
+            
             const currentViewportHeight = window.visualViewport.height;
             const viewportHeightDiff = initialViewportHeight - currentViewportHeight;
             
@@ -432,12 +437,20 @@ class CoverCommentsModal {
         
         console.log('📸 CoverCommentsModal: Closing');
         
-        // Remove animation classes
-        this.backdrop.classList.remove('active');
-        this.modal.classList.remove('active');
+        // 🔧 FIX: Synchronously remove all backdrop and body classes immediately
+        // This ensures the background fades out in sync with the sheet animation
+        if (this.backdrop) {
+            this.backdrop.classList.remove('active');
+        }
+        if (this.modal) {
+            this.modal.classList.remove('active');
+        }
         
-        // Remove body class
+        // Remove body class immediately
         document.body.classList.remove('sheet-open');
+        
+        // Remove any backdrop-visible class if present
+        document.body.classList.remove('backdrop-visible');
         
         // 🔧 Animate transition to CLOSED state on mobile
         if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
@@ -453,7 +466,7 @@ class CoverCommentsModal {
             this.isOpen = false;
         }
         
-        // Hide after animation
+        // Hide after animation completes
         setTimeout(() => {
             if (this.backdrop) this.backdrop.style.display = 'none';
             if (this.modal) this.modal.style.display = 'none';
