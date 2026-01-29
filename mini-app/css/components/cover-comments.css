@@ -236,6 +236,11 @@
     min-width: 0;
 }
 
+.comment__mention {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
 /* 🔧 FIX: Action buttons positioned below text */
 .comment__actions {
     display: flex;

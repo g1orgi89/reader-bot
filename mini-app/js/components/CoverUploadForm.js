@@ -234,7 +234,20 @@ class CoverUploadForm {
         
         this.selectedFile = null;
         
-        if (fileInput) fileInput.value = '';
+        // 🔧 FIX: Fully reset file input state
+        if (fileInput) {
+            fileInput.value = '';
+            // Force re-creation of the input element to fully reset state
+            const newFileInput = fileInput.cloneNode(true);
+            fileInput.parentNode.replaceChild(newFileInput, fileInput);
+            
+            // Re-attach event listener to new input
+            newFileInput.addEventListener('change', (e) => {
+                requestAnimationFrame(() => {
+                    this.handleFileSelect(e);
+                });
+            });
+        }
         if (captionInput) captionInput.value = '';
         if (previewContainer) previewContainer.style.display = 'none';
         if (uploadBtn) uploadBtn.style.display = 'flex';
