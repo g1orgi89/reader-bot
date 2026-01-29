@@ -961,16 +961,19 @@ class CoverCommentsModal {
             const response = await this.api.addCoverComment(this.postId, text, parentId);
             
             if (response && response.success) {
-                // Add new comment to list
+                // 🔧 OPTIMISTIC UPDATE: Add new comment to list
                 const newComment = response.data;
                 if (newComment) {
                     this.comments = [newComment, ...this.comments];
                     
-                    // 🔧 Update cache with new comment
+                    // Update cache with new comment
                     this._commentsCache.set(this.postId, {
                         items: this.comments,
                         ts: Date.now()
                     });
+                    
+                    // Re-render to show new comment
+                    this.render();
                 }
                 
                 // Clear form and reply state
@@ -981,9 +984,6 @@ class CoverCommentsModal {
                 if (this.updateCountCallback) {
                     this.updateCountCallback(this.comments.length);
                 }
-                
-                // Reload comments with cache-bust to get fresh data
-                await this.loadComments(false);
                 
                 // Show success toast
                 if (window.app && window.app.showToast) {
@@ -1035,34 +1035,28 @@ class CoverCommentsModal {
         if (!confirmed) return;
         
         try {
-            // Optimistically remove from UI
-            const commentElement = button.closest('.comment');
-            if (commentElement) {
-                commentElement.style.opacity = '0.5';
-                commentElement.style.pointerEvents = 'none';
+            // 🔧 OPTIMISTIC DELETE: Remove from local state immediately
+            const originalComments = [...this.comments];
+            this.comments = this.comments.filter(c => (c._id || c.id) !== commentId);
+            
+            // Update cache after optimistic delete
+            this._commentsCache.set(this.postId, {
+                items: this.comments,
+                ts: Date.now()
+            });
+            
+            // Update comment count in parent card
+            if (this.updateCountCallback) {
+                this.updateCountCallback(this.comments.length);
             }
+            
+            // Re-render to remove comment from DOM
+            this.render();
             
             // Call API to delete
             const response = await this.api.deleteCoverComment(this.postId, commentId);
             
             if (response && response.success) {
-                // Remove from local state
-                this.comments = this.comments.filter(c => (c._id || c.id) !== commentId);
-                
-                // 🔧 Update cache after delete
-                this._commentsCache.set(this.postId, {
-                    items: this.comments,
-                    ts: Date.now()
-                });
-                
-                // Update comment count in parent card
-                if (this.updateCountCallback) {
-                    this.updateCountCallback(this.comments.length);
-                }
-                
-                // Reload comments with cache-bust to get fresh data
-                await this.loadComments(false);
-                
                 // Show success toast
                 if (window.app && window.app.showToast) {
                     window.app.showToast('Комментарий удален', 'success');
@@ -1078,12 +1072,22 @@ class CoverCommentsModal {
         } catch (error) {
             console.error('❌ CoverCommentsModal: Failed to delete comment:', error);
             
-            // Restore comment element
-            const commentElement = button.closest('.comment');
-            if (commentElement) {
-                commentElement.style.opacity = '1';
-                commentElement.style.pointerEvents = 'auto';
+            // 🔧 ROLLBACK: Restore original comments on error
+            this.comments = originalComments;
+            
+            // Update cache with restored comments
+            this._commentsCache.set(this.postId, {
+                items: this.comments,
+                ts: Date.now()
+            });
+            
+            // Update comment count in parent card
+            if (this.updateCountCallback) {
+                this.updateCountCallback(this.comments.length);
             }
+            
+            // Re-render to restore comment in DOM
+            this.render();
             
             if (window.app && window.app.showToast) {
                 window.app.showToast('Ошибка удаления комментария', 'error');
