@@ -62,6 +62,7 @@ class CoverCommentsModal {
         // State machine for three-position drawer
         this.sheetState = this.SHEET_STATES.CLOSED; // Current state: CLOSED, INITIAL, FULL
         this._keyboardTriggeredFull = false; // Track if FULL state was triggered by keyboard
+        this.isAnimating = false; // Track if sheet is currently animating (prevent double animations)
         
         // Bottom sheet state (deprecated - kept for compatibility)
         this._sheetHeight = this.INITIAL_SHEET_HEIGHT; // Start at 65dvh
@@ -152,21 +153,52 @@ class CoverCommentsModal {
         
         // Apply CSS transformation
         if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-            const translateY = this.SHEET_POSITIONS[newState];
+            let translateValue;
+            let unit;
+            
+            if (newState === this.SHEET_STATES.INITIAL) {
+                // Use calculated initial height from CSS custom property
+                const customHeight = getComputedStyle(document.documentElement).getPropertyValue('--sheet-initial-height').trim();
+                if (customHeight && customHeight !== '') {
+                    translateValue = customHeight;
+                    unit = ''; // Already includes unit (px)
+                } else {
+                    // Fallback to 50vh if custom property not set
+                    translateValue = this.SHEET_POSITIONS[newState];
+                    unit = 'vh';
+                }
+            } else {
+                translateValue = this.SHEET_POSITIONS[newState];
+                unit = 'dvh';
+            }
             
             // Set transition based on animated flag
             this.modal.style.transition = animated 
                 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
                 : 'none';
             
-            // Use 'vh' for INITIAL state (50% of viewport), 'dvh' for others
-            const unit = newState === this.SHEET_STATES.INITIAL ? 'vh' : 'dvh';
-            this.modal.style.transform = `translateY(${translateY}${unit})`;
+            this.modal.style.transform = `translateY(${translateValue}${unit})`;
             
             // Update CSS class for styling hooks (only if actually changing state)
             if (!isReapplying) {
                 this.modal.classList.remove('sheet-state-closed', 'sheet-state-initial', 'sheet-state-full');
                 this.modal.classList.add(`sheet-state-${newState.toLowerCase()}`);
+            }
+            
+            // Track animation state
+            if (animated) {
+                this.isAnimating = true;
+                
+                // Listen for transition end to clear animation flag
+                const handleTransitionEnd = (e) => {
+                    if (e.target === this.modal && e.propertyName === 'transform') {
+                        this.isAnimating = false;
+                        this.modal.removeEventListener('transitionend', handleTransitionEnd);
+                    }
+                };
+                this.modal.addEventListener('transitionend', handleTransitionEnd);
+            } else {
+                this.isAnimating = false;
             }
         }
     }
@@ -321,8 +353,8 @@ class CoverCommentsModal {
         this._keyboardResizeHandler = () => {
             if (!this.isOpen || !this.modal) return;
             
-            // 🔧 FIX: Prevent double animation if already in FULL state
-            if (this.sheetState === this.SHEET_STATES.FULL) return;
+            // 🔧 FIX: Prevent double animation if already in FULL state or currently animating
+            if (this.sheetState === this.SHEET_STATES.FULL || this.isAnimating) return;
             
             const currentViewportHeight = window.visualViewport.height;
             const viewportHeightDiff = initialViewportHeight - currentViewportHeight;
@@ -389,6 +421,18 @@ class CoverCommentsModal {
         
         // Add body class for content shift
         document.body.classList.add('sheet-open');
+        
+        // 🔧 FIX: Calculate initial height based on visualViewport for better safe-area handling
+        if (window.visualViewport && window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            const viewportHeight = window.visualViewport.height;
+            // Initial state should show 60% of viewport height
+            const initialVisibleHeight = viewportHeight * 0.6;
+            // Calculate translateY: we want to show initialVisibleHeight, so translate by the rest
+            const translateYPx = viewportHeight - initialVisibleHeight;
+            // Set CSS custom property for use in _setSheetState
+            document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
+            console.log(`📏 Calculated initial height: viewport=${viewportHeight}px, showing ${initialVisibleHeight}px (60%), translateY=${translateYPx}px`);
+        }
         
         // Use initial comments if provided for instant UI
         if (options.initialComments && options.initialComments.length > 0) {
@@ -802,7 +846,7 @@ class CoverCommentsModal {
                                 data-action="like-comment" 
                                 data-comment-id="${commentId}"
                                 data-liked="${liked}">
-                            ${liked ? '❤️' : '♡'} <span class="comment__like-count">${likesCount}</span>
+                            <span class="like-icon">${liked ? '❤️' : '♡'}</span> <span class="comment__like-count">${likesCount}</span>
                         </button>
                     </div>
                     <div class="comment__actions">
@@ -1068,13 +1112,22 @@ class CoverCommentsModal {
         
         const wasLiked = button.dataset.liked === 'true';
         const likeCountSpan = button.querySelector('.comment__like-count');
+        const likeIconSpan = button.querySelector('.like-icon');
         
         // Mark as in-progress
         this._likeInProgress.set(commentId, true);
         
+        // Helper to update icon
+        const updateIcon = (liked) => {
+            if (likeIconSpan) {
+                likeIconSpan.textContent = liked ? '❤️' : '♡';
+            }
+        };
+        
         // Optimistic UI update
         button.dataset.liked = wasLiked ? 'false' : 'true';
         button.classList.toggle('liked', !wasLiked);
+        updateIcon(!wasLiked);
         
         const currentCount = parseInt((likeCountSpan && likeCountSpan.textContent) || '0');
         const newCount = wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
@@ -1094,6 +1147,7 @@ class CoverCommentsModal {
                 // Update with server response
                 button.dataset.liked = response.liked ? 'true' : 'false';
                 button.classList.toggle('liked', response.liked);
+                updateIcon(response.liked);
                 if (likeCountSpan) {
                     likeCountSpan.textContent = response.likesCount || 0;
                 }
@@ -1111,6 +1165,7 @@ class CoverCommentsModal {
             // Revert optimistic update
             button.dataset.liked = wasLiked ? 'true' : 'false';
             button.classList.toggle('liked', wasLiked);
+            updateIcon(wasLiked);
             if (likeCountSpan) {
                 likeCountSpan.textContent = currentCount;
             }
