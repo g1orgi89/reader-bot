@@ -44,6 +44,7 @@ class CoverCommentsModal {
         // Constants
         this.MOBILE_BREAKPOINT = 480;
         this.MIN_BOTTOM_PADDING = 8; // Minimum padding at bottom of scroll container (matches CSS default)
+        this.INITIAL_HEIGHT_RATIO = 0.5; // INITIAL state shows exactly 50% of visible height
         
         // State machine constants for three-position drawer
         this.SHEET_STATES = {
@@ -96,6 +97,9 @@ class CoverCommentsModal {
         this._isDraggingSheet = false; // Track if user is dragging the sheet
         this._scrollThrottleTimer = null; // For throttling scroll updates
         this._keyboardResizeHandler = null; // Handler for keyboard resize events
+        
+        // iOS Fix Service (cached)
+        this._iosFixService = null;
         
         // DOM elements
         this.modal = null;
@@ -490,12 +494,38 @@ class CoverCommentsModal {
     }
     
     /**
+     * 📱 Wait for viewport stabilization (with fallback)
+     * @returns {Promise} Promise that resolves when viewport is stable or times out
+     */
+    _waitForViewportStabilization() {
+        // Initialize service if not already cached
+        if (!this._iosFixService && window.getIOSFixService) {
+            this._iosFixService = window.getIOSFixService();
+        }
+        
+        // If service available, use its stabilization method with error handling
+        if (this._iosFixService && this._iosFixService.waitForViewportStabilization) {
+            return this._iosFixService.waitForViewportStabilization().catch((error) => {
+                console.warn('⚠️ Viewport stabilization failed:', error?.message || 'timeout');
+                return Promise.resolve();
+            });
+        }
+        
+        // Fallback: resolve immediately
+        return Promise.resolve();
+    }
+    
+    /**
      * 📱 Setup viewport listeners for visible height updates
      */
     _setupViewportListeners() {
         // Create bound handlers if they don't exist
         if (!this._boundUpdateVisibleHeight) {
-            this._boundUpdateVisibleHeight = () => this._updateVisibleHeightVar();
+            this._boundUpdateVisibleHeight = () => {
+                // Skip updates while animating
+                if (this.isAnimating) return;
+                this._updateVisibleHeightVar();
+            };
         }
         
         // Add visualViewport resize listener
@@ -628,32 +658,33 @@ class CoverCommentsModal {
             await this.loadComments();
             
             // Trigger animation and set initial state
-            requestAnimationFrame(() => {
-                this.backdrop.classList.add('active');
-                this.modal.classList.add('active');
-                
-                // 🔧 FIX: Compute INITIAL translateY from real modal sheet height (DOM-based measurement)
-                // Measure after modal is inserted into DOM and rendered
-                if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-                    // Compute visible height for mobile (visualViewport - bottom nav)
-                    const vvH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                    const nav = document.querySelector('.bottom-nav');
-                    const navH = nav ? Math.round(nav.getBoundingClientRect().height || 0) : 0;
-                    const visibleHeightPx = Math.max(200, vvH - navH);
-                    document.documentElement.style.setProperty('--sheet-visible-height', `${visibleHeightPx}px`);
+            // Wait for viewport stabilization on iOS before computing heights
+            this._waitForViewportStabilization().then(() => {
+                requestAnimationFrame(() => {
+                    this.backdrop.classList.add('active');
+                    this.modal.classList.add('active');
                     
-                    const rect = this.modal.getBoundingClientRect();
-                    const sheetHeight = rect.height; // Real measured height in px
-                    const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                    const targetVisibleHeight = viewportHeight * 0.6; // Show 60% of viewport
-                    const translateYPx = Math.max(0, Math.round(sheetHeight - targetVisibleHeight));
+                    // 🔧 FIX: Compute INITIAL translateY using 50% of visible height
+                    // Measure after modal is inserted into DOM and rendered
+                    if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
+                        // Compute visible height for mobile (visualViewport - bottom nav)
+                        const visibleHeightPx = this._computeVisibleHeightPx();
+                        document.documentElement.style.setProperty('--sheet-visible-height', `${visibleHeightPx}px`);
+                        
+                        const rect = this.modal.getBoundingClientRect();
+                        const sheetHeight = rect.height; // Real measured height in px
+                        
+                        // INITIAL shows exactly 50% of visible height (using INITIAL_HEIGHT_RATIO constant)
+                        const targetVisibleHeight = Math.round(visibleHeightPx * this.INITIAL_HEIGHT_RATIO);
+                        const translateYPx = Math.max(0, Math.round(sheetHeight - targetVisibleHeight));
+                        
+                        // Set CSS variable with px value for precise positioning
+                        document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
+                    }
                     
-                    // Set CSS variable with px value for precise positioning
-                    document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
-                }
-                
-                // 🔧 Set sheet to INITIAL state (input form visible)
-                this._setSheetState(this.SHEET_STATES.INITIAL);
+                    // 🔧 Set sheet to INITIAL state (input form visible)
+                    this._setSheetState(this.SHEET_STATES.INITIAL);
+                });
             });
         } finally {
             this._openInFlight = false;
@@ -873,6 +904,10 @@ class CoverCommentsModal {
                 const formH = replyEl.offsetHeight || 64;
                 const pad = formH + safe;
                 bodyEl.style.paddingBottom = `${pad}px`;
+                
+                // Set CSS variable for reply form height
+                document.documentElement.style.setProperty('--reply-form-height', `${formH}px`);
+                
                 console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${formH}px, safe-area: ${safe}px)`);
             });
         }
