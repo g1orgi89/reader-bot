@@ -504,10 +504,9 @@
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         padding: 8px 12px;
-        /* Reserve space under content for sticky input panel + safe area.
-         * --reply-form-height is set dynamically by JS after render (typically 64-80px depending on content).
-         * This prevents content from being obscured by the sticky reply form. */
-        padding-bottom: calc(var(--reply-form-height, 64px) + env(safe-area-inset-bottom, 0px));
+        /* Small padding at bottom for safe area. Reply form is now inside body with sticky positioning.
+         * JS dynamically sets this padding to Math.max(8, safe-area-inset-bottom). */
+        padding-bottom: 8px;
         overscroll-behavior: contain;
         -webkit-overscroll-behavior: contain;
     }
@@ -528,7 +527,7 @@
         align-items: center;
         gap: 8px;
         padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
-        min-height: var(--reply-form-height, 64px);
+        min-height: 64px;
     }
     
     .reply-form__input {

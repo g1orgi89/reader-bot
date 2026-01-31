@@ -43,6 +43,7 @@ class CoverCommentsModal {
         
         // Constants
         this.MOBILE_BREAKPOINT = 480;
+        this.MIN_BOTTOM_PADDING = 8; // Minimum padding at bottom of scroll container (matches CSS default)
         
         // State machine constants for three-position drawer
         this.SHEET_STATES = {
@@ -710,8 +711,8 @@ class CoverCommentsModal {
                     ${this.loading && this.comments.length === 0 ? this.renderLoading() : commentsHtml}
                     ${this.hasMore && !this.loading ? '<button class="cover-comments-modal__load-more">Показать ещё</button>' : ''}
                     ${this.loading && this.comments.length > 0 ? '<div class="cover-comments-modal__loading-more">Загрузка...</div>' : ''}
+                    ${replyFormHtml}
                 </div>
-                ${replyFormHtml}
             </div>
         `;
         
@@ -719,7 +720,7 @@ class CoverCommentsModal {
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
         this.modalHeader = this.modal.querySelector('.cover-comments-modal__header');
         
-        // 🔧 FIX: Ensure body padding matches reply form height + safe area for sticky positioning
+        // 🔧 FIX: Ensure body padding accounts only for safe area (panel is now inside flow)
         const bodyEl = this.modalBody;
         const replyFormEl = this.modal.querySelector('.cover-comments-modal__reply-form');
         if (bodyEl && replyFormEl && window.innerWidth <= this.MOBILE_BREAKPOINT) {
@@ -728,9 +729,9 @@ class CoverCommentsModal {
                 // Get safe area inset bottom (iOS notch/home indicator)
                 const safeAreaBottom = parseInt(getComputedStyle(document.documentElement)
                     .getPropertyValue('--safe-area-inset-bottom') || '0', 10);
-                const pad = replyFormEl.offsetHeight + safeAreaBottom;
+                const pad = Math.max(this.MIN_BOTTOM_PADDING, safeAreaBottom);
                 bodyEl.style.paddingBottom = `${pad}px`;
-                console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${replyFormEl.offsetHeight}px, safe-area: ${safeAreaBottom}px)`);
+                console.log(`🔧 Set body padding-bottom: ${pad}px (safe-area: ${safeAreaBottom}px)`);
             });
         }
         
