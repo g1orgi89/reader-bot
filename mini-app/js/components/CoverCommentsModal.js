@@ -45,6 +45,8 @@ class CoverCommentsModal {
         this.MOBILE_BREAKPOINT = 480;
         this.MIN_BOTTOM_PADDING = 8; // Minimum padding at bottom of scroll container (matches CSS default)
         this.INITIAL_HEIGHT_RATIO = 0.5; // INITIAL state shows exactly 50% of visible height
+        this.REPLY_EXTRA_BOTTOM_PX = 10; // Extra bottom offset for reply form breathing space (px)
+        this.KEYBOARD_DISMISS_DELAY_MS = 100; // Delay to allow keyboard to dismiss before recalculating height on iOS
         
         // State machine constants for three-position drawer
         this.SHEET_STATES = {
@@ -185,12 +187,12 @@ class CoverCommentsModal {
         // 🔧 Dismiss keyboard when collapsing to INITIAL from FULL
         if (!isReapplying && newState === this.SHEET_STATES.INITIAL && this.sheetState === this.SHEET_STATES.FULL) {
             this._dismissKeyboard();
-            // Short delay to allow keyboard to dismiss before recalculating height
+            // Short delay to allow keyboard to dismiss and viewport to settle before recalculating height
             setTimeout(() => {
                 if (!this.isAnimating) {
                     this._updateVisibleHeightVar();
                 }
-            }, 100);
+            }, this.KEYBOARD_DISMISS_DELAY_MS);
         }
         
         if (!isReapplying) {
@@ -904,7 +906,8 @@ class CoverCommentsModal {
         const bodyEl = this.modalBody;
         const replyEl = this.modal.querySelector('.cover-comments-modal__reply-form');
         if (bodyEl && replyEl && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-            // Wait two frames to ensure elements are fully laid out
+            // Double requestAnimationFrame ensures elements are fully laid out and painted
+            // First RAF: browser schedules layout; Second RAF: layout is complete and measurements are accurate
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     // Measure safe area using a probe element
@@ -920,16 +923,16 @@ class CoverCommentsModal {
                     // Set CSS variable for reply form height
                     document.documentElement.style.setProperty('--reply-form-height', `${formH}px`);
                     
-                    // Set CSS variable for extra bottom breathing space (10px constant)
-                    document.documentElement.style.setProperty('--reply-extra-bottom', '10px');
+                    // Set CSS variable for extra bottom breathing space (matches CSS default)
+                    const extraBottomPx = this.REPLY_EXTRA_BOTTOM_PX;
+                    document.documentElement.style.setProperty('--reply-extra-bottom', `${extraBottomPx}px`);
                     
                     // Set body padding-bottom = formH + safe + extra bottom offset
                     // This ensures content scrolls properly without being hidden behind the form
-                    const extraBottom = 10; // matches --reply-extra-bottom
-                    const pad = formH + safe + extraBottom;
+                    const pad = formH + safe + extraBottomPx;
                     bodyEl.style.paddingBottom = `${pad}px`;
                     
-                    console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${formH}px, safe-area: ${safe}px, extra: ${extraBottom}px)`);
+                    console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${formH}px, safe-area: ${safe}px, extra: ${extraBottomPx}px)`);
                 });
             });
         }
