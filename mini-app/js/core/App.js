@@ -1058,6 +1058,29 @@ class ReaderApp {
     }
 
     /**
+     * 📸💬 Get CoverCommentsModal singleton instance
+     * @returns {CoverCommentsModal|null} - Singleton instance or null on failure
+     */
+    getCoverCommentsModal() {
+        try {
+            const CCMClass = window.CoverCommentsModal;
+            if (!CCMClass) {
+                console.warn('⚠️ CoverCommentsModal class not loaded yet');
+                return null;
+            }
+            if (this.coverCommentsModal && this.coverCommentsModal instanceof CCMClass) {
+                return this.coverCommentsModal;
+            }
+            this.coverCommentsModal = new CCMClass(this);
+            console.log('✅ CoverCommentsModal singleton created');
+            return this.coverCommentsModal;
+        } catch (e) {
+            console.warn('⚠️ getCoverCommentsModal failed:', e);
+            return null;
+        }
+    }
+
+    /**
      * 🧹 Cleanup all Telegram BackButton handlers
      * Removes all registered BackButton handlers from global registry
      */
@@ -1092,6 +1115,12 @@ class ReaderApp {
         if (this.profileModal?.isOpen) {
             this.profileModal.close({ force: true });
             console.log('✅ ProfileModal closed');
+        }
+        
+        // Close CoverCommentsModal singleton if it exists and is open
+        if (this.coverCommentsModal?.isOpen) {
+            this.coverCommentsModal.close();
+            console.log('✅ CoverCommentsModal closed');
         }
         
         // Fallback: Close ProfileModal from CommunityPage if it exists

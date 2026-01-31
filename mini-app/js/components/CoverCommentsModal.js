@@ -359,22 +359,26 @@ class CoverCommentsModal {
         this._keyboardResizeHandler = () => {
             if (!this.isOpen || !this.modal) return;
             
-            // 🔧 FIX: Prevent double animation if already in FULL state or currently animating
-            if (this.sheetState === this.SHEET_STATES.FULL || this.isAnimating) {
-                return;
-            }
-            
             const currentViewportHeight = window.visualViewport.height;
             const viewportHeightDiff = initialViewportHeight - currentViewportHeight;
             
             // If keyboard is showing (viewport height decreased significantly)
             if (viewportHeightDiff > 150) {
-                // 🔧 Force transition to FULL state to keep input visible
-                console.log('⌨️ Keyboard shown - forcing FULL state');
-                if (this.sheetState !== this.SHEET_STATES.FULL) {
-                    this._keyboardTriggeredFull = true;
-                    this._setSheetState(this.SHEET_STATES.FULL);
+                // 🔧 FIX: If already in FULL state, keyboard just appears without animation
+                if (this.sheetState === this.SHEET_STATES.FULL) {
+                    // Already in FULL state, no animation needed
+                    return;
                 }
+                
+                // 🔧 FIX: Prevent animation if currently animating
+                if (this.isAnimating) {
+                    return;
+                }
+                
+                // Sheet is in INITIAL state, smoothly transition to FULL
+                console.log('⌨️ Keyboard shown - smoothly transitioning from INITIAL to FULL');
+                this._keyboardTriggeredFull = true;
+                this._setSheetState(this.SHEET_STATES.FULL);
             } else {
                 // Keyboard hidden - return to INITIAL only if FULL was keyboard-triggered
                 if (this.sheetState === this.SHEET_STATES.FULL && this._keyboardTriggeredFull) {

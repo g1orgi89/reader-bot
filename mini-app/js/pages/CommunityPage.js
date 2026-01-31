@@ -43,10 +43,9 @@ class CommunityPage {
             ? app.getProfileModal()
             : (window.profileModal || (window.profileModal = new ProfileModal(app)));
         
-        // 🔧 FIX: Lazy initialization for CoverCommentsModal (don't create in constructor)
-        // This prevents ReferenceError during Router initialization
-        this._commentsModal = null;
-        this._commentsModalLoadPromise = null; // single-flight guard
+        // 🔧 CoverCommentsModal singleton - managed by app instance
+        // No need to store local instance, use app.getCoverCommentsModal() when needed
+        this._commentsModalLoadPromise = null; // single-flight guard for dynamic loading
         
         // Store bound delegated handler reference for cleanup
         this._delegatedHandlerBound = null;
@@ -4973,72 +4972,69 @@ renderAchievementsSection() {
     }
     
     /**
-     * 🔧 Lazy load and initialize CoverCommentsModal
-     * Dynamically loads the script if not available, with single-flight protection
-     * @returns {Promise<Object|null>} - Modal instance or null on failure
+     * 🔧 Ensure CoverCommentsModal is loaded and ready
+     * Uses singleton pattern from app instance
+     * Dynamically loads the script if not available
+     * @returns {Promise<Object|null>} - Modal singleton instance or null on failure
      */
     async _ensureCommentsModal() {
-        // Return existing instance if available
-        if (this._commentsModal && this._commentsModal.open) {
-            return this._commentsModal;
+        // Try to get singleton from app (if class is already loaded)
+        let modal = this.app.getCoverCommentsModal();
+        if (modal) {
+            return modal;
         }
         
-        // If class is already available, instantiate it
-        if (window.CoverCommentsModal) {
-            try {
-                this._commentsModal = new window.CoverCommentsModal(this.app);
-                return this._commentsModal;
-            } catch (error) {
-                console.error('❌ CoverCommentsModal: Failed to initialize:', error);
-                return null;
-            }
-        }
-        
-        // Single-flight guard: if already loading, wait for that promise
-        if (this._commentsModalLoadPromise) {
-            return await this._commentsModalLoadPromise;
-        }
-        
-        // Dynamically load CoverCommentsModal.js with cache-busting
-        this._commentsModalLoadPromise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'js/components/CoverCommentsModal.js?ts=' + Date.now();
-            script.async = true;
-            
-            script.onload = () => {
+        // Class not loaded yet - need to dynamically load it
+        if (!window.CoverCommentsModal) {
+            // Single-flight guard: if already loading, wait for that promise
+            if (this._commentsModalLoadPromise) {
                 try {
+                    await this._commentsModalLoadPromise;
+                } catch (error) {
+                    console.error('❌ Failed to load CoverCommentsModal (concurrent load):', error);
+                }
+                // Try to get singleton after loading completes
+                return this.app.getCoverCommentsModal();
+            }
+            
+            // Dynamically load CoverCommentsModal.js with cache-busting
+            this._commentsModalLoadPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'js/components/CoverCommentsModal.js?ts=' + Date.now();
+                script.async = true;
+                
+                script.onload = () => {
                     if (window.CoverCommentsModal) {
-                        this._commentsModal = new window.CoverCommentsModal(this.app);
-                        console.log('✅ CoverCommentsModal: Dynamically loaded and initialized');
-                        resolve(this._commentsModal);
+                        console.log('✅ CoverCommentsModal class loaded');
+                        resolve();
                     } else {
                         console.error('❌ CoverCommentsModal: Script loaded but class not exported');
                         reject(new Error('CoverCommentsModal not exported'));
                     }
-                } catch (error) {
-                    console.error('❌ CoverCommentsModal: Failed to initialize after loading:', error);
+                };
+                
+                script.onerror = () => {
+                    const error = new Error('Failed to load CoverCommentsModal.js');
+                    console.error('❌ CoverCommentsModal:', error.message);
                     reject(error);
-                }
-            };
+                };
+                
+                document.head.appendChild(script);
+            }).finally(() => {
+                // Clear the promise guard after completion (success or failure)
+                this._commentsModalLoadPromise = null;
+            });
             
-            script.onerror = () => {
-                const error = new Error('Failed to load CoverCommentsModal.js');
-                console.error('❌ CoverCommentsModal:', error.message);
-                reject(error);
-            };
-            
-            document.head.appendChild(script);
-        }).finally(() => {
-            // Clear the promise guard after completion (success or failure)
-            this._commentsModalLoadPromise = null;
-        });
-        
-        try {
-            return await this._commentsModalLoadPromise;
-        } catch (error) {
-            // Return null on failure
-            return null;
+            try {
+                await this._commentsModalLoadPromise;
+            } catch (error) {
+                console.error('❌ Failed to load CoverCommentsModal:', error);
+                return null;
+            }
         }
+        
+        // Class should now be loaded, get singleton
+        return this.app.getCoverCommentsModal();
     }
     
     /**
