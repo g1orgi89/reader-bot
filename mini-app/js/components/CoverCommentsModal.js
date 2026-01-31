@@ -97,6 +97,9 @@ class CoverCommentsModal {
         this._scrollThrottleTimer = null; // For throttling scroll updates
         this._keyboardResizeHandler = null; // Handler for keyboard resize events
         
+        // iOS Fix Service (cached)
+        this._iosFixService = null;
+        
         // DOM elements
         this.modal = null;
         this.backdrop = null;
@@ -633,9 +636,14 @@ class CoverCommentsModal {
             
             // Trigger animation and set initial state
             // Wait for viewport stabilization on iOS before computing heights
-            const iosFixService = window.getIOSFixService && window.getIOSFixService();
-            const stabilizationPromise = iosFixService 
-                ? iosFixService.waitForViewportStabilization() 
+            if (!this._iosFixService && window.getIOSFixService) {
+                this._iosFixService = window.getIOSFixService();
+            }
+            const stabilizationPromise = this._iosFixService 
+                ? this._iosFixService.waitForViewportStabilization().catch(() => {
+                    console.warn('⚠️ Viewport stabilization timed out, continuing anyway');
+                    return Promise.resolve();
+                  })
                 : Promise.resolve();
             
             stabilizationPromise.then(() => {
