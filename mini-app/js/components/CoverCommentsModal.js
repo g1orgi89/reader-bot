@@ -609,16 +609,28 @@ class CoverCommentsModal {
                 if (loadMore) {
                     this.comments = [...this.comments, ...uniqueNewComments];
                 } else {
-                    // 🔧 FIX: Don't replace existing comments with empty result from API
-                    // This prevents showing "0 comments" when API returns empty but had comments before
-                    if (uniqueNewComments.length > 0 || this.comments.length === 0) {
+                    // 🔧 FIX: Handle empty API responses carefully
+                    // Only keep existing comments if API returned successfully but with empty data
+                    // AND we had cached comments (to prevent stale data on legitimate deletes)
+                    const hasCachedComments = this._commentsCache.has(this.postId);
+                    
+                    if (uniqueNewComments.length > 0) {
+                        // Fresh data available - use it
                         this.comments = uniqueNewComments;
+                    } else if (this.comments.length === 0) {
+                        // No existing comments - accept empty result
+                        this.comments = [];
+                    } else if (hasCachedComments && this.comments.length > 0) {
+                        // API returned empty but we have cache - keep existing (likely network issue)
+                        console.log(`⚠️ CoverCommentsModal: API returned empty, keeping cached ${this.comments.length} comments`);
+                        // Don't update cache to avoid persisting potentially stale data
                     } else {
-                        console.log(`⚠️ CoverCommentsModal: API returned empty, keeping existing ${this.comments.length} comments`);
+                        // No cache, accept API result (comments may have been deleted)
+                        this.comments = uniqueNewComments;
                     }
                     
-                    // Update cache with fresh data only if we have comments
-                    if (this.comments.length > 0) {
+                    // Update cache only with fresh non-empty data
+                    if (uniqueNewComments.length > 0) {
                         this._commentsCache.set(this.postId, {
                             items: this.comments,
                             ts: Date.now()

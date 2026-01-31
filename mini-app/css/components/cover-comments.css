@@ -475,7 +475,8 @@
     
     .cover-comments-modal.sheet-state-initial {
         /* Use JS-calculated custom property for precise positioning to show 60% of viewport */
-        /* Fallback to 40vh if custom property not set (showing bottom 60% of screen) */
+        /* Fallback: translateY(40vh) positions modal so its bottom 60% is visible on screen */
+        /* (With modal height of 96dvh, showing from 40vh to 100vh = 60vh visible) */
         transform: translateY(var(--sheet-initial-height, 40vh));
     }
     
