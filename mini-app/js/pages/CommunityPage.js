@@ -4978,16 +4978,14 @@ renderAchievementsSection() {
      * @returns {Promise<Object|null>} - Modal singleton instance or null on failure
      */
     async _ensureCommentsModal() {
-        // Helper function to get singleton from app
-        const getSingleton = () => {
-            if (typeof this.app.getCoverCommentsModal === 'function') {
-                return this.app.getCoverCommentsModal();
-            }
+        // Check if app has the singleton getter method
+        if (typeof this.app.getCoverCommentsModal !== 'function') {
+            console.error('❌ app.getCoverCommentsModal is not available');
             return null;
-        };
+        }
         
         // Try to get singleton from app (if class is already loaded)
-        const modal = getSingleton();
+        let modal = this.app.getCoverCommentsModal();
         if (modal) {
             return modal;
         }
@@ -5002,7 +5000,7 @@ renderAchievementsSection() {
                     console.error('❌ Failed to load CoverCommentsModal (concurrent load):', error);
                 }
                 // Try to get singleton after loading completes
-                return getSingleton();
+                return this.app.getCoverCommentsModal();
             }
             
             // Dynamically load CoverCommentsModal.js with cache-busting
@@ -5042,7 +5040,7 @@ renderAchievementsSection() {
         }
         
         // Class should now be loaded, get singleton
-        return getSingleton();
+        return this.app.getCoverCommentsModal();
     }
     
     /**

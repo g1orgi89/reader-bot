@@ -1063,13 +1063,13 @@ class ReaderApp {
      */
     getCoverCommentsModal() {
         try {
-            if (this.coverCommentsModal && this.coverCommentsModal.constructor.name === 'CoverCommentsModal') {
-                return this.coverCommentsModal;
-            }
             const CCMClass = window.CoverCommentsModal;
             if (!CCMClass) {
                 console.warn('⚠️ CoverCommentsModal class not loaded yet');
                 return null;
+            }
+            if (this.coverCommentsModal && this.coverCommentsModal instanceof CCMClass) {
+                return this.coverCommentsModal;
             }
             this.coverCommentsModal = new CCMClass(this);
             console.log('✅ CoverCommentsModal singleton created');
