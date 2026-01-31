@@ -89,6 +89,7 @@ class CoverCommentsModal {
         this._keyboardTriggeredFull = false; // Track if FULL state was triggered by keyboard
         this.isAnimating = false; // Track if sheet is currently animating (prevent double animations)
         this._openInFlight = false; // Guard concurrent opens
+        this._keyboardDismissTimeout = null; // Timeout ID for keyboard dismissal delay
         
         // Bottom sheet state (deprecated - kept for compatibility)
         this._sheetHeight = this.INITIAL_SHEET_HEIGHT; // Start at 65dvh
@@ -187,11 +188,16 @@ class CoverCommentsModal {
         // 🔧 Dismiss keyboard when collapsing to INITIAL from FULL
         if (!isReapplying && newState === this.SHEET_STATES.INITIAL && this.sheetState === this.SHEET_STATES.FULL) {
             this._dismissKeyboard();
+            // Clear any existing timeout to prevent stale updates
+            if (this._keyboardDismissTimeout) {
+                clearTimeout(this._keyboardDismissTimeout);
+            }
             // Short delay to allow keyboard to dismiss and viewport to settle before recalculating height
-            setTimeout(() => {
-                if (!this.isAnimating) {
+            this._keyboardDismissTimeout = setTimeout(() => {
+                if (!this.isAnimating && this.isOpen) {
                     this._updateVisibleHeightVar();
                 }
+                this._keyboardDismissTimeout = null;
             }, this.KEYBOARD_DISMISS_DELAY_MS);
         }
         
@@ -777,6 +783,12 @@ class CoverCommentsModal {
         
         // Remove keyboard handler
         this.removeKeyboardHandler();
+        
+        // Clear any pending keyboard dismiss timeout
+        if (this._keyboardDismissTimeout) {
+            clearTimeout(this._keyboardDismissTimeout);
+            this._keyboardDismissTimeout = null;
+        }
         
         // Restore Telegram back button
         this.handleTelegramBackButton(false);
