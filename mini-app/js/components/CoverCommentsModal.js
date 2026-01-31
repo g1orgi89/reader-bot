@@ -428,6 +428,12 @@ class CoverCommentsModal {
             return;
         }
         
+        // 🔧 FIX: Prevent duplicate opens while modal is already open/opening
+        if (this.isOpen) {
+            console.log(`⚠️ CoverCommentsModal: Already open, ignoring duplicate call for post ${postId}`);
+            return;
+        }
+        
         console.log(`📸 CoverCommentsModal: Opening for post ${postId}`);
         
         this.postId = postId;
@@ -603,13 +609,21 @@ class CoverCommentsModal {
                 if (loadMore) {
                     this.comments = [...this.comments, ...uniqueNewComments];
                 } else {
-                    this.comments = uniqueNewComments;
+                    // 🔧 FIX: Don't replace existing comments with empty result from API
+                    // This prevents showing "0 comments" when API returns empty but had comments before
+                    if (uniqueNewComments.length > 0 || this.comments.length === 0) {
+                        this.comments = uniqueNewComments;
+                    } else {
+                        console.log(`⚠️ CoverCommentsModal: API returned empty, keeping existing ${this.comments.length} comments`);
+                    }
                     
-                    // Update cache with fresh data
-                    this._commentsCache.set(this.postId, {
-                        items: this.comments,
-                        ts: Date.now()
-                    });
+                    // Update cache with fresh data only if we have comments
+                    if (this.comments.length > 0) {
+                        this._commentsCache.set(this.postId, {
+                            items: this.comments,
+                            ts: Date.now()
+                        });
+                    }
                 }
                 
                 this.hasMore = response.hasMore || false;

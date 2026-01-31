@@ -222,7 +222,7 @@
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    margin-bottom: 4px;
+    margin-bottom: 0; /* 🔧 FIX: Remove gap, action buttons appear immediately below text */
 }
 
 .comment__text {
@@ -474,7 +474,9 @@
     }
     
     .cover-comments-modal.sheet-state-initial {
-        transform: translateY(50vh); /* Input form visible - 50% of viewport */
+        /* Use JS-calculated custom property for precise positioning to show 60% of viewport */
+        /* Fallback to 40vh if custom property not set (showing bottom 60% of screen) */
+        transform: translateY(var(--sheet-initial-height, 40vh));
     }
     
     .cover-comments-modal.sheet-state-full {
