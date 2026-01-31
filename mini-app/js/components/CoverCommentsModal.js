@@ -638,7 +638,7 @@ class CoverCommentsModal {
                 document.body.classList.add('nav-hidden');
             }
             
-            // Wait for viewport stabilization on iOS before rendering
+            // Wait for viewport stabilization before rendering (particularly important for iOS)
             await this._waitForViewportStabilization();
             
             // Now compute visible height after nav is hidden and viewport is stable
@@ -918,8 +918,9 @@ class CoverCommentsModal {
         const bodyEl = this.modalBody;
         const replyEl = this.modal.querySelector('.cover-comments-modal__reply-form');
         if (bodyEl && replyEl && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-            // Double requestAnimationFrame ensures elements are fully laid out and painted
-            // First RAF: browser schedules layout; Second RAF: layout is complete and measurements are accurate
+            // Double requestAnimationFrame ensures accurate measurements:
+            // First RAF: runs after style/layout calculations
+            // Second RAF: runs after paint, ensuring all layout is complete and measurements are accurate
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     // Measure safe area using a probe element
