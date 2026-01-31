@@ -464,30 +464,30 @@
         bottom: 0;
         left: 0;
         right: 0;
-        transform: translateY(100dvh); /* Start closed */
+        transform: translate3d(0, 100dvh, 0); /* Start closed with GPU acceleration */
         max-height: 96dvh;
         height: 96dvh; /* Always full height, use transform to position */
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
     }
     
     /* State-based positioning */
     .cover-comments-modal.sheet-state-closed {
-        transform: translateY(100dvh); /* Completely off-screen */
+        transform: translate3d(0, 100dvh, 0); /* Completely off-screen */
     }
     
     .cover-comments-modal.sheet-state-initial {
         /* Use JS-calculated custom property for precise positioning to show 50% of viewport */
         /* Fallback: 50vh positions modal to show exactly half the screen (strict half-screen in INITIAL) */
-        transform: translateY(var(--sheet-initial-height, 50vh));
+        transform: translate3d(0, var(--sheet-initial-height, 50vh), 0);
     }
     
     .cover-comments-modal.sheet-state-full {
-        transform: translateY(0dvh); /* Fully expanded */
+        transform: translate3d(0, 0dvh, 0); /* Fully expanded */
     }
     
     /* Legacy support for .active class (will be overridden by state classes) */
     .cover-comments-modal.active:not(.sheet-state-closed):not(.sheet-state-initial):not(.sheet-state-full) {
-        transform: translateY(0);
+        transform: translate3d(0, 0, 0);
     }
     
     /* State-based visible content height with flex layout */
@@ -495,6 +495,7 @@
         position: relative;
         display: flex;
         flex-direction: column;
+        /* Use visible height variable (viewport - bottom nav) */
         height: calc(var(--sheet-visible-height, 96dvh) - var(--sheet-initial-height, 50vh));
         max-height: 96dvh;
     }
@@ -503,6 +504,7 @@
         position: relative;
         display: flex;
         flex-direction: column;
+        /* Use visible height variable (viewport - bottom nav) */
         height: var(--sheet-visible-height, 96dvh);
         max-height: 96dvh;
     }

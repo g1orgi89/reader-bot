@@ -154,7 +154,8 @@ class CoverCommentsModal {
         // 🔧 Initialize in CLOSED state (off-screen)
         this.sheetState = this.SHEET_STATES.CLOSED;
         if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
-            this.modal.style.transform = `translateY(${this.SHEET_POSITIONS.CLOSED}dvh)`;
+            // 🔧 Use translate3d for hardware acceleration
+            this.modal.style.transform = `translate3d(0, ${this.SHEET_POSITIONS.CLOSED}dvh, 0)`;
             this.modal.classList.add('sheet-state-closed');
         }
         
@@ -164,7 +165,7 @@ class CoverCommentsModal {
     /**
      * 🎯 Set sheet state (State Machine control method)
      * Manages transitions between CLOSED, INITIAL, and FULL states
-     * Uses transform: translateY() for hardware-accelerated animations
+     * Uses transform: translate3d() for hardware-accelerated animations
      * @param {string} newState - Target state (CLOSED, INITIAL, FULL)
      * @param {boolean} animated - Whether to animate the transition (default: true)
      */
@@ -176,6 +177,11 @@ class CoverCommentsModal {
         
         // Allow re-applying same state to reset visual position (for snap-back after drag)
         const isReapplying = this.sheetState === newState;
+        
+        // 🔧 Dismiss keyboard when collapsing to INITIAL from FULL
+        if (!isReapplying && newState === this.SHEET_STATES.INITIAL && this.sheetState === this.SHEET_STATES.FULL) {
+            this._dismissKeyboard();
+        }
         
         if (!isReapplying) {
             const previousState = this.sheetState;
@@ -204,12 +210,18 @@ class CoverCommentsModal {
                 unit = 'dvh';
             }
             
-            // Set transition based on animated flag
+            // 🔧 Use stable easing and will-change for smooth animations
             this.modal.style.transition = animated 
-                ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                ? 'transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)' 
                 : 'none';
             
-            this.modal.style.transform = `translateY(${translateValue}${unit})`;
+            // 🔧 Add will-change during animation for GPU acceleration
+            if (animated) {
+                this.modal.style.willChange = 'transform';
+            }
+            
+            // 🔧 Use translate3d for hardware acceleration
+            this.modal.style.transform = `translate3d(0, ${translateValue}${unit}, 0)`;
             
             // Update CSS class for styling hooks (only if actually changing state)
             if (!isReapplying) {
@@ -221,16 +233,19 @@ class CoverCommentsModal {
             if (animated) {
                 this.isAnimating = true;
                 
-                // Listen for transition end to clear animation flag
+                // Listen for transition end to clear animation flag and will-change
                 const handleTransitionEnd = (e) => {
                     if (e.target === this.modal && e.propertyName === 'transform') {
                         this.isAnimating = false;
+                        // 🔧 Remove will-change after animation completes
+                        this.modal.style.willChange = '';
                         this.modal.removeEventListener('transitionend', handleTransitionEnd);
                     }
                 };
                 this.modal.addEventListener('transitionend', handleTransitionEnd);
             } else {
                 this.isAnimating = false;
+                this.modal.style.willChange = '';
             }
         }
     }
@@ -314,7 +329,8 @@ class CoverCommentsModal {
             const dragPercent = (deltaY / window.innerHeight) * 100; // Convert to dvh
             const newPosition = Math.max(0, Math.min(100, currentPosition + dragPercent));
             
-            this.modal.style.transform = `translateY(${newPosition}dvh)`;
+            // 🔧 Use translate3d for hardware acceleration during drag
+            this.modal.style.transform = `translate3d(0, ${newPosition}dvh, 0)`;
         }
     }
     
@@ -333,9 +349,9 @@ class CoverCommentsModal {
         const deltaY = touchY - this._touchStartY;
         const swipeThreshold = 50; // Minimum swipe distance in pixels
         
-        // 🔧 Re-enable transition for smooth snap
+        // 🔧 Re-enable transition for smooth snap with stable easing
         if (this.modal) {
-            this.modal.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            this.modal.style.transition = 'transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)';
         }
         
         // Determine state transition based on swipe direction and current state
@@ -436,6 +452,87 @@ class CoverCommentsModal {
     }
     
     /**
+     * 📐 Compute visible height in pixels (excluding bottom nav on mobile)
+     * @returns {number} Visible height in pixels
+     */
+    _computeVisibleHeightPx() {
+        const vvH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        
+        // Get bottom nav element and height
+        const nav = document.querySelector('.bottom-nav');
+        const navVisible = nav && !document.documentElement.classList.contains('nav-hidden');
+        const navH = navVisible ? Math.round(nav.getBoundingClientRect().height || 0) : 0;
+        
+        // Return full viewport if nav is hidden, otherwise subtract nav height
+        return Math.max(200, vvH - navH);
+    }
+    
+    /**
+     * 📐 Update CSS variable for visible height
+     */
+    _updateVisibleHeightVar() {
+        const visibleHeightPx = this._computeVisibleHeightPx();
+        document.documentElement.style.setProperty('--sheet-visible-height', `${visibleHeightPx}px`);
+    }
+    
+    /**
+     * ⌨️ Dismiss keyboard by blurring active input/textarea
+     */
+    _dismissKeyboard() {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            activeEl.blur();
+        }
+        // Force viewport recalculation
+        if (window.visualViewport) {
+            this._updateVisibleHeightVar();
+        }
+    }
+    
+    /**
+     * 📱 Setup viewport listeners for visible height updates
+     */
+    _setupViewportListeners() {
+        // Create bound handlers if they don't exist
+        if (!this._boundUpdateVisibleHeight) {
+            this._boundUpdateVisibleHeight = () => this._updateVisibleHeightVar();
+        }
+        
+        // Add visualViewport resize listener
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', this._boundUpdateVisibleHeight);
+        }
+        
+        // Add orientation change listener
+        window.addEventListener('orientationchange', this._boundUpdateVisibleHeight);
+        
+        // Add Telegram WebApp viewportChanged listener
+        if (this.telegram && this.telegram.onEvent) {
+            this.telegram.onEvent('viewportChanged', this._boundUpdateVisibleHeight);
+        }
+    }
+    
+    /**
+     * 📱 Remove viewport listeners
+     */
+    _removeViewportListeners() {
+        if (!this._boundUpdateVisibleHeight) return;
+        
+        // Remove visualViewport resize listener
+        if (window.visualViewport) {
+            window.visualViewport.removeEventListener('resize', this._boundUpdateVisibleHeight);
+        }
+        
+        // Remove orientation change listener
+        window.removeEventListener('orientationchange', this._boundUpdateVisibleHeight);
+        
+        // Remove Telegram WebApp viewportChanged listener
+        if (this.telegram && this.telegram.offEvent) {
+            this.telegram.offEvent('viewportChanged', this._boundUpdateVisibleHeight);
+        }
+    }
+    
+    /**
      * 🎭 Open modal
      * @param {string} postId - Post ID to load comments for
      * @param {Function} updateCountCallback - Callback to update comment count in parent
@@ -482,6 +579,24 @@ class CoverCommentsModal {
             
             // Add body class for content shift
             document.body.classList.add('sheet-open');
+            
+            // 🔧 Hide bottom nav and add nav-hidden classes on mobile
+            if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+                // Hide bottom nav using the bottomNavInstance
+                if (window.bottomNavInstance) {
+                    window.bottomNavInstance.setVisible(false);
+                }
+                
+                // Add nav-hidden classes
+                document.documentElement.classList.add('nav-hidden');
+                document.body.classList.add('nav-hidden');
+                
+                // Update visible height variable
+                this._updateVisibleHeightVar();
+                
+                // Setup viewport listeners for height updates
+                this._setupViewportListeners();
+            }
             
             // Use initial comments if provided for instant UI
             if (options.initialComments && options.initialComments.length > 0) {
@@ -576,6 +691,21 @@ class CoverCommentsModal {
         
         // Remove any backdrop-visible class if present
         document.body.classList.remove('backdrop-visible');
+        
+        // 🔧 Restore bottom nav and remove nav-hidden classes on mobile
+        if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            // Show bottom nav using the bottomNavInstance
+            if (window.bottomNavInstance) {
+                window.bottomNavInstance.setVisible(true);
+            }
+            
+            // Remove nav-hidden classes
+            document.documentElement.classList.remove('nav-hidden');
+            document.body.classList.remove('nav-hidden');
+            
+            // Remove viewport listeners
+            this._removeViewportListeners();
+        }
         
         // 🔧 Animate transition to CLOSED state on mobile
         if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
