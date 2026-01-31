@@ -888,15 +888,21 @@ class CoverCommentsModal {
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
         this.modalHeader = this.modal.querySelector('.cover-comments-modal__header');
         
-        // 🔧 FIX: Ensure body padding matches reply form height + safe area
+        // 🔧 FIX: Set body bottom padding to reply form height + safe area to prevent overlap
         const bodyEl = this.modalBody;
         const replyFormEl = this.modal.querySelector('.cover-comments-modal__reply-form');
         if (bodyEl && replyFormEl) {
             // Wait for next frame to ensure elements are laid out
             requestAnimationFrame(() => {
-                const safeArea = this._computeSafeAreaBottomPx();
-                const pad = replyFormEl.offsetHeight + safeArea + 16; // include safe area and margin
-                bodyEl.style.paddingBottom = `${pad}px`;
+                // Probe safe area with a temporary element
+                const safeProbe = document.createElement('div');
+                safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
+                document.body.appendChild(safeProbe);
+                const safeArea = Math.round(safeProbe.getBoundingClientRect().height || 0);
+                safeProbe.remove();
+                
+                const desiredPad = replyFormEl.offsetHeight + safeArea + 16;
+                bodyEl.style.paddingBottom = `${desiredPad}px`;
             });
         }
         

@@ -476,9 +476,9 @@
     }
     
     .cover-comments-modal.sheet-state-initial {
-        /* Use JS-calculated custom property for precise positioning to show 60% of viewport */
-        /* Fallback: 36dvh positions modal so its bottom 60dvh is visible (96dvh - 60dvh = 36dvh) */
-        transform: translateY(var(--sheet-initial-height, 36dvh));
+        /* Use JS-calculated custom property for precise positioning to show 50% of viewport */
+        /* Fallback: 50vh positions modal at half screen when custom property isn't set */
+        transform: translateY(var(--sheet-initial-height, 50vh));
     }
     
     .cover-comments-modal.sheet-state-full {
@@ -490,23 +490,32 @@
         transform: translateY(0);
     } */
     
-    /* 🔧 FIX: Position reply form fixed at bottom, exclude from scrolling */
-    .cover-comments-modal__reply-form {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 10;
-        background: var(--bg-primary);
-        /* Add safe area padding for iOS devices */
-        padding-bottom: max(16px, env(safe-area-inset-bottom));
+    /* Content container: flex column layout for proper reply form positioning */
+    .cover-comments-modal__content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-height: 96dvh;
     }
     
-    /* 🔧 FIX: Adjust body padding to account for fixed reply form */
+    /* Body: scrolls and fills remaining space */
     .cover-comments-modal__body {
-        padding-bottom: 100px; /* Fallback; JS will set exact value after render */
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 8px 12px;
         overscroll-behavior: contain;
         -webkit-overscroll-behavior: contain;
+    }
+    
+    /* Reply form: sticky to the bottom of the visible container (not absolute at the geometric bottom) */
+    .cover-comments-modal__reply-form {
+        position: sticky;
+        bottom: env(safe-area-inset-bottom, 0px);
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border-color);
+        z-index: 10;
+        padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
     }
     
     /* 🔧 Shift page content up when sheet is open 
@@ -562,6 +571,11 @@
         margin-left: 28px;
         padding-left: 8px;
     }
+    
+    /* Action spacing under comment text */
+    .comment__body { margin-bottom: 0; }
+    .comment__actions { margin-top: 0; padding-top: 0; }
+    .comment__reply-btn, .comment__delete-btn { margin-top: 0; }
 }
 
 /* Dark theme support (if needed) */
