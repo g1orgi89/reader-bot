@@ -527,7 +527,6 @@ class CoverCommentsModal {
                     
                     // Set CSS variable with px value for precise positioning
                     document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
-                    console.log(`[INIT HEIGHT] sheetHeight=${sheetHeight}px viewport=${viewportHeight}px visible=${targetVisibleHeight}px translateY=${translateYPx}px`);
                 }
                 
                 // 🔧 Set sheet to INITIAL state (input form visible)
