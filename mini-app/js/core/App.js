@@ -478,6 +478,9 @@ class ReaderApp {
         // Инициализация View компонентов для цитат
         this.initializeQuoteViews();
         
+        // 📸💬 Initialize CoverCommentsModal singleton
+        this.initializeCoverCommentsModal();
+        
         console.log('✅ UI инициализирован');
     }
 
@@ -1058,26 +1061,39 @@ class ReaderApp {
     }
 
     /**
-     * 📸💬 Get CoverCommentsModal singleton instance
-     * @returns {CoverCommentsModal|null} - Singleton instance or null on failure
+     * 📸💬 Initialize CoverCommentsModal singleton
+     * Creates a single instance and adds it to the DOM once during initialization
      */
-    getCoverCommentsModal() {
+    initializeCoverCommentsModal() {
         try {
             const CCMClass = window.CoverCommentsModal;
             if (!CCMClass) {
                 console.warn('⚠️ CoverCommentsModal class not loaded yet');
-                return null;
+                return;
             }
-            if (this.coverCommentsModal && this.coverCommentsModal instanceof CCMClass) {
-                return this.coverCommentsModal;
-            }
+            
+            // Create single instance
             this.coverCommentsModal = new CCMClass(this);
-            console.log('✅ CoverCommentsModal singleton created');
-            return this.coverCommentsModal;
+            
+            // Add modal elements to DOM once during initialization
+            this.coverCommentsModal.createModal();
+            
+            console.log('✅ CoverCommentsModal singleton created and added to DOM');
         } catch (e) {
-            console.warn('⚠️ getCoverCommentsModal failed:', e);
+            console.warn('⚠️ initializeCoverCommentsModal failed:', e);
+        }
+    }
+
+    /**
+     * 📸💬 Get CoverCommentsModal singleton instance
+     * @returns {CoverCommentsModal|null} - Singleton instance or null on failure
+     */
+    getCoverCommentsModal() {
+        if (!this.coverCommentsModal) {
+            console.warn('⚠️ CoverCommentsModal not initialized yet');
             return null;
         }
+        return this.coverCommentsModal;
     }
 
     /**
