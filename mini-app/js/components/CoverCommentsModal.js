@@ -15,10 +15,15 @@
 
 class CoverCommentsModal {
     constructor(app) {
-        this.app = app;
+        // Handle both appObject (from Router.js) and App instance (from App.js)
+        // - When called from App.js getCoverCommentsModal(): receives App instance directly
+        // - When passed through Router's appObject: receives appObject with .app property
+        // This defensive pattern ensures compatibility with both calling conventions
+        this.app = app.app || app; // Save the real App instance
         this.api = app.api;
         this.telegram = app.telegram;
-        this.profileModal = app.getProfileModal ? app.getProfileModal() : null;
+        // Get ProfileModal directly from the real App instance
+        this.profileModal = this.app.getProfileModal ? this.app.getProfileModal() : null;
         
         // Constants
         this.MOBILE_BREAKPOINT = 480;

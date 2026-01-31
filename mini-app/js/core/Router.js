@@ -391,6 +391,7 @@ class AppRouter {
                 api: this.api,
                 telegram: this.telegram,
                 router: this,
+                app: this.app, // Reference to the real App instance
                 
                 // Методы, которые ожидают страницы
                 showTopMenu: () => {
@@ -411,6 +412,20 @@ class AppRouter {
                     if (this.app && typeof this.app.hideTopMenu === 'function') {
                         this.app.hideTopMenu();
                     }
+                },
+                
+                getCoverCommentsModal: () => {
+                    if (this.app && typeof this.app.getCoverCommentsModal === 'function') {
+                        return this.app.getCoverCommentsModal();
+                    }
+                    return null;
+                },
+                
+                getProfileModal: () => {
+                    if (this.app && typeof this.app.getProfileModal === 'function') {
+                        return this.app.getProfileModal();
+                    }
+                    return null;
                 },
                 
                 // Дополнительное состояние
@@ -606,6 +621,7 @@ class AppRouter {
             api: this.api,
             telegram: this.telegram,
             router: this,
+            app: this.app, // Reference to the real App instance
             
             // Методы, которые ожидают страницы
             showTopMenu: () => {
@@ -626,6 +642,20 @@ class AppRouter {
                 if (this.app && typeof this.app.hideTopMenu === 'function') {
                     this.app.hideTopMenu();
                 }
+            },
+            
+            getCoverCommentsModal: () => {
+                if (this.app && typeof this.app.getCoverCommentsModal === 'function') {
+                    return this.app.getCoverCommentsModal();
+                }
+                return null;
+            },
+            
+            getProfileModal: () => {
+                if (this.app && typeof this.app.getProfileModal === 'function') {
+                    return this.app.getProfileModal();
+                }
+                return null;
             },
             
             // Дополнительное состояние

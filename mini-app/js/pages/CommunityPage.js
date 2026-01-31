@@ -4977,122 +4977,25 @@ renderAchievementsSection() {
      * Dynamically loads the script if not available
      * @returns {Promise<Object|null>} - Modal singleton instance or null on failure
      */
-    async _ensureCommentsModal() {
-        // Try to get singleton from app (if class is already loaded)
-        let modal = this.app.getCoverCommentsModal();
-        if (modal) {
-            return modal;
-        }
-        
-        // Class not loaded yet - need to dynamically load it
-        if (!window.CoverCommentsModal) {
-            // Single-flight guard: if already loading, wait for that promise
-            if (this._commentsModalLoadPromise) {
-                try {
-                    await this._commentsModalLoadPromise;
-                } catch (error) {
-                    console.error('❌ Failed to load CoverCommentsModal (concurrent load):', error);
-                }
-                // Try to get singleton after loading completes
-                return this.app.getCoverCommentsModal();
-            }
-            
-            // Dynamically load CoverCommentsModal.js with cache-busting
-            this._commentsModalLoadPromise = new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'js/components/CoverCommentsModal.js?ts=' + Date.now();
-                script.async = true;
-                
-                script.onload = () => {
-                    if (window.CoverCommentsModal) {
-                        console.log('✅ CoverCommentsModal class loaded');
-                        resolve();
-                    } else {
-                        console.error('❌ CoverCommentsModal: Script loaded but class not exported');
-                        reject(new Error('CoverCommentsModal not exported'));
-                    }
-                };
-                
-                script.onerror = () => {
-                    const error = new Error('Failed to load CoverCommentsModal.js');
-                    console.error('❌ CoverCommentsModal:', error.message);
-                    reject(error);
-                };
-                
-                document.head.appendChild(script);
-            }).finally(() => {
-                // Clear the promise guard after completion (success or failure)
-                this._commentsModalLoadPromise = null;
-            });
-            
-            try {
-                await this._commentsModalLoadPromise;
-            } catch (error) {
-                console.error('❌ Failed to load CoverCommentsModal:', error);
-                return null;
-            }
-        }
-        
-        // Class should now be loaded, get singleton
-        return this.app.getCoverCommentsModal();
-    }
-    
+
     /**
      * 📸 Handle show/hide comments for a post (now opens modal)
      * @param {string} postId - Post ID
      */
     async handleShowComments(postId) {
-        if (!postId) return;
-        
-        // 🔧 FIX: Lazy load modal on first use (with dynamic loading fallback)
-        const modal = await this._ensureCommentsModal();
-        if (!modal) {
-            console.warn('⚠️ CoverCommentsModal not available');
-            this.showNotification('Не удалось открыть комментарии. Попробуйте ещё раз.', 'error');
-            return;
-        }
-        
-        // 🔧 HOTFIX: Pass callback to update comment count after loading
-        const updateCommentCount = (count) => {
-            const commentBtn = document.querySelector(`[data-action="show-comments"][data-post-id="${postId}"]`);
-            if (commentBtn) {
-                commentBtn.textContent = count > 0 ? `💬 ${count}` : '💬 Комментарии';
+        // Напрямую получаем единственный экземпляр из App.js
+        const commentsModal = this.app.getCoverCommentsModal();
+        if (commentsModal) {
+            const updateCommentCount = (count) => {
+                const counter = document.querySelector(`.cover-card[data-post-id="${postId}"] .comment-count`);
+                if (counter) counter.textContent = count;
+            };
+            commentsModal.open(postId, updateCommentCount);
+        } else {
+            console.error('CRITICAL: Comments Modal instance is not available from App.');
+            if (this.app && this.app.telegram && this.app.telegram.showAlert) {
+                this.app.telegram.showAlert('Ошибка: не удалось открыть комментарии.');
             }
-            
-            // Update coversPosts cache with new count
-            const postIndex = this.coversPosts.findIndex(p => (p._id || p.id) === postId);
-            if (postIndex !== -1) {
-                this.coversPosts[postIndex].commentsCount = count;
-            }
-        };
-        
-        // Check cache first and open with cached comments for instant UI
-        const cached = this._commentsCache.get(postId);
-        const initialComments = (cached && cached.comments) || [];
-        
-        // Open comments modal with initial cached data
-        modal.open(postId, updateCommentCount, { initialComments });
-        
-        // Then fetch fresh comments with cache-busting
-        try {
-            const response = await this.api.getCoverComments(postId, { ts: Date.now() });
-            if (response && response.success) {
-                const freshComments = response.data || [];
-                
-                // Update cache
-                this._commentsCache.set(postId, {
-                    comments: freshComments,
-                    ts: Date.now()
-                });
-                
-                // Update modal with fresh data
-                if (modal && modal.isOpen && modal.postId === postId) {
-                    modal.updateComments(freshComments);
-                    updateCommentCount(freshComments.length);
-                }
-            }
-        } catch (error) {
-            console.error('❌ Failed to fetch fresh comments:', error);
         }
     }
     
