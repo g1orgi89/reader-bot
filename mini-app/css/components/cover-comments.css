@@ -531,6 +531,7 @@
     /* Reply form pinned at bottom of column */
     .cover-comments-modal__reply-form {
         flex: 0 0 auto; /* pin at bottom of column */
+        min-height: var(--reply-form-height, 64px);
         z-index: 10;
         background: var(--bg-primary);
         border-top: 1px solid var(--border-color);
