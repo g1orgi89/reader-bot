@@ -511,12 +511,13 @@
     
     /* Sheet content as a column filling the height */
     .cover-comments-modal__content {
+        position: relative;
         display: flex;
         flex-direction: column;
         max-height: 96dvh; /* 96dvh leaves space for iOS safe areas and avoids overlap with bottom navigation bar */
     }
     
-    /* Body scrolls within visible area; reply form stays pinned at the bottom of it */
+    /* Body scrolls within visible area; reply form is absolutely positioned on top */
     .cover-comments-modal__body {
         flex: 1 1 auto;
         overflow-y: auto;
@@ -528,14 +529,17 @@
         -webkit-overscroll-behavior: contain;
     }
     
-    /* Reply form pinned at bottom of column */
+    /* Reply form absolutely pinned at bottom with breathing space */
     .cover-comments-modal__reply-form {
-        flex: 0 0 auto; /* pin at bottom of column */
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + var(--reply-extra-bottom, 10px));
         min-height: var(--reply-form-height, 64px);
         z-index: 10;
         background: var(--bg-primary);
         border-top: 1px solid var(--border-color);
-        padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
+        padding: 8px 12px;
     }
     
     .reply-form {

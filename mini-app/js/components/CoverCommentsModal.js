@@ -45,6 +45,8 @@ class CoverCommentsModal {
         this.MOBILE_BREAKPOINT = 480;
         this.MIN_BOTTOM_PADDING = 8; // Minimum padding at bottom of scroll container (matches CSS default)
         this.INITIAL_HEIGHT_RATIO = 0.5; // INITIAL state shows exactly 50% of visible height
+        this.REPLY_EXTRA_BOTTOM_PX = 10; // Extra bottom offset for reply form breathing space (px)
+        this.KEYBOARD_DISMISS_DELAY_MS = 100; // Delay to allow keyboard to dismiss before recalculating height on iOS
         
         // State machine constants for three-position drawer
         this.SHEET_STATES = {
@@ -87,6 +89,7 @@ class CoverCommentsModal {
         this._keyboardTriggeredFull = false; // Track if FULL state was triggered by keyboard
         this.isAnimating = false; // Track if sheet is currently animating (prevent double animations)
         this._openInFlight = false; // Guard concurrent opens
+        this._keyboardDismissTimeout = null; // Timeout ID for keyboard dismissal delay
         
         // Bottom sheet state (deprecated - kept for compatibility)
         this._sheetHeight = this.INITIAL_SHEET_HEIGHT; // Start at 65dvh
@@ -185,6 +188,17 @@ class CoverCommentsModal {
         // 🔧 Dismiss keyboard when collapsing to INITIAL from FULL
         if (!isReapplying && newState === this.SHEET_STATES.INITIAL && this.sheetState === this.SHEET_STATES.FULL) {
             this._dismissKeyboard();
+            // Clear any existing timeout to prevent stale updates
+            if (this._keyboardDismissTimeout) {
+                clearTimeout(this._keyboardDismissTimeout);
+            }
+            // Short delay to allow keyboard to dismiss and viewport to settle before recalculating height
+            this._keyboardDismissTimeout = setTimeout(() => {
+                if (!this.isAnimating && this.isOpen) {
+                    this._updateVisibleHeightVar();
+                }
+                this._keyboardDismissTimeout = null;
+            }, this.KEYBOARD_DISMISS_DELAY_MS);
         }
         
         if (!isReapplying) {
@@ -244,6 +258,8 @@ class CoverCommentsModal {
                         // 🔧 Remove will-change after animation completes
                         this.modal.style.willChange = '';
                         this.modal.removeEventListener('transitionend', handleTransitionEnd);
+                        // 🔧 Update visible height once after transition completes
+                        this._updateVisibleHeightVar();
                     }
                 };
                 this.modal.addEventListener('transitionend', handleTransitionEnd);
@@ -610,7 +626,7 @@ class CoverCommentsModal {
             // Add body class for content shift
             document.body.classList.add('sheet-open');
             
-            // 🔧 Hide bottom nav and add nav-hidden classes on mobile
+            // 🔧 Hide bottom nav and add nav-hidden classes on mobile BEFORE rendering
             if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
                 // Hide bottom nav using the bottomNavInstance
                 if (window.bottomNavInstance) {
@@ -620,10 +636,14 @@ class CoverCommentsModal {
                 // Add nav-hidden classes
                 document.documentElement.classList.add('nav-hidden');
                 document.body.classList.add('nav-hidden');
-                
-                // Update visible height variable
+            }
+            
+            // Wait for viewport stabilization before rendering (particularly important for iOS)
+            await this._waitForViewportStabilization();
+            
+            // Now compute visible height after nav is hidden and viewport is stable
+            if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
                 this._updateVisibleHeightVar();
-                
                 // Setup viewport listeners for height updates
                 this._setupViewportListeners();
             }
@@ -658,7 +678,7 @@ class CoverCommentsModal {
             await this.loadComments();
             
             // Trigger animation and set initial state
-            // Wait for viewport stabilization on iOS before computing heights
+            // Additional stabilization wait before computing heights
             this._waitForViewportStabilization().then(() => {
                 requestAnimationFrame(() => {
                     this.backdrop.classList.add('active');
@@ -763,6 +783,12 @@ class CoverCommentsModal {
         
         // Remove keyboard handler
         this.removeKeyboardHandler();
+        
+        // Clear any pending keyboard dismiss timeout
+        if (this._keyboardDismissTimeout) {
+            clearTimeout(this._keyboardDismissTimeout);
+            this._keyboardDismissTimeout = null;
+        }
         
         // Restore Telegram back button
         this.handleTelegramBackButton(false);
@@ -888,27 +914,39 @@ class CoverCommentsModal {
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
         this.modalHeader = this.modal.querySelector('.cover-comments-modal__header');
         
-        // 🔧 FIX: Set body padding to reply form height + safe area on mobile
+        // 🔧 FIX: Measure reply form height and set body padding once on mobile
         const bodyEl = this.modalBody;
         const replyEl = this.modal.querySelector('.cover-comments-modal__reply-form');
         if (bodyEl && replyEl && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-            // Wait for next frame to ensure elements are laid out
+            // Double requestAnimationFrame ensures accurate measurements:
+            // First RAF: runs after style/layout calculations
+            // Second RAF: runs after paint, ensuring all layout is complete and measurements are accurate
             requestAnimationFrame(() => {
-                // Measure safe area using a probe element
-                const safeProbe = document.createElement('div');
-                safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
-                document.body.appendChild(safeProbe);
-                const safe = Math.round(safeProbe.getBoundingClientRect().height || 0);
-                safeProbe.remove();
-                
-                const formH = replyEl.offsetHeight || 64;
-                const pad = formH + safe;
-                bodyEl.style.paddingBottom = `${pad}px`;
-                
-                // Set CSS variable for reply form height
-                document.documentElement.style.setProperty('--reply-form-height', `${formH}px`);
-                
-                console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${formH}px, safe-area: ${safe}px)`);
+                requestAnimationFrame(() => {
+                    // Measure safe area using a probe element
+                    const safeProbe = document.createElement('div');
+                    safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
+                    document.body.appendChild(safeProbe);
+                    const safe = Math.round(safeProbe.getBoundingClientRect().height || 0);
+                    safeProbe.remove();
+                    
+                    // Measure reply form height
+                    const formH = replyEl.offsetHeight || 64;
+                    
+                    // Set CSS variable for reply form height
+                    document.documentElement.style.setProperty('--reply-form-height', `${formH}px`);
+                    
+                    // Set CSS variable for extra bottom breathing space (matches CSS default)
+                    const extraBottomPx = this.REPLY_EXTRA_BOTTOM_PX;
+                    document.documentElement.style.setProperty('--reply-extra-bottom', `${extraBottomPx}px`);
+                    
+                    // Set body padding-bottom = formH + safe + extra bottom offset
+                    // This ensures content scrolls properly without being hidden behind the form
+                    const pad = formH + safe + extraBottomPx;
+                    bodyEl.style.paddingBottom = `${pad}px`;
+                    
+                    console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${formH}px, safe-area: ${safe}px, extra: ${extraBottomPx}px)`);
+                });
             });
         }
         
