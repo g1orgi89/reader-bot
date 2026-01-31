@@ -43,6 +43,7 @@ class CoverCommentsModal {
         
         // Constants
         this.MOBILE_BREAKPOINT = 480;
+        this.MIN_BOTTOM_PADDING = 8; // Minimum padding at bottom of scroll container (matches CSS default)
         
         // State machine constants for three-position drawer
         this.SHEET_STATES = {
@@ -728,7 +729,7 @@ class CoverCommentsModal {
                 // Get safe area inset bottom (iOS notch/home indicator)
                 const safeAreaBottom = parseInt(getComputedStyle(document.documentElement)
                     .getPropertyValue('--safe-area-inset-bottom') || '0', 10);
-                const pad = Math.max(8, safeAreaBottom);
+                const pad = Math.max(this.MIN_BOTTOM_PADDING, safeAreaBottom);
                 bodyEl.style.paddingBottom = `${pad}px`;
                 console.log(`🔧 Set body padding-bottom: ${pad}px (safe-area: ${safeAreaBottom}px)`);
             });
