@@ -235,6 +235,60 @@ class CoverCommentsModal {
     }
     
     /**
+     * 🔧 Apply initial transform in px with !important flag
+     * This prevents CSS legacy rules from overriding the position
+     * @param {number} px - Translate Y value in pixels
+     */
+    _applyInitialTransformPx(px) {
+        if (!this.modal) return;
+        this.modal.style.setProperty('transform', `translateY(${px}px)`, 'important');
+        this.modal.style.transition = 'none';
+    }
+    
+    /**
+     * 🔧 Assert reply form visibility and auto-correct position if needed
+     * Ensures the reply form is always visible within the viewport
+     */
+    _assertReplyFormVisibleAndFix() {
+        if (!this.modal) return;
+        
+        const vv = window.visualViewport;
+        const viewportBottom = Math.round((vv?.height || window.innerHeight) + (vv?.offsetTop || 0));
+        const replyFormEl = this.modal.querySelector('.cover-comments-modal__reply-form');
+        
+        if (!replyFormEl) return;
+        
+        const rfRect = replyFormEl.getBoundingClientRect();
+        
+        if (rfRect.bottom > viewportBottom) {
+            const overflow = Math.ceil(rfRect.bottom - viewportBottom + 8);
+            const m = getComputedStyle(this.modal).transform;
+            let currentTy = 0;
+            
+            if (m && m !== 'none') {
+                const parts = m.match(/matrix\(([^)]+)\)/);
+                if (parts) {
+                    const vals = parts[1].split(',').map(v => parseFloat(v.trim()));
+                    currentTy = vals[5] || 0;
+                }
+            }
+            
+            const nextTy = Math.max(0, currentTy - overflow);
+            this.modal.style.transition = 'none';
+            this.modal.style.setProperty('transform', `translateY(${nextTy}px)`, 'important');
+            
+            console.log(`🔧 Reply form visibility corrected: overflow=${overflow}px, adjusted translateY to ${nextTy}px`);
+        }
+        
+        // Re-enable transitions after a frame
+        requestAnimationFrame(() => {
+            if (this.modal) {
+                this.modal.style.transition = 'transform 0.3s cubic-bezier(0.4,0,0.2,1)';
+            }
+        });
+    }
+    
+    /**
      * 📐 Set sheet position (for bottom sheet behavior) - DEPRECATED
      * 🔧 FIX: Using transform: translateY() instead of height for hardware-accelerated animations
      * @deprecated Use _setSheetState() instead
@@ -379,22 +433,26 @@ class CoverCommentsModal {
     /**
      * ⌨️ Setup keyboard resize handler for mobile
      * 🔧 When keyboard shows, force FULL state; when hidden, return to INITIAL only if keyboard-triggered
+     * Uses visualViewport.height + offsetTop baseline for stable calculations
      */
     setupKeyboardHandler() {
         if (!window.visualViewport) return; // Not supported
         if (window.innerWidth > this.MOBILE_BREAKPOINT) return; // Only on mobile
         
-        // Store initial viewport height
-        const initialViewportHeight = window.visualViewport.height;
+        // 🔧 FIX: Store initial viewport baseline (height + offsetTop for stability)
+        const vv = window.visualViewport;
+        const initialViewportBaseline = vv.height + (vv.offsetTop || 0);
         
         this._keyboardResizeHandler = () => {
             if (!this.isOpen || !this.modal) return;
             
-            const currentViewportHeight = window.visualViewport.height;
-            const viewportHeightDiff = initialViewportHeight - currentViewportHeight;
+            // 🔧 FIX: Use baseline calculation (height + offsetTop)
+            const currentVV = window.visualViewport;
+            const currentBaseline = currentVV.height + (currentVV.offsetTop || 0);
+            const baselineDiff = initialViewportBaseline - currentBaseline;
             
-            // If keyboard is showing (viewport height decreased significantly)
-            if (viewportHeightDiff > 150) {
+            // If keyboard is showing (baseline decreased significantly)
+            if (baselineDiff > 150) {
                 // Keyboard opened
                 // 🔧 FIX: If already in FULL state, remain stable (no re-animation)
                 if (this.sheetState === this.SHEET_STATES.FULL) {
@@ -417,6 +475,11 @@ class CoverCommentsModal {
                     console.log('⌨️ Keyboard hidden - returning to INITIAL state');
                     this._setSheetState(this.SHEET_STATES.INITIAL);
                     this._keyboardTriggeredFull = false;
+                    
+                    // 🔧 FIX: After returning to INITIAL, assert reply form is visible
+                    requestAnimationFrame(() => {
+                        this._assertReplyFormVisibleAndFix();
+                    });
                 }
             }
         };
@@ -471,6 +534,18 @@ class CoverCommentsModal {
             this.updateCountCallback = updateCountCallback; // Store callback
             this._lastScrollTop = 0;
             
+            // 🔧 FIX: Hide bottom navigation for stable viewport measurements
+            if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+                // Add class to hide bottom nav
+                document.body.classList.add('nav-hidden');
+                document.documentElement.classList.add('nav-hidden');
+                
+                // Also call BottomNav.setVisible(false) if available
+                if (window.__BottomNavInstance) {
+                    window.__BottomNavInstance.setVisible(false);
+                }
+            }
+            
             // Create modal if needed
             this.createModal();
             
@@ -511,26 +586,51 @@ class CoverCommentsModal {
             // Fetch fresh data with cache-busting
             await this.loadComments();
             
-            // Trigger animation and set initial state
+            // 🔧 FIX: Trigger animation and set initial state with improved positioning
             requestAnimationFrame(() => {
                 this.backdrop.classList.add('active');
-                this.modal.classList.add('active');
                 
                 // 🔧 FIX: Compute INITIAL translateY from real modal sheet height (DOM-based measurement)
                 // Measure after modal is inserted into DOM and rendered
                 if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
                     const rect = this.modal.getBoundingClientRect();
                     const sheetHeight = rect.height; // Real measured height in px
-                    const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                    
+                    // 🔧 FIX: Use visualViewport.height + offsetTop for baseline
+                    const vv = window.visualViewport;
+                    const viewportHeight = vv ? vv.height + (vv.offsetTop || 0) : window.innerHeight;
                     const targetVisibleHeight = viewportHeight * 0.6; // Show 60% of viewport
                     const translateYPx = Math.max(0, Math.round(sheetHeight - targetVisibleHeight));
                     
-                    // Set CSS variable with px value for precise positioning
+                    // 🔧 FIX: Apply inline px transform with !important BEFORE adding .active class
+                    this._applyInitialTransformPx(translateYPx);
+                    
+                    // Set CSS variable with px value for precise positioning (for future state changes)
                     document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
+                    
+                    // Now add .active class (won't override since we used !important)
+                    this.modal.classList.add('active');
+                    
+                    // Re-enable transition after a frame
+                    requestAnimationFrame(() => {
+                        if (this.modal) {
+                            this.modal.style.transition = 'transform 0.3s cubic-bezier(0.4,0,0.2,1)';
+                        }
+                    });
+                    
+                    // 🔧 Set sheet to INITIAL state (this updates the class but won't override !important transform)
+                    this.sheetState = this.SHEET_STATES.INITIAL;
+                    this.modal.classList.remove('sheet-state-closed', 'sheet-state-initial', 'sheet-state-full');
+                    this.modal.classList.add('sheet-state-initial');
+                    
+                    // 🔧 FIX: Assert reply form is visible and correct position if needed
+                    requestAnimationFrame(() => {
+                        this._assertReplyFormVisibleAndFix();
+                    });
+                } else {
+                    // Desktop: just add active class
+                    this.modal.classList.add('active');
                 }
-                
-                // 🔧 Set sheet to INITIAL state (input form visible)
-                this._setSheetState(this.SHEET_STATES.INITIAL);
             });
         } finally {
             this._openInFlight = false;
@@ -568,6 +668,18 @@ class CoverCommentsModal {
         
         // Remove any backdrop-visible class if present
         document.body.classList.remove('backdrop-visible');
+        
+        // 🔧 FIX: Restore bottom navigation visibility
+        if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            // Remove nav-hidden classes
+            document.body.classList.remove('nav-hidden');
+            document.documentElement.classList.remove('nav-hidden');
+            
+            // Also call BottomNav.setVisible(true) if available
+            if (window.__BottomNavInstance) {
+                window.__BottomNavInstance.setVisible(true);
+            }
+        }
         
         // 🔧 Animate transition to CLOSED state on mobile
         if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
