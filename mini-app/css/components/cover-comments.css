@@ -490,23 +490,75 @@
         transform: translateY(0);
     }
     
-    /* 🔧 FIX: Position reply form sticky to stay visible in INITIAL state */
+    /* Sheet content as a column filling the height */
+    .cover-comments-modal__content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-height: 96dvh; /* 96dvh leaves space for iOS safe areas and avoids overlap with bottom navigation bar */
+    }
+    
+    /* Body scrolls and fills available space */
+    .cover-comments-modal__body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 8px 12px;
+        /* Reserve space under content for sticky input panel + safe area.
+         * --reply-form-height is set dynamically by JS after render (typically 64-80px depending on content).
+         * This prevents content from being obscured by the sticky reply form. */
+        padding-bottom: calc(var(--reply-form-height, 64px) + env(safe-area-inset-bottom, 0px));
+        overscroll-behavior: contain;
+        -webkit-overscroll-behavior: contain;
+    }
+    
+    /* Reply form sticks to the bottom of the visible area.
+     * Sticky positioning keeps the reply form visible at the bottom while scrolling,
+     * ensuring it's always accessible in both INITIAL (half-screen) and FULL states. */
     .cover-comments-modal__reply-form {
         position: sticky;
         bottom: env(safe-area-inset-bottom, 0px);
-        left: 0;
-        right: 0;
         z-index: 10;
         background: var(--bg-primary);
-        /* Add safe area padding for iOS devices */
-        padding-bottom: max(16px, env(safe-area-inset-bottom));
+        border-top: 1px solid var(--border-color);
     }
     
-    /* 🔧 FIX: Adjust body padding to account for fixed reply form */
-    .cover-comments-modal__body {
-        padding-bottom: 100px; /* Fallback; JS will set exact value after render */
-        overscroll-behavior: contain;
-        -webkit-overscroll-behavior: contain;
+    .reply-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
+        min-height: var(--reply-form-height, 64px);
+    }
+    
+    .reply-form__input {
+        flex: 1 1 auto;
+        min-height: 40px;
+    }
+    
+    .reply-form__submit {
+        min-height: 40px;
+    }
+    
+    /* Align "Ответить" under comment text */
+    .comment__body {
+        margin-bottom: 0;
+        line-height: 1.4;
+    }
+    
+    .comment__actions {
+        margin-top: 4px;
+        padding-top: 0;
+        display: inline-flex;
+        gap: 16px;
+        align-items: baseline;
+    }
+    
+    .comment__reply-btn,
+    .comment__delete-btn {
+        margin-top: 0;
+        padding: 0;
+        vertical-align: baseline;
     }
     
     /* 🔧 Shift page content up when sheet is open 
