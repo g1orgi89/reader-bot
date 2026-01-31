@@ -16,7 +16,9 @@
 class CoverCommentsModal {
     constructor(app) {
         // Handle both appObject (from Router.js) and App instance (from App.js)
-        // If app.app exists, it's an appObject; otherwise, it's the App instance itself
+        // - When called from App.js getCoverCommentsModal(): receives App instance directly
+        // - When passed through Router's appObject: receives appObject with .app property
+        // This defensive pattern ensures compatibility with both calling conventions
         this.app = app.app || app; // Save the real App instance
         this.api = app.api;
         this.telegram = app.telegram;
