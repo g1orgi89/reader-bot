@@ -44,6 +44,7 @@ class CoverCommentsModal {
         // Constants
         this.MOBILE_BREAKPOINT = 480;
         this.MIN_BOTTOM_PADDING = 8; // Minimum padding at bottom of scroll container (matches CSS default)
+        this.INITIAL_HEIGHT_RATIO = 0.5; // INITIAL state shows exactly 50% of visible height
         
         // State machine constants for three-position drawer
         this.SHEET_STATES = {
@@ -493,6 +494,28 @@ class CoverCommentsModal {
     }
     
     /**
+     * 📱 Wait for viewport stabilization (with fallback)
+     * @returns {Promise} Promise that resolves when viewport is stable or times out
+     */
+    _waitForViewportStabilization() {
+        // Initialize service if not already cached
+        if (!this._iosFixService && window.getIOSFixService) {
+            this._iosFixService = window.getIOSFixService();
+        }
+        
+        // If service available, use its stabilization method with error handling
+        if (this._iosFixService && this._iosFixService.waitForViewportStabilization) {
+            return this._iosFixService.waitForViewportStabilization().catch((error) => {
+                console.warn('⚠️ Viewport stabilization failed:', error?.message || 'timeout');
+                return Promise.resolve();
+            });
+        }
+        
+        // Fallback: resolve immediately
+        return Promise.resolve();
+    }
+    
+    /**
      * 📱 Setup viewport listeners for visible height updates
      */
     _setupViewportListeners() {
@@ -636,17 +659,7 @@ class CoverCommentsModal {
             
             // Trigger animation and set initial state
             // Wait for viewport stabilization on iOS before computing heights
-            if (!this._iosFixService && window.getIOSFixService) {
-                this._iosFixService = window.getIOSFixService();
-            }
-            const stabilizationPromise = this._iosFixService 
-                ? this._iosFixService.waitForViewportStabilization().catch(() => {
-                    console.warn('⚠️ Viewport stabilization timed out, continuing anyway');
-                    return Promise.resolve();
-                  })
-                : Promise.resolve();
-            
-            stabilizationPromise.then(() => {
+            this._waitForViewportStabilization().then(() => {
                 requestAnimationFrame(() => {
                     this.backdrop.classList.add('active');
                     this.modal.classList.add('active');
@@ -661,8 +674,8 @@ class CoverCommentsModal {
                         const rect = this.modal.getBoundingClientRect();
                         const sheetHeight = rect.height; // Real measured height in px
                         
-                        // INITIAL shows exactly 50% of visible height
-                        const targetVisibleHeight = Math.round(visibleHeightPx * 0.5);
+                        // INITIAL shows exactly 50% of visible height (using INITIAL_HEIGHT_RATIO constant)
+                        const targetVisibleHeight = Math.round(visibleHeightPx * this.INITIAL_HEIGHT_RATIO);
                         const translateYPx = Math.max(0, Math.round(sheetHeight - targetVisibleHeight));
                         
                         // Set CSS variable with px value for precise positioning
