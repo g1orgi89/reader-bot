@@ -13,6 +13,22 @@
  * @version 1.0.0
  */
 
+/**
+ * 🔧 Helper: Deduplicate array of comments by id
+ * @param {Array} arr - Array of comments
+ * @returns {Array} Deduplicated array
+ */
+function dedupeById(arr) {
+    if (!Array.isArray(arr)) return [];
+    const map = new Map();
+    for (const c of arr) {
+        const id = c?._id || c?.id;
+        if (!id) continue;
+        if (!map.has(id)) map.set(id, c);
+    }
+    return Array.from(map.values());
+}
+
 class CoverCommentsModal {
     constructor(app) {
         // Handle both appObject (from Router.js) and App instance (from App.js)
@@ -68,6 +84,7 @@ class CoverCommentsModal {
         this.sheetState = this.SHEET_STATES.CLOSED; // Current state: CLOSED, INITIAL, FULL
         this._keyboardTriggeredFull = false; // Track if FULL state was triggered by keyboard
         this.isAnimating = false; // Track if sheet is currently animating (prevent double animations)
+        this._openInFlight = false; // Guard concurrent opens
         
         // Bottom sheet state (deprecated - kept for compatibility)
         this._sheetHeight = this.INITIAL_SHEET_HEIGHT; // Start at 65dvh
@@ -378,9 +395,10 @@ class CoverCommentsModal {
             
             // If keyboard is showing (viewport height decreased significantly)
             if (viewportHeightDiff > 150) {
-                // 🔧 FIX: If already in FULL state, keyboard just appears without animation
+                // Keyboard opened
+                // 🔧 FIX: If already in FULL state, remain stable (no re-animation)
                 if (this.sheetState === this.SHEET_STATES.FULL) {
-                    // Already in FULL state, no animation needed
+                    this._keyboardTriggeredFull = true; // mark as keyboard-triggered for collapse logic
                     return;
                 }
                 
@@ -428,81 +446,92 @@ class CoverCommentsModal {
             return;
         }
         
-        // 🔧 FIX: Prevent duplicate opens while modal is already open/opening
-        if (this.isOpen) {
-            console.log(`⚠️ CoverCommentsModal: Already open, ignoring duplicate call for post ${postId}`);
+        // 🔧 FIX: Guard concurrent opens
+        if (this._openInFlight) {
+            console.log('⏳ open() in flight, ignore');
             return;
         }
         
-        console.log(`📸 CoverCommentsModal: Opening for post ${postId}`);
-        
-        this.postId = postId;
-        this.nextCursor = null;
-        this.hasMore = false;
-        this.replyingTo = null;
-        this.updateCountCallback = updateCountCallback; // Store callback
-        this._lastScrollTop = 0;
-        
-        // Create modal if needed
-        this.createModal();
-        
-        // Show modal
-        this.isOpen = true;
-        this.backdrop.style.display = 'block';
-        this.modal.style.display = 'block';
-        
-        // Add body class for content shift
-        document.body.classList.add('sheet-open');
-        
-        // 🔧 FIX: Calculate initial height based on visualViewport for better safe-area handling
-        if (window.visualViewport && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-            const viewportHeight = window.visualViewport.height;
-            // Initial state should show 60% of viewport height
-            const initialVisibleHeight = viewportHeight * 0.6;
-            // Calculate translateY: we want to show initialVisibleHeight, so translate by the rest
-            const translateYPx = viewportHeight - initialVisibleHeight;
-            // Set CSS custom property for use in _setSheetState
-            document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
-            console.log(`📏 Calculated initial height: viewport=${viewportHeight}px, showing ${initialVisibleHeight}px (60%), translateY=${translateYPx}px`);
+        // 🔧 FIX: If already open for same post, just ensure INITIAL state
+        if (this.isOpen && this.postId === postId) {
+            console.log(`⚠️ CoverCommentsModal: Already open for same post ${postId}, ensuring INITIAL state`);
+            this._setSheetState(this.SHEET_STATES.INITIAL);
+            return;
         }
         
-        // Use initial comments if provided for instant UI
-        if (options.initialComments && options.initialComments.length > 0) {
-            this.comments = options.initialComments;
-            this.render();
-        } else {
-            // Check cache first - render immediately if available
-            const cached = this._commentsCache.get(postId);
-            if (cached && cached.items) {
-                this.comments = cached.items;
+        this._openInFlight = true;
+        
+        try {
+            console.log(`📸 CoverCommentsModal: Opening for post ${postId}`);
+            
+            this.postId = postId;
+            this.nextCursor = null;
+            this.hasMore = false;
+            this.replyingTo = null;
+            this.updateCountCallback = updateCountCallback; // Store callback
+            this._lastScrollTop = 0;
+            
+            // Create modal if needed
+            this.createModal();
+            
+            // Show modal
+            this.isOpen = true;
+            this.backdrop.style.display = 'block';
+            this.modal.style.display = 'block';
+            
+            // Add body class for content shift
+            document.body.classList.add('sheet-open');
+            
+            // 🔧 FIX: Calculate initial height based on real sheet height (96dvh)
+            if (window.visualViewport && window.innerWidth <= this.MOBILE_BREAKPOINT) {
+                const viewportHeight = Math.round(window.visualViewport.height);
+                const sheetHeight = Math.round(viewportHeight * 0.96);         // 96dvh
+                const initialVisibleHeight = Math.round(viewportHeight * 0.6); // show 60% viewport
+                const translateYPx = Math.max(0, sheetHeight - initialVisibleHeight);
+                document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
+                console.log(`[INIT HEIGHT] vv=${viewportHeight}px sheet=${sheetHeight}px show=${initialVisibleHeight}px translateY=${translateYPx}px`);
+            }
+            
+            // Use initial comments if provided for instant UI
+            if (options.initialComments && options.initialComments.length > 0) {
+                this.comments = options.initialComments;
                 this.render();
             } else {
-                // No cache - show loading state
-                this.comments = [];
-                this.render();
+                // Check cache first - render immediately if available
+                const cached = this._commentsCache.get(postId);
+                if (cached && cached.items) {
+                    this.comments = cached.items;
+                    this.render();
+                } else {
+                    // No cache - show loading state
+                    this.comments = [];
+                    this.render();
+                }
             }
-        }
-        
-        // Attach event listeners
-        this.attachEventListeners();
-        
-        // Setup keyboard handler for mobile
-        this.setupKeyboardHandler();
-        
-        // Hide Telegram back button and attach our handler
-        this.handleTelegramBackButton(true);
-        
-        // Fetch fresh data with cache-busting
-        await this.loadComments();
-        
-        // Trigger animation and set initial state
-        requestAnimationFrame(() => {
-            this.backdrop.classList.add('active');
-            this.modal.classList.add('active');
             
-            // 🔧 Set sheet to INITIAL state (input form visible)
-            this._setSheetState(this.SHEET_STATES.INITIAL);
-        });
+            // Attach event listeners
+            this.attachEventListeners();
+            
+            // Setup keyboard handler for mobile
+            this.setupKeyboardHandler();
+            
+            // Hide Telegram back button and attach our handler
+            this.handleTelegramBackButton(true);
+            
+            // Fetch fresh data with cache-busting
+            await this.loadComments();
+            
+            // Trigger animation and set initial state
+            requestAnimationFrame(() => {
+                this.backdrop.classList.add('active');
+                this.modal.classList.add('active');
+                
+                // 🔧 Set sheet to INITIAL state (input form visible)
+                this._setSheetState(this.SHEET_STATES.INITIAL);
+            });
+        } finally {
+            this._openInFlight = false;
+        }
     }
     
     /**
@@ -595,53 +624,28 @@ class CoverCommentsModal {
             const response = await this.api.getCoverComments(this.postId, options);
             
             if (response && response.success) {
-                const newComments = response.data || [];
-                
-                // Deduplicate comments by ID
-                const existingIds = new Set(this.comments.map(c => c._id || c.id));
-                const uniqueNewComments = newComments.filter(c => {
-                    const id = c._id || c.id;
-                    if (existingIds.has(id)) return false;
-                    existingIds.add(id);
-                    return true;
-                });
+                const fresh = dedupeById(response.data || []);
                 
                 if (loadMore) {
-                    this.comments = [...this.comments, ...uniqueNewComments];
+                    // Load more: dedupe combined list
+                    this.comments = dedupeById([...(this.comments || []), ...fresh]);
                 } else {
-                    // 🔧 FIX: Handle empty API responses carefully
-                    // Only keep existing comments if API returned successfully but with empty data
-                    // AND we had cached comments (to prevent stale data on legitimate deletes)
-                    const hasCachedComments = this._commentsCache.has(this.postId);
-                    
-                    if (uniqueNewComments.length > 0) {
-                        // Fresh data available - use it
-                        this.comments = uniqueNewComments;
-                    } else if (this.comments.length === 0) {
-                        // No existing comments - accept empty result
-                        this.comments = [];
-                    } else if (hasCachedComments && this.comments.length > 0) {
-                        // API returned empty but we have cache - keep existing (likely network issue)
-                        console.log(`⚠️ CoverCommentsModal: API returned empty, keeping cached ${this.comments.length} comments`);
-                        // Don't update cache to avoid persisting potentially stale data
-                    } else {
-                        // No cache, accept API result (comments may have been deleted)
-                        this.comments = uniqueNewComments;
-                    }
-                    
-                    // Update cache only with fresh non-empty data
-                    if (uniqueNewComments.length > 0) {
-                        this._commentsCache.set(this.postId, {
-                            items: this.comments,
-                            ts: Date.now()
-                        });
-                    }
+                    // Full refresh: only replace when server returns non-empty
+                    this.comments = fresh.length > 0 ? fresh : (this.comments || []);
                 }
                 
                 this.hasMore = response.hasMore || false;
                 this.nextCursor = response.nextCursor || null;
                 
-                console.log(`✅ CoverCommentsModal: Loaded ${uniqueNewComments.length} comments (total: ${this.comments.length})`);
+                // Update cache only with actual displayed comments
+                if (this.postId) {
+                    this._commentsCache.set(this.postId, { 
+                        items: this.comments, 
+                        ts: Date.now() 
+                    });
+                }
+                
+                console.log(`✅ CoverCommentsModal: Loaded ${fresh.length} (total: ${this.comments.length})`);
                 
                 // 🔧 HOTFIX: Update comment count in parent card using deduped count
                 if (this.updateCountCallback) {
@@ -711,6 +715,17 @@ class CoverCommentsModal {
         // Store references to modal elements for event handling
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
         this.modalHeader = this.modal.querySelector('.cover-comments-modal__header');
+        
+        // 🔧 FIX: Ensure body padding matches reply form height + safe area
+        const bodyEl = this.modalBody;
+        const replyFormEl = this.modal.querySelector('.cover-comments-modal__reply-form');
+        if (bodyEl && replyFormEl) {
+            // Wait for next frame to ensure elements are laid out
+            requestAnimationFrame(() => {
+                const pad = replyFormEl.offsetHeight + 16; // include small margin; safe-area handled in CSS
+                bodyEl.style.paddingBottom = `${pad}px`;
+            });
+        }
         
         // Reattach event listeners after render (modalBody changed)
         if (this.isOpen) {
