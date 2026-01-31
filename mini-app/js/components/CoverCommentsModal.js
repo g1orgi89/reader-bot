@@ -428,6 +428,12 @@ class CoverCommentsModal {
             return;
         }
         
+        // 🔧 FIX: Prevent duplicate opens while modal is already open/opening
+        if (this.isOpen) {
+            console.log(`⚠️ CoverCommentsModal: Already open, ignoring duplicate call for post ${postId}`);
+            return;
+        }
+        
         console.log(`📸 CoverCommentsModal: Opening for post ${postId}`);
         
         this.postId = postId;
@@ -603,13 +609,33 @@ class CoverCommentsModal {
                 if (loadMore) {
                     this.comments = [...this.comments, ...uniqueNewComments];
                 } else {
-                    this.comments = uniqueNewComments;
+                    // 🔧 FIX: Handle empty API responses carefully
+                    // Only keep existing comments if API returned successfully but with empty data
+                    // AND we had cached comments (to prevent stale data on legitimate deletes)
+                    const hasCachedComments = this._commentsCache.has(this.postId);
                     
-                    // Update cache with fresh data
-                    this._commentsCache.set(this.postId, {
-                        items: this.comments,
-                        ts: Date.now()
-                    });
+                    if (uniqueNewComments.length > 0) {
+                        // Fresh data available - use it
+                        this.comments = uniqueNewComments;
+                    } else if (this.comments.length === 0) {
+                        // No existing comments - accept empty result
+                        this.comments = [];
+                    } else if (hasCachedComments && this.comments.length > 0) {
+                        // API returned empty but we have cache - keep existing (likely network issue)
+                        console.log(`⚠️ CoverCommentsModal: API returned empty, keeping cached ${this.comments.length} comments`);
+                        // Don't update cache to avoid persisting potentially stale data
+                    } else {
+                        // No cache, accept API result (comments may have been deleted)
+                        this.comments = uniqueNewComments;
+                    }
+                    
+                    // Update cache only with fresh non-empty data
+                    if (uniqueNewComments.length > 0) {
+                        this._commentsCache.set(this.postId, {
+                            items: this.comments,
+                            ts: Date.now()
+                        });
+                    }
                 }
                 
                 this.hasMore = response.hasMore || false;
