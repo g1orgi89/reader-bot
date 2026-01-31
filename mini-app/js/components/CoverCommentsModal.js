@@ -635,12 +635,8 @@ class CoverCommentsModal {
                 // 🔧 FIX: Compute INITIAL translateY from real modal sheet height (DOM-based measurement)
                 // Measure after modal is inserted into DOM and rendered
                 if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-                    // Compute visible height for mobile (visualViewport - bottom nav)
-                    const vvH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                    const nav = document.querySelector('.bottom-nav');
-                    const navH = nav ? Math.round(nav.getBoundingClientRect().height || 0) : 0;
-                    const visibleHeightPx = Math.max(200, vvH - navH);
-                    document.documentElement.style.setProperty('--sheet-visible-height', `${visibleHeightPx}px`);
+                    // Update visible height again in case it changed
+                    this._updateVisibleHeightVar();
                     
                     const rect = this.modal.getBoundingClientRect();
                     const sheetHeight = rect.height; // Real measured height in px
