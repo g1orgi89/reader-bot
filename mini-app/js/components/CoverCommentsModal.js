@@ -15,10 +15,13 @@
 
 class CoverCommentsModal {
     constructor(app) {
-        this.app = app;
+        // Handle both appObject (from Router.js) and App instance (from App.js)
+        // If app.app exists, it's an appObject; otherwise, it's the App instance itself
+        this.app = app.app || app; // Save the real App instance
         this.api = app.api;
         this.telegram = app.telegram;
-        this.profileModal = app.getProfileModal ? app.getProfileModal() : null;
+        // Get ProfileModal directly from the real App instance
+        this.profileModal = this.app.getProfileModal ? this.app.getProfileModal() : null;
         
         // Constants
         this.MOBILE_BREAKPOINT = 480;
