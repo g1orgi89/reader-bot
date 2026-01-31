@@ -633,8 +633,9 @@ class CoverCommentsModal {
             
             // Trigger animation and set initial state
             // Wait for viewport stabilization on iOS before computing heights
-            const stabilizationPromise = window.getIOSFixService && window.getIOSFixService() 
-                ? window.getIOSFixService().waitForViewportStabilization() 
+            const iosFixService = window.getIOSFixService && window.getIOSFixService();
+            const stabilizationPromise = iosFixService 
+                ? iosFixService.waitForViewportStabilization() 
                 : Promise.resolve();
             
             stabilizationPromise.then(() => {
