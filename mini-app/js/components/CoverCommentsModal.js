@@ -102,6 +102,9 @@ class CoverCommentsModal {
         this.modalBody = null;
         this.modalHeader = null;
         
+        // Cache for safe area bottom inset
+        this._safeAreaBottomCache = null;
+        
         // Event handlers
         this.boundHandleBackdropClick = this.handleBackdropClick.bind(this);
         this.boundHandleEscape = this.handleEscape.bind(this);
@@ -291,9 +294,16 @@ class CoverCommentsModal {
     /**
      * 🔧 Compute safe area bottom inset in pixels
      * Creates a temporary probe element to read env(safe-area-inset-bottom)
+     * Caches the result to avoid repeated DOM manipulation
+     * @param {boolean} forceRefresh - Force re-computation (default: false)
      * @returns {number} Safe area bottom inset in pixels
      */
-    _computeSafeAreaBottomPx() {
+    _computeSafeAreaBottomPx(forceRefresh = false) {
+        // Return cached value if available and not forcing refresh
+        if (this._safeAreaBottomCache !== null && !forceRefresh) {
+            return this._safeAreaBottomCache;
+        }
+        
         const probe = document.createElement('div');
         probe.style.position = 'fixed';
         probe.style.bottom = '0';
@@ -305,6 +315,10 @@ class CoverCommentsModal {
         document.body.appendChild(probe);
         const height = probe.offsetHeight;
         document.body.removeChild(probe);
+        
+        // Cache the result
+        this._safeAreaBottomCache = height;
+        
         return height;
     }
     
@@ -343,7 +357,10 @@ class CoverCommentsModal {
         // Set CSS variable
         document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
         
-        console.log(`📐 INITIAL position: sheetHeight=${sheetHeight}px, targetVisible=${targetVisible}px, translateY=${translateYPx}px`);
+        // Log for debugging positioning (useful for mobile viewport issues)
+        if (console.debug) {
+            console.debug(`📐 INITIAL: h=${sheetHeight}px vis=${targetVisible}px ty=${translateYPx}px`);
+        }
         
         // Apply state
         this._setSheetState(this.SHEET_STATES.INITIAL, animated);
