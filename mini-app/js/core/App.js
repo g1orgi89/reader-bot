@@ -20,6 +20,10 @@ class ReaderApp {
         this.loadingScreen = document.getElementById('loading-screen');
         this.topMenu = null;
         
+        // === COVER COMMENTS MODAL - LAZY INITIALIZATION ===
+        // Initialize as null to prevent race condition
+        this.coverCommentsModalInstance = null;
+        
         // === DEEPLINK SUPPORT ===
         // Store startapp parameter for deferred navigation after init
         this._pendingDeeplink = null;
@@ -1061,39 +1065,46 @@ class ReaderApp {
     }
 
     /**
-     * 📸💬 Initialize CoverCommentsModal singleton
-     * Creates a single instance and adds it to the DOM once during initialization
+     * 📸💬 Initialize CoverCommentsModal singleton (DEPRECATED - kept for compatibility)
+     * @deprecated This method is no longer called. Use getCoverCommentsModal() which does lazy initialization.
      */
     initializeCoverCommentsModal() {
+        // No-op: Lazy initialization is now handled in getCoverCommentsModal()
+        console.log('⚠️ initializeCoverCommentsModal called (no-op, using lazy initialization)');
+    }
+
+    /**
+     * 📸💬 Get CoverCommentsModal singleton instance with lazy initialization
+     * Creates the instance on first call if it doesn't exist
+     * @returns {CoverCommentsModal|null} - Singleton instance or null on failure
+     */
+    getCoverCommentsModal() {
+        // If instance already exists, return it
+        if (this.coverCommentsModalInstance) {
+            return this.coverCommentsModalInstance;
+        }
+        
+        // Lazy initialization: Create instance on first call
         try {
             const CCMClass = window.CoverCommentsModal;
             if (!CCMClass) {
                 console.warn('⚠️ CoverCommentsModal class not loaded yet');
-                return;
+                return null;
             }
             
             // Create single instance
-            this.coverCommentsModal = new CCMClass(this);
+            this.coverCommentsModalInstance = new CCMClass(this);
             
-            // Add modal elements to DOM once during initialization
-            this.coverCommentsModal.createModal();
+            // Add modal elements to DOM
+            this.coverCommentsModalInstance.createModal();
             
-            console.log('✅ CoverCommentsModal singleton created and added to DOM');
+            console.log('✅ CoverCommentsModal singleton created via lazy initialization');
+            
+            return this.coverCommentsModalInstance;
         } catch (e) {
-            console.warn('⚠️ initializeCoverCommentsModal failed:', e);
-        }
-    }
-
-    /**
-     * 📸💬 Get CoverCommentsModal singleton instance
-     * @returns {CoverCommentsModal|null} - Singleton instance or null on failure
-     */
-    getCoverCommentsModal() {
-        if (!this.coverCommentsModal) {
-            console.warn('⚠️ CoverCommentsModal not initialized yet');
+            console.error('❌ getCoverCommentsModal lazy initialization failed:', e);
             return null;
         }
-        return this.coverCommentsModal;
     }
 
     /**
@@ -1134,8 +1145,8 @@ class ReaderApp {
         }
         
         // Close CoverCommentsModal singleton if it exists and is open
-        if (this.coverCommentsModal?.isOpen) {
-            this.coverCommentsModal.close();
+        if (this.coverCommentsModalInstance?.isOpen) {
+            this.coverCommentsModalInstance.close();
             console.log('✅ CoverCommentsModal closed');
         }
         
