@@ -289,6 +289,72 @@ class CoverCommentsModal {
     }
     
     /**
+     * 🔧 Compute safe area bottom inset in pixels
+     * Creates a temporary probe element to read env(safe-area-inset-bottom)
+     * @returns {number} Safe area bottom inset in pixels
+     */
+    _computeSafeAreaBottomPx() {
+        const probe = document.createElement('div');
+        probe.style.position = 'fixed';
+        probe.style.bottom = '0';
+        probe.style.left = '0';
+        probe.style.width = '1px';
+        probe.style.height = 'env(safe-area-inset-bottom, 0px)';
+        probe.style.visibility = 'hidden';
+        probe.style.pointerEvents = 'none';
+        document.body.appendChild(probe);
+        const height = probe.offsetHeight;
+        document.body.removeChild(probe);
+        return height;
+    }
+    
+    /**
+     * 🔧 Snap to INITIAL position ensuring reply form is visible
+     * Computes target visible area as max(60% viewport, replyFormHeight + safeArea + headerHeight + reserve)
+     * Sets CSS var --sheet-initial-height in px and applies INITIAL state
+     * @param {boolean} animated - Whether to animate the transition (default: true)
+     */
+    _snapInitialEnsuringReplyVisible(animated = true) {
+        if (!this.modal || window.innerWidth > this.MOBILE_BREAKPOINT) return;
+        
+        // Measure dimensions
+        const rect = this.modal.getBoundingClientRect();
+        const sheetHeight = rect.height;
+        const vv = window.visualViewport;
+        const viewportHeight = vv ? vv.height + (vv.offsetTop || 0) : window.innerHeight;
+        
+        // Get component heights
+        const replyFormEl = this.modal.querySelector('.cover-comments-modal__reply-form');
+        const headerEl = this.modal.querySelector('.cover-comments-modal__header');
+        const replyFormHeight = replyFormEl ? replyFormEl.offsetHeight : 80;
+        const headerHeight = headerEl ? headerEl.offsetHeight : 60;
+        const safeArea = this._computeSafeAreaBottomPx();
+        const reserve = 16; // Extra padding
+        
+        // Compute minimum visible area needed to show reply form + header + reserve
+        const minVisibleForReply = replyFormHeight + safeArea + headerHeight + reserve;
+        
+        // Target visible area is max of 60% viewport or minimum needed for reply form
+        const targetVisible = Math.max(viewportHeight * 0.6, minVisibleForReply);
+        
+        // Compute translateY to show targetVisible height
+        const translateYPx = Math.max(0, Math.round(sheetHeight - targetVisible));
+        
+        // Set CSS variable
+        document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
+        
+        console.log(`📐 INITIAL position: sheetHeight=${sheetHeight}px, targetVisible=${targetVisible}px, translateY=${translateYPx}px`);
+        
+        // Apply state
+        this._setSheetState(this.SHEET_STATES.INITIAL, animated);
+        
+        // Assert reply form is visible and fix if needed
+        requestAnimationFrame(() => {
+            this._assertReplyFormVisibleAndFix();
+        });
+    }
+    
+    /**
      * 📐 Set sheet position (for bottom sheet behavior) - DEPRECATED
      * 🔧 FIX: Using transform: translateY() instead of height for hardware-accelerated animations
      * @deprecated Use _setSheetState() instead
@@ -473,13 +539,10 @@ class CoverCommentsModal {
                 // Keyboard hidden - return to INITIAL only if FULL was keyboard-triggered
                 if (this.sheetState === this.SHEET_STATES.FULL && this._keyboardTriggeredFull) {
                     console.log('⌨️ Keyboard hidden - returning to INITIAL state');
-                    this._setSheetState(this.SHEET_STATES.INITIAL);
                     this._keyboardTriggeredFull = false;
                     
-                    // 🔧 FIX: After returning to INITIAL, assert reply form is visible
-                    requestAnimationFrame(() => {
-                        this._assertReplyFormVisibleAndFix();
-                    });
+                    // 🔧 FIX: Use helper to snap to INITIAL with guaranteed reply form visibility
+                    this._snapInitialEnsuringReplyVisible(true);
                 }
             }
         };
@@ -590,43 +653,20 @@ class CoverCommentsModal {
             requestAnimationFrame(() => {
                 this.backdrop.classList.add('active');
                 
-                // 🔧 FIX: Compute INITIAL translateY from real modal sheet height (DOM-based measurement)
-                // Measure after modal is inserted into DOM and rendered
+                // Mobile: Use new helper to snap to INITIAL with guaranteed reply visibility
                 if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-                    const rect = this.modal.getBoundingClientRect();
-                    const sheetHeight = rect.height; // Real measured height in px
-                    
-                    // 🔧 FIX: Use visualViewport.height + offsetTop for baseline
-                    const vv = window.visualViewport;
-                    const viewportHeight = vv ? vv.height + (vv.offsetTop || 0) : window.innerHeight;
-                    const targetVisibleHeight = viewportHeight * 0.6; // Show 60% of viewport
-                    const translateYPx = Math.max(0, Math.round(sheetHeight - targetVisibleHeight));
-                    
-                    // 🔧 FIX: Apply inline px transform with !important BEFORE adding .active class
-                    this._applyInitialTransformPx(translateYPx);
-                    
-                    // Set CSS variable with px value for precise positioning (for future state changes)
-                    document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
-                    
-                    // Now add .active class (won't override since we used !important)
+                    // Add .active class for backdrop animation
                     this.modal.classList.add('active');
                     
-                    // Re-enable transition after a frame
-                    requestAnimationFrame(() => {
-                        if (this.modal) {
-                            this.modal.style.transition = 'transform 0.3s cubic-bezier(0.4,0,0.2,1)';
+                    // Snap to INITIAL position with guaranteed reply form visibility
+                    this._snapInitialEnsuringReplyVisible(true);
+                    
+                    // Re-snap after a short delay to account for font loading and layout settling
+                    setTimeout(() => {
+                        if (this.isOpen && this.sheetState === this.SHEET_STATES.INITIAL) {
+                            this._snapInitialEnsuringReplyVisible(false);
                         }
-                    });
-                    
-                    // 🔧 Set sheet to INITIAL state (this updates the class but won't override !important transform)
-                    this.sheetState = this.SHEET_STATES.INITIAL;
-                    this.modal.classList.remove('sheet-state-closed', 'sheet-state-initial', 'sheet-state-full');
-                    this.modal.classList.add('sheet-state-initial');
-                    
-                    // 🔧 FIX: Assert reply form is visible and correct position if needed
-                    requestAnimationFrame(() => {
-                        this._assertReplyFormVisibleAndFix();
-                    });
+                    }, 300);
                 } else {
                     // Desktop: just add active class
                     this.modal.classList.add('active');
@@ -837,7 +877,8 @@ class CoverCommentsModal {
         if (bodyEl && replyFormEl) {
             // Wait for next frame to ensure elements are laid out
             requestAnimationFrame(() => {
-                const pad = replyFormEl.offsetHeight + 16; // include small margin; safe-area handled in CSS
+                const safeArea = this._computeSafeAreaBottomPx();
+                const pad = replyFormEl.offsetHeight + safeArea + 16; // include safe area and margin
                 bodyEl.style.paddingBottom = `${pad}px`;
             });
         }
