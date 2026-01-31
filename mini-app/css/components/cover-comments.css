@@ -485,10 +485,10 @@
         transform: translateY(0dvh); /* Fully expanded */
     }
     
-    /* Legacy support for .active class (will be overridden by state classes) */
-    .cover-comments-modal.active:not(.sheet-state-closed):not(.sheet-state-initial):not(.sheet-state-full) {
+    /* 🔧 REMOVED: Legacy rule that forces translateY(0) on .active - this was causing conflicts */
+    /* .cover-comments-modal.active:not(.sheet-state-closed):not(.sheet-state-initial):not(.sheet-state-full) {
         transform: translateY(0);
-    }
+    } */
     
     /* 🔧 FIX: Position reply form fixed at bottom, exclude from scrolling */
     .cover-comments-modal__reply-form {
