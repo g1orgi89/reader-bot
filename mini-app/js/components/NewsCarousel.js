@@ -16,7 +16,7 @@ class NewsCarousel {
    * @param {boolean} options.pauseOnTouch - Pause on user interaction
    * @param {boolean} options.pauseOnVisibilityChange - Pause when page hidden
    */
-  constructor({ items = [], containerId = 'news-carousel', autoplay = true, interval = 6000, pauseOnTouch = true, pauseOnVisibilityChange = true } = {}) {
+  constructor({ items = [], containerId = 'news-carousel', autoplay = true, interval = 4000, pauseOnTouch = true, pauseOnVisibilityChange = true } = {}) {
     this.items = Array.isArray(items) ? items.slice(0, 5) : [];
     this.containerId = containerId;
     this.currentIndex = 0;
@@ -31,6 +31,7 @@ class NewsCarousel {
     };
     this.autoplayTimer = null;
     this.pauseTimer = null;
+    this.scrollTimer = null;
 
     this._bound = {
       onDotClick: this.onDotClick.bind(this),
@@ -137,7 +138,9 @@ class NewsCarousel {
         section.style.display = 'none';
         this.stopAutoplay();
       }
-    } catch (_) {}
+    } catch (_) {
+      // Silently ignore errors during slide removal
+    }
   }
 
   recalcSlides(container) {
@@ -246,6 +249,10 @@ class NewsCarousel {
       clearTimeout(this.pauseTimer);
       this.pauseTimer = null;
     }
+    if (this.scrollTimer) {
+      clearTimeout(this.scrollTimer);
+      this.scrollTimer = null;
+    }
   }
 
   /**
@@ -265,10 +272,10 @@ class NewsCarousel {
     
     this.stopAutoplay();
     
-    // Resume after 1.5s
+    // Resume after 1s
     this.pauseTimer = setTimeout(() => {
       this.startAutoplay();
-    }, 1500);
+    }, 1000);
   }
 
   /**
@@ -301,6 +308,17 @@ class NewsCarousel {
       this.currentIndex = i;
       this.updateDotsActive();
       this.updateCounter();
+    }
+    
+    // Restart autoplay after 1s of no scrolling
+    if (this.config.pauseOnTouch) {
+      if (this.scrollTimer) {
+        clearTimeout(this.scrollTimer);
+      }
+      this.stopAutoplay();
+      this.scrollTimer = setTimeout(() => {
+        this.startAutoplay();
+      }, 1000);
     }
   }
 
