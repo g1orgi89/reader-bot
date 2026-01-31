@@ -4978,12 +4978,6 @@ renderAchievementsSection() {
      * @returns {Promise<Object|null>} - Modal singleton instance or null on failure
      */
     async _ensureCommentsModal() {
-        // Check if app has the singleton getter method
-        if (typeof this.app.getCoverCommentsModal !== 'function') {
-            console.error('❌ app.getCoverCommentsModal is not available');
-            return null;
-        }
-        
         // Try to get singleton from app (if class is already loaded)
         let modal = this.app.getCoverCommentsModal();
         if (modal) {
@@ -5011,7 +5005,7 @@ renderAchievementsSection() {
                 
                 script.onload = () => {
                     if (window.CoverCommentsModal) {
-                        console.log('✅ CoverCommentsModal: Dynamically loaded');
+                        console.log('✅ CoverCommentsModal class loaded');
                         resolve();
                     } else {
                         console.error('❌ CoverCommentsModal: Script loaded but class not exported');

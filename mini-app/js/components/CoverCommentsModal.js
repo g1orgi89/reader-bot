@@ -366,8 +366,7 @@ class CoverCommentsModal {
             if (viewportHeightDiff > 150) {
                 // 🔧 FIX: If already in FULL state, keyboard just appears without animation
                 if (this.sheetState === this.SHEET_STATES.FULL) {
-                    // Already in FULL state, no animation needed, just track keyboard is visible
-                    console.log('⌨️ Keyboard shown - sheet already in FULL state, no animation');
+                    // Already in FULL state, no animation needed
                     return;
                 }
                 
