@@ -242,14 +242,14 @@
 
 /* 🔧 FIX: Action buttons positioned below text */
 .comment__actions {
-    display: flex;
-    align-items: center;
+    display: inline-flex;
+    align-items: baseline;
     gap: 12px;
     flex-wrap: wrap;
-    margin-top: 0; /* 🔧 FIX: Remove top margin for flush positioning */
+    margin-top: 4px; /* Small gap from text */
     margin-left: 0;
     padding-left: 0;
-    padding-top: 0; /* 🔧 FIX: Remove top padding for flush positioning */
+    padding-top: 0;
 }
 
 .comment__action-btn {
@@ -262,9 +262,9 @@
     border-radius: 12px;
     transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     gap: 4px;
-    min-height: 44px; /* 🔧 Touch target ≥44px */
+    min-height: 32px; /* Smaller for tighter alignment */
 }
 
 .comment__action-btn:hover {
@@ -300,7 +300,7 @@
 /* 🔧 FIX: Reply button positioned under text */
 .comment__reply-btn {
     align-self: flex-start;
-    margin-top: 0; /* 🔧 FIX: Remove top margin for flush positioning */
+    margin-top: 0;
     padding: 4px 8px;
     min-height: 32px;
 }
@@ -314,7 +314,7 @@
     color: var(--text-secondary);
     min-width: auto;
     min-height: 32px;
-    margin-top: 0; /* 🔧 FIX: Remove top margin for flush positioning */
+    margin-top: 0;
 }
 
 .comment__delete-btn:hover {
@@ -476,9 +476,9 @@
     }
     
     .cover-comments-modal.sheet-state-initial {
-        /* Use JS-calculated custom property for precise positioning to show 60% of viewport */
-        /* Fallback: 36dvh positions modal so its bottom 60dvh is visible (96dvh - 60dvh = 36dvh) */
-        transform: translateY(var(--sheet-initial-height, 36dvh));
+        /* Use JS-calculated custom property for precise positioning to show 50% of viewport */
+        /* Fallback: 50vh positions modal to show exactly half the screen (strict half-screen in INITIAL) */
+        transform: translateY(var(--sheet-initial-height, 50vh));
     }
     
     .cover-comments-modal.sheet-state-full {
@@ -490,10 +490,10 @@
         transform: translateY(0);
     }
     
-    /* 🔧 FIX: Position reply form fixed at bottom, exclude from scrolling */
+    /* 🔧 FIX: Position reply form sticky to stay visible in INITIAL state */
     .cover-comments-modal__reply-form {
-        position: absolute;
-        bottom: 0;
+        position: sticky;
+        bottom: env(safe-area-inset-bottom, 0px);
         left: 0;
         right: 0;
         z-index: 10;

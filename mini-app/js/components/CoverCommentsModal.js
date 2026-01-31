@@ -719,14 +719,18 @@ class CoverCommentsModal {
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
         this.modalHeader = this.modal.querySelector('.cover-comments-modal__header');
         
-        // 🔧 FIX: Ensure body padding matches reply form height + safe area
+        // 🔧 FIX: Ensure body padding matches reply form height + safe area for sticky positioning
         const bodyEl = this.modalBody;
         const replyFormEl = this.modal.querySelector('.cover-comments-modal__reply-form');
-        if (bodyEl && replyFormEl) {
+        if (bodyEl && replyFormEl && window.innerWidth <= this.MOBILE_BREAKPOINT) {
             // Wait for next frame to ensure elements are laid out
             requestAnimationFrame(() => {
-                const pad = replyFormEl.offsetHeight + 16; // include small margin; safe-area handled in CSS
+                // Get safe area inset bottom (iOS notch/home indicator)
+                const safeAreaBottom = parseInt(getComputedStyle(document.documentElement)
+                    .getPropertyValue('--safe-area-inset-bottom') || '0', 10);
+                const pad = replyFormEl.offsetHeight + safeAreaBottom;
                 bodyEl.style.paddingBottom = `${pad}px`;
+                console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${replyFormEl.offsetHeight}px, safe-area: ${safeAreaBottom}px)`);
             });
         }
         
