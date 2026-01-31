@@ -482,16 +482,6 @@ class CoverCommentsModal {
             // Add body class for content shift
             document.body.classList.add('sheet-open');
             
-            // 🔧 FIX: Calculate initial height based on real sheet height (96dvh)
-            if (window.visualViewport && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-                const viewportHeight = Math.round(window.visualViewport.height);
-                const sheetHeight = Math.round(viewportHeight * 0.96);         // 96dvh
-                const initialVisibleHeight = Math.round(viewportHeight * 0.6); // show 60% viewport
-                const translateYPx = Math.max(0, sheetHeight - initialVisibleHeight);
-                document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
-                console.log(`[INIT HEIGHT] vv=${viewportHeight}px sheet=${sheetHeight}px show=${initialVisibleHeight}px translateY=${translateYPx}px`);
-            }
-            
             // Use initial comments if provided for instant UI
             if (options.initialComments && options.initialComments.length > 0) {
                 this.comments = options.initialComments;
@@ -525,6 +515,20 @@ class CoverCommentsModal {
             requestAnimationFrame(() => {
                 this.backdrop.classList.add('active');
                 this.modal.classList.add('active');
+                
+                // 🔧 FIX: Compute INITIAL translateY from real modal sheet height (DOM-based measurement)
+                // Measure after modal is inserted into DOM and rendered
+                if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
+                    const rect = this.modal.getBoundingClientRect();
+                    const sheetHeight = rect.height; // Real measured height in px
+                    const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                    const targetVisibleHeight = viewportHeight * 0.6; // Show 60% of viewport
+                    const translateYPx = Math.max(0, Math.round(sheetHeight - targetVisibleHeight));
+                    
+                    // Set CSS variable with px value for precise positioning
+                    document.documentElement.style.setProperty('--sheet-initial-height', `${translateYPx}px`);
+                    console.log(`[INIT HEIGHT] sheetHeight=${sheetHeight}px viewport=${viewportHeight}px visible=${targetVisibleHeight}px translateY=${translateYPx}px`);
+                }
                 
                 // 🔧 Set sheet to INITIAL state (input form visible)
                 this._setSheetState(this.SHEET_STATES.INITIAL);
