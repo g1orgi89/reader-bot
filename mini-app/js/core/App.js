@@ -1070,7 +1070,7 @@ class ReaderApp {
      */
     initializeCoverCommentsModal() {
         // No-op: Lazy initialization is now handled in getCoverCommentsModal()
-        console.log('⚠️ initializeCoverCommentsModal called (no-op, using lazy initialization)');
+        // Silent no-op to avoid log noise during app initialization
     }
 
     /**
