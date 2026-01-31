@@ -4978,21 +4978,31 @@ renderAchievementsSection() {
      * @returns {Promise<Object|null>} - Modal singleton instance or null on failure
      */
     async _ensureCommentsModal() {
-        // Try to get singleton from app
-        if (typeof this.app.getCoverCommentsModal === 'function') {
-            const modal = this.app.getCoverCommentsModal();
-            if (modal) {
-                return modal;
+        // Helper function to get singleton from app
+        const getSingleton = () => {
+            if (typeof this.app.getCoverCommentsModal === 'function') {
+                return this.app.getCoverCommentsModal();
             }
+            return null;
+        };
+        
+        // Try to get singleton from app (if class is already loaded)
+        const modal = getSingleton();
+        if (modal) {
+            return modal;
         }
         
-        // If class is not loaded yet, dynamically load it
+        // Class not loaded yet - need to dynamically load it
         if (!window.CoverCommentsModal) {
             // Single-flight guard: if already loading, wait for that promise
             if (this._commentsModalLoadPromise) {
-                await this._commentsModalLoadPromise;
-                // Try to get singleton again after loading
-                return this.app.getCoverCommentsModal ? this.app.getCoverCommentsModal() : null;
+                try {
+                    await this._commentsModalLoadPromise;
+                } catch (error) {
+                    console.error('❌ Failed to load CoverCommentsModal (concurrent load):', error);
+                }
+                // Try to get singleton after loading completes
+                return getSingleton();
             }
             
             // Dynamically load CoverCommentsModal.js with cache-busting
@@ -5025,16 +5035,14 @@ renderAchievementsSection() {
             
             try {
                 await this._commentsModalLoadPromise;
-                // Get singleton instance after loading
-                return this.app.getCoverCommentsModal ? this.app.getCoverCommentsModal() : null;
             } catch (error) {
                 console.error('❌ Failed to load CoverCommentsModal:', error);
                 return null;
             }
         }
         
-        // Class is loaded, get singleton
-        return this.app.getCoverCommentsModal ? this.app.getCoverCommentsModal() : null;
+        // Class should now be loaded, get singleton
+        return getSingleton();
     }
     
     /**
