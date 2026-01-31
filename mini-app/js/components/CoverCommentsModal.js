@@ -105,6 +105,15 @@ class CoverCommentsModal {
      * 🏗️ Create modal DOM elements
      */
     createModal() {
+        // 🔧 ARCHITECTURAL FIX: Check if modal already exists AND is in document.body
+        // If modal exists but is not in DOM (removed during page rerender), re-add it
+        if (this.modal && !document.body.contains(this.modal)) {
+            console.log('⚠️ CoverCommentsModal: Modal existed but was not in DOM, re-adding to body');
+            document.body.appendChild(this.backdrop);
+            document.body.appendChild(this.modal);
+            return;
+        }
+        
         if (this.modal) return;
         
         // Create backdrop
@@ -120,7 +129,7 @@ class CoverCommentsModal {
         this.modal.setAttribute('aria-modal', 'true');
         this.modal.setAttribute('aria-labelledby', 'coverCommentsTitle');
         
-        // Add to document
+        // Add to document.body (top level, isolated from page rerenders)
         document.body.appendChild(this.backdrop);
         document.body.appendChild(this.modal);
         
@@ -131,7 +140,7 @@ class CoverCommentsModal {
             this.modal.classList.add('sheet-state-closed');
         }
         
-        console.log('✅ CoverCommentsModal: DOM elements created');
+        console.log('✅ CoverCommentsModal: DOM elements created and added to document.body');
     }
     
     /**
