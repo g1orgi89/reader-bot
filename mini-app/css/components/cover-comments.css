@@ -490,13 +490,21 @@
         transform: translateY(0);
     }
     
-    /* State-based visible content height */
+    /* State-based visible content height with flex layout */
     .cover-comments-modal.sheet-state-initial .cover-comments-modal__content {
-        height: calc(96dvh - var(--sheet-initial-height, 50vh)); /* visible portion only */
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height: calc(var(--sheet-visible-height, 96dvh) - var(--sheet-initial-height, 50vh));
+        max-height: 96dvh;
     }
     
     .cover-comments-modal.sheet-state-full .cover-comments-modal__content {
-        height: 96dvh; /* full visible area */
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height: var(--sheet-visible-height, 96dvh);
+        max-height: 96dvh;
     }
     
     /* Sheet content as a column filling the height */
@@ -512,23 +520,19 @@
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         padding: 8px 12px;
-        /* Small padding at bottom for safe area. Reply form is now inside body with sticky positioning.
-         * JS dynamically sets this padding to Math.max(8, safe-area-inset-bottom). */
+        /* JS will set precise padding-bottom = reply form height + safe area */
         padding-bottom: 8px;
         overscroll-behavior: contain;
         -webkit-overscroll-behavior: contain;
     }
     
-    /* Reply form sticks to the bottom of the visible area.
-     * Sticky positioning keeps the reply form visible at the bottom while scrolling,
-     * ensuring it's always accessible in both INITIAL (half-screen) and FULL states. */
+    /* Reply form pinned at bottom of column */
     .cover-comments-modal__reply-form {
-        position: sticky;
-        bottom: env(safe-area-inset-bottom, 0px);
+        flex: 0 0 auto; /* pin at bottom of column */
         z-index: 10;
         background: var(--bg-primary);
         border-top: 1px solid var(--border-color);
-        padding-bottom: max(16px, env(safe-area-inset-bottom));
+        padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px);
     }
     
     .reply-form {
