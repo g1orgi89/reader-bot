@@ -520,6 +520,13 @@ class CoverCommentsModal {
                 // 🔧 FIX: Compute INITIAL translateY from real modal sheet height (DOM-based measurement)
                 // Measure after modal is inserted into DOM and rendered
                 if (this.modal && window.innerWidth <= this.MOBILE_BREAKPOINT) {
+                    // Compute visible height for mobile (visualViewport - bottom nav)
+                    const vvH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                    const nav = document.querySelector('.bottom-nav');
+                    const navH = nav ? Math.round(nav.getBoundingClientRect().height || 0) : 0;
+                    const visibleHeightPx = Math.max(200, vvH - navH);
+                    document.documentElement.style.setProperty('--sheet-visible-height', `${visibleHeightPx}px`);
+                    
                     const rect = this.modal.getBoundingClientRect();
                     const sheetHeight = rect.height; // Real measured height in px
                     const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -711,8 +718,8 @@ class CoverCommentsModal {
                     ${this.loading && this.comments.length === 0 ? this.renderLoading() : commentsHtml}
                     ${this.hasMore && !this.loading ? '<button class="cover-comments-modal__load-more">Показать ещё</button>' : ''}
                     ${this.loading && this.comments.length > 0 ? '<div class="cover-comments-modal__loading-more">Загрузка...</div>' : ''}
-                    ${replyFormHtml}
                 </div>
+                ${replyFormHtml}
             </div>
         `;
         
@@ -720,18 +727,23 @@ class CoverCommentsModal {
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
         this.modalHeader = this.modal.querySelector('.cover-comments-modal__header');
         
-        // 🔧 FIX: Ensure body padding accounts only for safe area (panel is now inside flow)
+        // 🔧 FIX: Set body padding to reply form height + safe area on mobile
         const bodyEl = this.modalBody;
-        const replyFormEl = this.modal.querySelector('.cover-comments-modal__reply-form');
-        if (bodyEl && replyFormEl && window.innerWidth <= this.MOBILE_BREAKPOINT) {
+        const replyEl = this.modal.querySelector('.cover-comments-modal__reply-form');
+        if (bodyEl && replyEl && window.innerWidth <= this.MOBILE_BREAKPOINT) {
             // Wait for next frame to ensure elements are laid out
             requestAnimationFrame(() => {
-                // Get safe area inset bottom (iOS notch/home indicator)
-                const safeAreaBottom = parseInt(getComputedStyle(document.documentElement)
-                    .getPropertyValue('--safe-area-inset-bottom') || '0', 10);
-                const pad = Math.max(this.MIN_BOTTOM_PADDING, safeAreaBottom);
+                // Measure safe area using a probe element
+                const safeProbe = document.createElement('div');
+                safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
+                document.body.appendChild(safeProbe);
+                const safe = Math.round(safeProbe.getBoundingClientRect().height || 0);
+                safeProbe.remove();
+                
+                const formH = replyEl.offsetHeight || 64;
+                const pad = formH + safe;
                 bodyEl.style.paddingBottom = `${pad}px`;
-                console.log(`🔧 Set body padding-bottom: ${pad}px (safe-area: ${safeAreaBottom}px)`);
+                console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${formH}px, safe-area: ${safe}px)`);
             });
         }
         
