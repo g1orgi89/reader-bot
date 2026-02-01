@@ -4813,6 +4813,18 @@ renderAchievementsSection() {
     }
     
     /**
+     * 🔧 Force fresh reload of covers feed after mutation
+     * Resets cursor and reloads with cache-bust timestamp
+     * @private
+     */
+    async _reloadCoversAfterMutation() {
+        this.coversCursor = null;
+        await this.loadCovers(false);
+        this.rerender();
+        this.attachCoverUploadFormListeners();
+    }
+    
+    /**
      * 📸 Handle successful photo upload
      * @param {Object} result - Upload result from API
      */
@@ -4853,11 +4865,7 @@ renderAchievementsSection() {
         }
         
         // 🔧 Force fresh reload after mutation to ensure cross-account visibility
-        // Reset cursor and reload with cache-bust timestamp
-        this.coversCursor = null;
-        await this.loadCovers(false);
-        this.rerender();
-        this.attachCoverUploadFormListeners();
+        await this._reloadCoversAfterMutation();
     }
     
     /**
@@ -5038,10 +5046,7 @@ renderAchievementsSection() {
                 }
                 
                 // 🔧 Force fresh reload after mutation
-                this.coversCursor = null;
-                await this.loadCovers(false);
-                this.rerender();
-                this.attachCoverUploadFormListeners();
+                await this._reloadCoversAfterMutation();
             } else {
                 throw new Error(response?.error || 'Failed to delete');
             }
