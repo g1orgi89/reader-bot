@@ -1340,10 +1340,9 @@ async refreshSpotlight() {
     /**
      * 🔄 B) Centralized refresh for all community feeds
      * Refreshes appropriate feeds based on current active tab and filter
-     * @param {Object} options - Refresh options
-     * @param {boolean} options.force - Force refresh even if recently refreshed (reserved for future use)
+     * @param {Object} options - Refresh options (reserved for future use)
      */
-    async refreshCommunityFeeds({ force = false } = {}) {
+    async refreshCommunityFeeds(options = {}) {
         try {
             const currentTab = this.activeTab;
             
@@ -1356,14 +1355,11 @@ async refreshSpotlight() {
                     await this.loadCovers(false);
                     this.rerender();
                     this.attachCoverUploadFormListeners();
-                } else if (this.feedFilter === 'following') {
-                    // Refresh Following feed
-                    console.log('🔄 Refreshing Following feed...');
-                    await this.refreshSpotlight(); // Uses existing logic
                 } else {
-                    // Refresh All feed (Цитаты)
-                    console.log('🔄 Refreshing All feed...');
-                    await this.refreshSpotlight(); // Uses existing logic
+                    // Refresh Following feed or All feed (Цитаты)
+                    // Both use the same refreshSpotlight() method which handles the current filter internally
+                    console.log(`🔄 Refreshing ${this.feedFilter === 'following' ? 'Following' : 'All'} feed...`);
+                    await this.refreshSpotlight();
                 }
             } else if (currentTab === 'top') {
                 // Refresh Топ недели: popular quotes + leaderboard
