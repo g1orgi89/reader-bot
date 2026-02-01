@@ -2245,6 +2245,71 @@
     border-color: var(--error-color);
 }
 
+/* ========================================
+   ✨ FIX: Heart button for inline emoji icons
+   Remove square highlights and ensure immediate visual feedback
+   ======================================== */
+
+/* Reset heart button to remove all borders, outlines, and tap highlights */
+.quote-card .quote-card__heart-btn,
+.quote-item .quote-card__heart-btn,
+[data-quote-id] .quote-card__heart-btn,
+.popular-quote-card .quote-card__heart-btn {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    padding: 4px 8px;
+    gap: 4px;
+    transition: transform 0.15s ease;
+}
+
+/* Hide SVG ::before pseudo-elements when using emoji icons */
+.quote-card .quote-card__heart-btn::before,
+.quote-item .quote-card__heart-btn::before,
+[data-quote-id] .quote-card__heart-btn::before,
+.popular-quote-card .quote-card__heart-btn::before {
+    display: none !important;
+}
+
+/* Heart icon should change color immediately */
+.quote-card__heart-btn .like-icon {
+    font-size: 18px;
+    transition: none;
+    display: inline-block;
+}
+
+.quote-card__heart-btn.favorited .like-icon {
+    color: var(--primary-color, #D2452C);
+}
+
+/* Like count styling */
+.quote-card__heart-btn .like-count {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: none;
+}
+
+/* Hover effect - subtle scale */
+@media (hover: hover) and (pointer: fine) {
+    .quote-card .quote-card__heart-btn:hover,
+    .quote-item .quote-card__heart-btn:hover,
+    [data-quote-id] .quote-card__heart-btn:hover {
+        background: transparent !important;
+        transform: scale(1.05);
+    }
+}
+
+/* Active effect - slight scale down */
+.quote-card .quote-card__heart-btn:active,
+.quote-item .quote-card__heart-btn:active,
+[data-quote-id] .quote-card__heart-btn:active {
+    background: transparent !important;
+    transform: scale(0.95);
+}
+
 /* Кнопка подписки тоже фиксированная */
 .follow-btn {
     width: 44px;
