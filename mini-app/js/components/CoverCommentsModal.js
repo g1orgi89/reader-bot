@@ -1733,14 +1733,14 @@ class CoverCommentsModal {
                         items: this.comments,
                         ts: Date.now()
                     });
-                    
-                    // Re-render to show new comment
-                    this.render();
                 }
                 
-                // Clear form and reply state
+                // Clear form and reply state BEFORE re-rendering
                 textarea.value = '';
                 this.replyingTo = null;
+                
+                // Re-render to show new comment and clear reply UI
+                this.render();
                 
                 // Update comment count in parent card
                 if (this.updateCountCallback) {
