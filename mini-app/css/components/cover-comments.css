@@ -517,19 +517,21 @@
         max-height: 96dvh; /* 96dvh leaves space for iOS safe areas and avoids overlap with bottom navigation bar */
     }
     
-    /* Body scrolls within visible area; reply form is absolutely positioned on top */
+    /* Body scrolls within visible area */
+    /* On mobile: padding-bottom set by JS = fixed reply overlay height + safe area */
+    /* On desktop: padding-bottom set by JS = absolute reply form height + safe area + extra */
     .cover-comments-modal__body {
         flex: 1 1 auto;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         padding: 8px 12px;
-        /* JS will set precise padding-bottom = reply form height + safe area */
+        /* JS will set precise padding-bottom */
         padding-bottom: 8px;
         overscroll-behavior: contain;
         -webkit-overscroll-behavior: contain;
     }
     
-    /* Reply form absolutely pinned at bottom with breathing space */
+    /* Reply form absolutely pinned at bottom (DESKTOP ONLY - mobile uses fixed overlay) */
     .cover-comments-modal__reply-form {
         position: absolute;
         left: 0;

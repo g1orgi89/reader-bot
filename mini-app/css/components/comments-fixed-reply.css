@@ -1,0 +1,115 @@
+/**
+ * 💬 COMMENTS FIXED REPLY BAR - comments-fixed-reply.css
+ * 
+ * Fixed overlay for reply input bar in comments modal
+ * Positioned like bottom navigation - always at the bottom regardless of sheet state
+ * 
+ * @version 1.0.0
+ */
+
+/* ============================================================================
+   💬 FIXED REPLY OVERLAY (MOBILE ONLY)
+   ============================================================================ */
+
+@media (max-width: 480px) {
+    .comments-fixed-reply {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 10010; /* Above modal content (10000), below toasts (11000+) */
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border-color);
+        padding: 8px 12px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        min-height: var(--reply-form-min-height, 64px);
+        
+        /* iOS WebKit stability fixes (same as bottom nav) */
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
+        will-change: transform;
+        
+        /* Smooth transitions */
+        transition: transform 0.3s ease;
+    }
+    
+    /* Reply form inside fixed overlay */
+    .comments-fixed-reply .reply-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 48px;
+    }
+    
+    .comments-fixed-reply .reply-form__cancel {
+        padding: 8px 12px;
+        background: var(--bg-secondary);
+        border: none;
+        border-radius: var(--radius-md, 8px);
+        color: var(--text-primary);
+        font-size: 14px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.2s ease;
+    }
+    
+    .comments-fixed-reply .reply-form__cancel:hover,
+    .comments-fixed-reply .reply-form__cancel:active {
+        background: var(--bg-tertiary, var(--bg-secondary));
+    }
+    
+    .comments-fixed-reply .reply-form__input {
+        flex: 1 1 auto;
+        min-height: 40px;
+        max-height: 120px;
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md, 8px);
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.4;
+        resize: none;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .comments-fixed-reply .reply-form__input:focus {
+        outline: none;
+        border-color: var(--primary-color, #D2452C);
+    }
+    
+    .comments-fixed-reply .reply-form__submit {
+        padding: 10px 16px;
+        min-height: 40px;
+        background: var(--primary-color, #D2452C);
+        border: none;
+        border-radius: var(--radius-md, 8px);
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.2s ease;
+    }
+    
+    .comments-fixed-reply .reply-form__submit:hover,
+    .comments-fixed-reply .reply-form__submit:active {
+        background: var(--primary-dark, #B73A24);
+    }
+    
+    .comments-fixed-reply .reply-form__submit:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+/* Desktop: no fixed overlay needed (reply bar can stay in modal) */
+@media (min-width: 481px) {
+    .comments-fixed-reply {
+        display: none;
+    }
+}
