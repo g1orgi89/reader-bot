@@ -184,6 +184,41 @@ class CommunityPage {
         } else {
             console.warn('⚠️ ImageViewer not loaded');
         }
+        
+        // 🔧 A) Load persisted mutation timestamp for cache-busting
+        this._loadMutationTimestamp();
+    }
+    
+    /**
+     * 🔧 Load persisted mutation timestamp from sessionStorage
+     * @private
+     */
+    _loadMutationTimestamp() {
+        try {
+            const stored = sessionStorage.getItem('covers:lastMutationTs');
+            if (stored) {
+                const ts = parseInt(stored, 10);
+                if (!isNaN(ts) && ts > 0) {
+                    this._lastMutationTs = ts;
+                    console.log(`🔧 CommunityPage: Loaded mutation timestamp from storage: ${ts}`);
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Failed to load mutation timestamp:', error);
+        }
+    }
+    
+    /**
+     * 🔧 Persist mutation timestamp to sessionStorage
+     * @private
+     */
+    _persistMutationTimestamp() {
+        try {
+            sessionStorage.setItem('covers:lastMutationTs', String(this._lastMutationTs));
+            console.log(`💾 CommunityPage: Persisted mutation timestamp: ${this._lastMutationTs}`);
+        } catch (error) {
+            console.warn('⚠️ Failed to persist mutation timestamp:', error);
+        }
     }
 
     // PREFETCH: вызывается Router перед первым render — грузим всё параллельно
@@ -761,9 +796,9 @@ class CommunityPage {
             const cursor = loadMore ? this.coversCursor : null;
             const limit = 20;
             
-            // 🔧 CACHE-BUST: Add timestamp if within 30 seconds of last mutation
+            // 🔧 CACHE-BUST: Add timestamp if within 120 seconds of last mutation (extended from 30s)
             const now = Date.now();
-            const shouldCacheBust = (now - this._lastMutationTs) < 30000; // 30 seconds
+            const shouldCacheBust = (now - this._lastMutationTs) < 120000; // 120 seconds
             const ts = shouldCacheBust ? now : undefined;
             
             console.log(`📸 CommunityPage: Загружаем обложки (feed=${feed}, cursor=${cursor}, loadMore=${loadMore}, cacheBust=${shouldCacheBust})...`);
@@ -888,29 +923,21 @@ class CommunityPage {
             const storeEntry = this._likeStore.get(normalizedKey);
             const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
             const favoritesCount = storeEntry ? storeEntry.count : (quote.favorites || quote.count || 0);
-            const heartIcon = isLiked ? '❤' : '♡';
-            const favoritedClass = isLiked ? ' favorited' : '';
             
             return `
                 <div class="quote-card" data-quote-id="${quote.id || `${chunkId}-${index}`}">
                     <div class="quote-card__content">
                         <div class="quote-card__text">"${this.escapeHtml(quoteText)}"</div>
                         <div class="quote-card__author">— ${this.escapeHtml(quoteAuthor)}</div>
-                        <div class="quote-card__meta">
-                            <span class="quote-card__date">${this.formatDate(quote.createdAt || quote.date)}</span>
-                            <div class="quote-card__actions">
-                                <button class="quote-card__fav-btn${favoritedClass}" data-quote-id="${quote.id || `${chunkId}-${index}`}"
+                        <div class="quote-card__footer">
+                            <div class="quote-card__likes">
+                                <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}"
                                         data-quote-text="${this.escapeHtml(quoteText)}"
                                         data-quote-author="${this.escapeHtml(quoteAuthor)}"
-                                        data-normalized-key="${normalizedKey}"
                                         data-favorites="${favoritesCount}"
-                                        style="min-height: var(--touch-target-min);" aria-label="Добавить в избранное">${heartIcon}</button>
-                                <button class="quote-card__add-btn" data-quote-id="${quote.id || `${chunkId}-${index}`}"
-                                        data-quote-text="${this.escapeHtml(quoteText)}"
-                                        data-quote-author="${this.escapeHtml(quoteAuthor)}"
-                                        style="min-height: var(--touch-target-min);" aria-label="Добавить цитату в дневник">
-                                  <span class="add-icon">+</span>
-                                </button>
+                                        data-normalized-key="${normalizedKey}"
+                                        aria-label="Лайк"></button>
+                                <span class="favorites-count">${favoritesCount}</span>
                             </div>
                         </div>
                     </div>
@@ -1027,7 +1054,7 @@ class CommunityPage {
     }
     
     /**
-     * 👥 LOAD MORE: Обработчик для ленты "От подписок"
+     * 👥 LOAD MORE: Обработчик для ленты "Подписки"
      */
     async onClickFollowingLoadMore() {
         try {
@@ -1118,15 +1145,13 @@ class CommunityPage {
                     <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
                     <div class="quote-card__footer">
                         <div class="quote-card__likes">
-                          ❤ <span class="favorites-count">${favoritesCount}</span>
-                        </div>
-                        <div class="quote-card__actions">
                             <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}"
                                     data-quote-text="${this.escapeHtml(quote.text)}"
                                     data-quote-author="${this.escapeHtml(quote.author || '')}"
                                     data-favorites="${favoritesCount}"
                                     data-normalized-key="${normalizedKey}"
                                     aria-label="Лайк"></button>
+                            <span class="favorites-count">${favoritesCount}</span>
                         </div>
                     </div>
                 </div>
@@ -1135,7 +1160,7 @@ class CommunityPage {
     }
     
     /**
-     * 🔄 Переключение фильтра ленты (Все / От подписок / Обложки)
+     * 🔄 Переключение фильтра ленты (Все / Подписки / Обложки)
      * ОБНОВЛЕНО: Полный rerender вкладки Feed для всех фильтров (uniform strategy)
      * @param {string} filter - 'all' или 'following' или 'covers'
      */
@@ -1311,6 +1336,70 @@ async refreshSpotlight() {
         }
     }
 }
+    
+    /**
+     * 🔄 B) Centralized refresh for all community feeds
+     * Refreshes appropriate feeds based on current active tab and filter
+     */
+    async refreshCommunityFeeds() {
+        try {
+            const currentTab = this.activeTab;
+            
+            if (currentTab === 'feed') {
+                // Refresh based on current feed filter
+                if (this.feedFilter === 'covers') {
+                    // Refresh Covers feed
+                    console.log('🔄 Refreshing Covers feed...');
+                    this.coversCursor = null;
+                    await this.loadCovers(false);
+                    this.rerender();
+                    this.attachCoverUploadFormListeners();
+                } else {
+                    // Refresh Following feed or All feed (Цитаты)
+                    // Both use the same refreshSpotlight() method which handles the current filter internally
+                    console.log(`🔄 Refreshing ${this.feedFilter === 'following' ? 'Following' : 'All'} feed...`);
+                    await this.refreshSpotlight();
+                }
+            } else if (currentTab === 'top') {
+                // Refresh Топ недели: popular quotes + leaderboard
+                console.log('🔄 Refreshing Top Week tab...');
+                
+                // Reload popular favorites quotes
+                await this.loadPopularFavorites(10);
+                
+                // Reload leaderboard
+                const leaderboardResponse = await this.api.getLeaderboard({ scope: 'week', limit: 10 });
+                if (leaderboardResponse?.success) {
+                    this.leaderboard = leaderboardResponse.data || [];
+                    this.userProgress = leaderboardResponse.me || null;
+                    this.loaded.leaderboard = true;
+                }
+                
+                // Partial update of popular week section and leaderboard
+                const popularSection = document.getElementById('popularWeekSection');
+                if (popularSection) {
+                    popularSection.outerHTML = this.renderPopularQuotesWeekSection();
+                }
+                
+                const leaderboardSection = document.getElementById('leaderboardSection');
+                if (leaderboardSection) {
+                    leaderboardSection.outerHTML = this.renderLeaderboardSection();
+                }
+                
+                // Reconcile like data and reattach listeners
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                this.attachQuoteCardListeners();
+                this.attachCommunityCardListeners();
+            }
+            
+            this.triggerHapticFeedback('light');
+            console.log('✅ Community feeds refreshed successfully');
+        } catch (error) {
+            console.error('❌ Error refreshing community feeds:', error);
+            this.showNotification('Ошибка обновления', 'error');
+        }
+    }
     
     /**
      * ➕ Подписаться на пользователя
@@ -2538,13 +2627,13 @@ async refreshSpotlight() {
      * 📰 ТАБ ЛЕНТА (ОБНОВЛЕН ДЛЯ PR-3 - РЕАЛЬНЫЕ ДАННЫЕ ИЗ API!)
      */
     renderFeedTab() {
-        // 👥 ФИЛЬТР ЛЕНТЫ (Цитаты / От подписок / КнижныйКадр)
+        // 👥 ФИЛЬТР ЛЕНТЫ (Цитаты / Подписки / КнижныйКадр)
         const feedFilterHtml = `
             <div class="feed-filter">
                 <button class="feed-filter-btn ${this.feedFilter === 'all' ? 'active' : ''}"
                         data-filter="all">Цитаты</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'following' ? 'active' : ''}"
-                        data-filter="following">От подписок</button>
+                        data-filter="following">Подписки</button>
                 <button class="feed-filter-btn ${this.feedFilter === 'covers' ? 'active' : ''}"
                         data-filter="covers">КнижныйКадр</button>
             </div>
@@ -2999,36 +3088,17 @@ async refreshSpotlight() {
                     <div class="quote-card__text">"${this.escapeHtml(quote.text || '')}"</div>
                     <div class="quote-card__author">— ${this.escapeHtml(quote.author || 'Неизвестный автор')}</div>
                     
-                    <!-- Footer с лайками слева и действиями справа -->
+                    <!-- Footer с компактными лайками -->
                     <div class="quote-card__footer">
                         <div class="quote-card__likes">
-                            ❤ <span class="favorites-count">${favorites}</span>
-                        </div>
-                        <div class="quote-card__actions">
-                            ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
-                                <button type="button" class="follow-btn ${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'following' : ''}"
-                                        data-user-id="${owner.userId || owner.id || owner._id || owner.telegramId}"
-                                        aria-label="${this.followStatusCache.get(owner.userId || owner.id || owner._id || owner.telegramId) ? 'Отписаться' : 'Подписаться'}">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                                        <circle cx="9" cy="7" r="4"/>
-                                        <line x1="19" y1="8" x2="19" y2="14"/>
-                                        <line x1="16" y1="11" x2="22" y2="11"/>
-                                    </svg>
-                                </button>
-                            ` : ''}
-                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button type="button" class="quote-card__add-btn" 
-                                    data-quote-id="${quote.id || ''}"
-                                    data-quote-text="${this.escapeHtml(quote.text || '')}"
-                                    data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
-                                    aria-label="Добавить цитату в дневник">+</button>` : ''}
                             <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}" 
                                     data-quote-id="${quote.id || ''}"
                                     data-quote-text="${this.escapeHtml(quote.text || '')}"
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
                                     data-favorites="${favorites}"
                                     data-normalized-key="${normalizedKey}"
-                                    aria-label="Добавить в избранное"></button>
+                                    aria-label="Лайк"></button>
+                            <span class="favorites-count">${favorites}</span>
                         </div>
                     </div>
                 </div>
@@ -3423,7 +3493,7 @@ renderAchievementsSection() {
         this.attachSpotlightRefreshButton(); // ✅ НОВОЕ: Кнопка обновления spotlight
         this.attachPopularWeekRefreshButton(); // ✅ НОВОЕ: Кнопка обновления популярных цитат недели (теперь обновляет и лидерборд)
         this.attachFeedLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "Все"
-        this.attachFollowingLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "От подписок"
+        this.attachFollowingLoadMoreListeners(); // ✅ НОВОЕ: Load More для ленты "Подписки"
         this.attachCoversLoadMoreListeners(); // 📸 НОВОЕ: Load More для обложек
         this.attachCoverUploadFormListeners(); // ✅ НОВОЕ: Upload form для обложек
         this.attachPullToRefreshListeners(); // 🔄 НОВОЕ: Pull-to-refresh для всех табов
@@ -4738,14 +4808,27 @@ renderAchievementsSection() {
     }
     
     /**
+     * 🔧 Force fresh reload of covers feed after mutation
+     * Resets cursor and reloads with cache-bust timestamp
+     * @private
+     */
+    async _reloadCoversAfterMutation() {
+        this.coversCursor = null;
+        await this.loadCovers(false);
+        this.rerender();
+        this.attachCoverUploadFormListeners();
+    }
+    
+    /**
      * 📸 Handle successful photo upload
      * @param {Object} result - Upload result from API
      */
     async handleUploadSuccess(result) {
         console.log('📸 CommunityPage: Handling upload success...', result);
         
-        // 🔧 Set mutation timestamp for cache-busting
+        // 🔧 Set mutation timestamp for cache-busting and persist
         this._lastMutationTs = Date.now();
+        this._persistMutationTimestamp();
         
         // Show success message/toast if available
         if (window.app && window.app.showToast) {
@@ -4769,12 +4852,16 @@ renderAchievementsSection() {
             // Prepend new post to the beginning
             this.coversPosts = [newPost, ...this.coversPosts];
             
-            // Rerender immediately to show new post
+            // Rerender immediately to show new post (optimistic update)
+            // Note: This is separate from _reloadCoversAfterMutation() which does the final server refresh
             this.rerender();
             
             // Rebind upload form listeners after rerender
             this.attachCoverUploadFormListeners();
         }
+        
+        // 🔧 Force fresh reload after mutation to ensure cross-account visibility
+        await this._reloadCoversAfterMutation();
     }
     
     /**
@@ -4940,8 +5027,9 @@ renderAchievementsSection() {
             const response = await this.api.deleteCover(postId);
             
             if (response && response.success) {
-                // 🔧 Set mutation timestamp for cache-busting
+                // 🔧 Set mutation timestamp for cache-busting and persist
                 this._lastMutationTs = Date.now();
+                this._persistMutationTimestamp();
                 
                 // Show success message
                 if (window.app && window.app.showToast) {
@@ -4952,6 +5040,9 @@ renderAchievementsSection() {
                 if (window.Telegram?.WebApp?.HapticFeedback) {
                     window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
                 }
+                
+                // 🔧 Force fresh reload after mutation
+                await this._reloadCoversAfterMutation();
             } else {
                 throw new Error(response?.error || 'Failed to delete');
             }
