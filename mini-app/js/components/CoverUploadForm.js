@@ -28,12 +28,19 @@ class CoverUploadForm {
         this.api = options.api || (window.app && window.app.api);
         
         this.selectedFile = null;
+        this.selectedCaption = '';
         this.uploading = false;
         
         // Validation constraints
         this.MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (increased for HEIC/HEIF support)
         this.MAX_CAPTION_LENGTH = 300;
         this.ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        
+        // 🔧 FIX A: Debounce timer for file input changes
+        this._changeDebounceTimer = null;
+        
+        // Store bound event handlers for proper cleanup
+        this._boundHandlers = {};
     }
     
     /**
@@ -93,6 +100,7 @@ class CoverUploadForm {
     
     /**
      * Attach event listeners after rendering
+     * 🔧 FIX A: Remove old listeners before attaching new ones to prevent duplicates
      */
     attachEventListeners() {
         const uploadBtn = document.getElementById('coverUploadBtn');
@@ -106,39 +114,93 @@ class CoverUploadForm {
             return;
         }
         
+        // 🔧 FIX A: Remove old event listeners if they exist
+        this._removeEventListeners();
+        
         // 🔧 FIX: Set accept attribute for iOS media library compatibility
         fileInput.accept = 'image/*';
         fileInput.removeAttribute('capture');
         
-        // Open file picker when button clicked
-        uploadBtn.addEventListener('click', () => {
+        // Create and store bound handlers
+        this._boundHandlers.uploadBtnClick = () => {
+            // 🔧 FIX A: Don't open file picker if already uploading
+            if (this.uploading) return;
             fileInput.click();
-        });
+        };
         
-        // Handle file selection
-        // 🔧 FIX: Use requestAnimationFrame to reliably get file from iOS media library
-        fileInput.addEventListener('change', (e) => {
-            requestAnimationFrame(() => {
-                this.handleFileSelect(e);
-            });
-        });
+        // 🔧 FIX A: Debounced file selection handler
+        this._boundHandlers.fileInputChange = (e) => {
+            // Clear any existing debounce timer
+            if (this._changeDebounceTimer) {
+                clearTimeout(this._changeDebounceTimer);
+            }
+            
+            // 🔧 FIX A: Debounce to prevent double/empty change events (iOS WebView)
+            this._changeDebounceTimer = setTimeout(() => {
+                this._changeDebounceTimer = null;
+                requestAnimationFrame(() => {
+                    this.handleFileSelect(e);
+                });
+            }, 80); // 80ms debounce
+        };
         
-        // Handle remove button
-        removeBtn.addEventListener('click', () => {
+        this._boundHandlers.removeBtnClick = () => {
             this.clearPreview();
-        });
+        };
         
-        // Handle caption input
-        captionInput.addEventListener('input', (e) => {
+        this._boundHandlers.captionInput = (e) => {
+            // Store caption in component state
+            this.selectedCaption = e.target.value;
             this.updateCharCount(e.target.value.length);
-        });
+        };
         
-        // 🔧 FIX: Single submit handler with guard to prevent double-submit
-        submitBtn.addEventListener('click', () => {
-            if (!this.uploading) { // Guard against double-click
+        this._boundHandlers.submitBtnClick = () => {
+            // 🔧 FIX A: Guard against double-click and concurrent uploads
+            if (!this.uploading) {
                 this.handleSubmit();
             }
-        });
+        };
+        
+        // Attach event listeners
+        uploadBtn.addEventListener('click', this._boundHandlers.uploadBtnClick);
+        fileInput.addEventListener('change', this._boundHandlers.fileInputChange);
+        removeBtn.addEventListener('click', this._boundHandlers.removeBtnClick);
+        captionInput.addEventListener('input', this._boundHandlers.captionInput);
+        submitBtn.addEventListener('click', this._boundHandlers.submitBtnClick);
+        
+        // 🔧 FIX A: Restore caption from component state if it exists
+        if (this.selectedCaption && captionInput.value !== this.selectedCaption) {
+            captionInput.value = this.selectedCaption;
+            this.updateCharCount(this.selectedCaption.length);
+        }
+    }
+    
+    /**
+     * 🔧 FIX A: Remove event listeners to prevent duplicates
+     * @private
+     */
+    _removeEventListeners() {
+        const uploadBtn = document.getElementById('coverUploadBtn');
+        const fileInput = document.getElementById('coverFileInput');
+        const submitBtn = document.getElementById('coverSubmitBtn');
+        const removeBtn = document.getElementById('coverRemoveBtn');
+        const captionInput = document.getElementById('coverCaptionInput');
+        
+        if (this._boundHandlers.uploadBtnClick && uploadBtn) {
+            uploadBtn.removeEventListener('click', this._boundHandlers.uploadBtnClick);
+        }
+        if (this._boundHandlers.fileInputChange && fileInput) {
+            fileInput.removeEventListener('change', this._boundHandlers.fileInputChange);
+        }
+        if (this._boundHandlers.removeBtnClick && removeBtn) {
+            removeBtn.removeEventListener('click', this._boundHandlers.removeBtnClick);
+        }
+        if (this._boundHandlers.captionInput && captionInput) {
+            captionInput.removeEventListener('input', this._boundHandlers.captionInput);
+        }
+        if (this._boundHandlers.submitBtnClick && submitBtn) {
+            submitBtn.removeEventListener('click', this._boundHandlers.submitBtnClick);
+        }
     }
     
     /**
@@ -232,21 +294,19 @@ class CoverUploadForm {
         const uploadBtn = document.getElementById('coverUploadBtn');
         const captionInput = document.getElementById('coverCaptionInput');
         
+        // 🔧 FIX A: Clear component state
         this.selectedFile = null;
+        this.selectedCaption = '';
+        
+        // Clear any pending debounce timer
+        if (this._changeDebounceTimer) {
+            clearTimeout(this._changeDebounceTimer);
+            this._changeDebounceTimer = null;
+        }
         
         // 🔧 FIX: Fully reset file input state
         if (fileInput) {
             fileInput.value = '';
-            // Force re-creation of the input element to fully reset state
-            const newFileInput = fileInput.cloneNode(true);
-            fileInput.parentNode.replaceChild(newFileInput, fileInput);
-            
-            // Re-attach event listener to new input
-            newFileInput.addEventListener('change', (e) => {
-                requestAnimationFrame(() => {
-                    this.handleFileSelect(e);
-                });
-            });
         }
         if (captionInput) captionInput.value = '';
         if (previewContainer) previewContainer.style.display = 'none';
@@ -291,6 +351,7 @@ class CoverUploadForm {
     
     /**
      * Handle form submission
+     * 🔧 FIX A: Read caption from component state (more reliable than DOM)
      */
     async handleSubmit() {
         if (!this.selectedFile) {
@@ -302,8 +363,15 @@ class CoverUploadForm {
             return;
         }
         
-        const captionInput = document.getElementById('coverCaptionInput');
-        const caption = captionInput ? captionInput.value.trim() : '';
+        // 🔧 FIX A: Read from component state, fallback to DOM if needed
+        let caption = this.selectedCaption || '';
+        
+        // Fallback: read from DOM if component state is empty
+        if (!caption) {
+            const captionInput = document.getElementById('coverCaptionInput');
+            caption = captionInput ? captionInput.value.trim() : '';
+            this.selectedCaption = caption; // Sync to component state
+        }
         
         // Validate caption length
         if (caption.length > this.MAX_CAPTION_LENGTH) {
@@ -387,10 +455,23 @@ class CoverUploadForm {
     
     /**
      * Destroy component and clean up
+     * 🔧 FIX A: Clean up all state and timers
      */
     destroy() {
+        // Clear timers
+        if (this._changeDebounceTimer) {
+            clearTimeout(this._changeDebounceTimer);
+            this._changeDebounceTimer = null;
+        }
+        
+        // Remove event listeners
+        this._removeEventListeners();
+        
+        // Clear state
         this.selectedFile = null;
+        this.selectedCaption = '';
         this.uploading = false;
+        this._boundHandlers = {};
     }
 }
 

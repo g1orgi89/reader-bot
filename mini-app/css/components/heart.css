@@ -1,0 +1,140 @@
+/**
+ * 💖 SHARED HEART BUTTON STYLES
+ * 
+ * Unified like/heart button styling for consistent UI across:
+ * - Community feeds (Цитаты, Подписки, Топ недели)
+ * - Cover cards (Book Frame)
+ * 
+ * Pattern: Compact heart icon + counter, inline-flex layout
+ * @version 1.0.0
+ */
+
+/* ============================================
+   COMPACT HEART BUTTON (Footer/Inline)
+   ============================================ */
+
+/**
+ * Compact heart button in quote card footers
+ * Uses emoji icons (❤️/♡) with inline counter
+ */
+.quote-card__footer .quote-card__heart-btn,
+.cover-card__actions .cover-card__like-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    margin: 0;
+    cursor: pointer;
+    font-family: var(--font-family-primary);
+    transition: opacity 0.2s ease;
+    border-radius: var(--radius-sm, 6px);
+}
+
+.quote-card__footer .quote-card__heart-btn:hover,
+.cover-card__actions .cover-card__like-btn:hover {
+    opacity: 0.7;
+    background: var(--bg-secondary, rgba(0, 0, 0, 0.05));
+}
+
+.quote-card__footer .quote-card__heart-btn:active,
+.cover-card__actions .cover-card__like-btn:active {
+    opacity: 0.5;
+}
+
+/* Remove conflicting ::before pseudo-elements for footer heart buttons */
+.quote-card__footer .quote-card__heart-btn::before {
+    display: none !important;
+    content: none !important;
+}
+
+/**
+ * Heart icon (emoji)
+ * Unfilled: ♡ (outline)
+ * Filled: ❤️ (solid red)
+ */
+.like-icon {
+    font-size: 16px;
+    line-height: 1;
+    font-style: normal;
+}
+
+.quote-card__heart-btn.favorited .like-icon,
+.cover-card__like-btn.liked .like-icon {
+    color: var(--primary-color, #D2452C);
+}
+
+/**
+ * Like counter
+ * Shows number of likes next to heart icon
+ */
+.like-count,
+.quote-card__likes .like-count {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary, #666);
+    line-height: 1;
+}
+
+.quote-card__heart-btn.favorited .like-count,
+.cover-card__like-btn.liked .like-count {
+    color: var(--text-primary, #000);
+}
+
+/* ============================================
+   LEGACY COMPATIBILITY
+   ============================================ */
+
+/**
+ * Support for old .favorites-count class
+ * Map to new .like-count styles
+ */
+.favorites-count {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary, #666);
+    line-height: 1;
+}
+
+/* ============================================
+   TOUCH TARGET SIZING
+   ============================================ */
+
+/**
+ * Ensure adequate touch targets on mobile
+ * Minimum 44x44px tap area (iOS HIG)
+ */
+@media (max-width: 768px) {
+    .quote-card__footer .quote-card__heart-btn,
+    .cover-card__actions .cover-card__like-btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px 12px;
+    }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+/**
+ * Focus styles for keyboard navigation
+ */
+.quote-card__footer .quote-card__heart-btn:focus-visible,
+.cover-card__actions .cover-card__like-btn:focus-visible {
+    outline: 2px solid var(--primary-color, #D2452C);
+    outline-offset: 2px;
+}
+
+/**
+ * Reduce motion for users with vestibular disorders
+ */
+@media (prefers-reduced-motion: reduce) {
+    .quote-card__footer .quote-card__heart-btn,
+    .cover-card__actions .cover-card__like-btn,
+    .like-icon,
+    .like-count {
+        transition: none;
+    }
+}
