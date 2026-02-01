@@ -808,13 +808,20 @@ class CommunityPage {
             if (response && response.success) {
                 const newPosts = response.data || [];
                 
+                // Map posts to ensure explicit liked (boolean) and likesCount fields
+                const mappedPosts = newPosts.map(post => ({
+                    ...post,
+                    liked: !!post.liked, // Ensure boolean
+                    likesCount: post.likesCount || 0 // Ensure number
+                }));
+                
                 if (loadMore) {
                     // Append to existing posts (ensure coversPosts is array, not null)
                     const currentPosts = Array.isArray(this.coversPosts) ? this.coversPosts : [];
-                    this.coversPosts = [...currentPosts, ...newPosts];
+                    this.coversPosts = [...currentPosts, ...mappedPosts];
                 } else {
                     // Replace posts
-                    this.coversPosts = newPosts;
+                    this.coversPosts = mappedPosts;
                 }
                 
                 this.coversHasMore = response.hasMore || false;
@@ -936,8 +943,9 @@ class CommunityPage {
                                         data-quote-author="${this.escapeHtml(quoteAuthor)}"
                                         data-favorites="${favoritesCount}"
                                         data-normalized-key="${normalizedKey}"
-                                        aria-label="Лайк"></button>
-                                <span class="favorites-count">${favoritesCount}</span>
+                                        aria-label="Лайк">
+                                    <span class="like-icon">${isLiked ? '❤️' : '♡'}</span> <span class="like-count">${favoritesCount}</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -4922,6 +4930,12 @@ renderAchievementsSection() {
                         post.likesCount = response.likesCount || 0;
                     }
                 }
+                
+                // Show toast notification
+                if (window.app && window.app.showToast) {
+                    const message = response.liked ? 'Вы поставили лайк фотографии!' : 'Лайк снят.';
+                    window.app.showToast(message, 'success');
+                }
             }
         } catch (error) {
             console.error('❌ CommunityPage: Failed to like cover:', error);
@@ -5374,9 +5388,13 @@ renderAchievementsSection() {
         if (this.activeTab === 'feed') {
             // Feed tab - dispatch based on filter
             if (this.feedFilter === 'all') {
-                // 🔧 FIX C: Force rebuild spotlight mix with proper parameters
+                // 🔧 FIX: Read initialCount from feeds.community.feed config for refresh
+                const config = window.ConfigManager?.get('feeds.community.feed') || { initialCount: 12 };
+                const targetCount = config.initialCount || 12;
+                
+                // Force rebuild spotlight mix with proper parameters
                 this._spotlightCache = { ts: 0, items: [] };
-                await this.buildSpotlightMix(null, true); // targetCount=null (use default 12), forceReload=true
+                await this.buildSpotlightMix(targetCount, true); // Use feed config initialCount, forceReload=true
                 
                 // Optionally refresh background data
                 await Promise.allSettled([
