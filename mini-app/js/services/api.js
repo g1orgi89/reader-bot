@@ -35,6 +35,24 @@ class ApiService {
     }
     
     /**
+     * 🔧 Invalidate covers caches after mutations
+     * Clears any cached /covers requests to force fresh data
+     * @private
+     */
+    _invalidateCoversCaches() {
+        let invalidatedCount = 0;
+        for (const [key] of this.cache.entries()) {
+            if (key.includes('/covers')) {
+                this.cache.delete(key);
+                invalidatedCount++;
+            }
+        }
+        if (invalidatedCount > 0) {
+            console.log(`🔧 ApiService: Invalidated ${invalidatedCount} covers cache entries`);
+        }
+    }
+    
+    /**
      * 🔢 Clamp limit to prevent backend errors
      * Ensures limit is always within valid range (1 to max)
      * @param {number} limit - The requested limit
@@ -1889,6 +1907,8 @@ class ApiService {
             if (!response.ok) {
                 throw new Error(data.error || 'Upload failed');
             }
+            // 🔧 Invalidate covers caches after successful upload
+            this._invalidateCoversCaches();
             return data;
         });
     }
@@ -1951,7 +1971,12 @@ class ApiService {
      */
     async deleteCover(postId) {
         console.log(`📸 ApiService: Deleting cover post ${postId}...`);
-        return this.request('DELETE', `/covers/${postId}`);
+        const result = await this.request('DELETE', `/covers/${postId}`);
+        // 🔧 Invalidate covers caches after successful delete
+        if (result && result.success) {
+            this._invalidateCoversCaches();
+        }
+        return result;
     }
     
     /**
