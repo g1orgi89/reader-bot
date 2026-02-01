@@ -100,6 +100,7 @@ class CoverCommentsModal {
         this._isDraggingSheet = false; // Track if user is dragging the sheet
         this._scrollThrottleTimer = null; // For throttling scroll updates
         this._keyboardResizeHandler = null; // Handler for keyboard resize events
+        this._viewportUpdateDebounceTimer = null; // Debounce timer for viewport updates
         
         // iOS Fix Service (cached)
         this._iosFixService = null;
@@ -109,6 +110,7 @@ class CoverCommentsModal {
         this.backdrop = null;
         this.modalBody = null;
         this.modalHeader = null;
+        this.fixedReplyOverlay = null; // Fixed reply bar overlay (mobile only)
         
         // Event handlers
         this.boundHandleBackdropClick = this.handleBackdropClick.bind(this);
@@ -119,6 +121,7 @@ class CoverCommentsModal {
         this.boundHandleTouchMove = this.handleTouchMove.bind(this);
         this.boundHandleTouchEnd = this.handleTouchEnd.bind(this);
         this.boundDelegatedClickHandler = null; // Track delegated click handler
+        this.boundFixedReplyClickHandler = null; // Track fixed reply overlay click handler
         
         // Track if BackButton handler is attached
         this.backButtonAttached = false;
@@ -540,7 +543,18 @@ class CoverCommentsModal {
             this._boundUpdateVisibleHeight = () => {
                 // Skip updates while animating
                 if (this.isAnimating) return;
-                this._updateVisibleHeightVar();
+                
+                // Debounce viewport updates to prevent excessive recalculations
+                if (this._viewportUpdateDebounceTimer) {
+                    clearTimeout(this._viewportUpdateDebounceTimer);
+                }
+                
+                this._viewportUpdateDebounceTimer = setTimeout(() => {
+                    this._updateVisibleHeightVar();
+                    // Also update reply bar height on viewport changes
+                    this._measureAndUpdateReplyBar();
+                    this._viewportUpdateDebounceTimer = null;
+                }, 100); // 100ms debounce
             };
         }
         
@@ -564,6 +578,12 @@ class CoverCommentsModal {
     _removeViewportListeners() {
         if (!this._boundUpdateVisibleHeight) return;
         
+        // Clear any pending debounce timer
+        if (this._viewportUpdateDebounceTimer) {
+            clearTimeout(this._viewportUpdateDebounceTimer);
+            this._viewportUpdateDebounceTimer = null;
+        }
+        
         // Remove visualViewport resize listener
         if (window.visualViewport) {
             window.visualViewport.removeEventListener('resize', this._boundUpdateVisibleHeight);
@@ -576,6 +596,97 @@ class CoverCommentsModal {
         if (this.telegram && this.telegram.offEvent) {
             this.telegram.offEvent('viewportChanged', this._boundUpdateVisibleHeight);
         }
+    }
+    
+    /**
+     * 📏 Measure safe area inset (iOS)
+     * @returns {number} Safe area inset height in pixels
+     */
+    _measureSafeAreaInset() {
+        const safeProbe = document.createElement('div');
+        safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
+        document.body.appendChild(safeProbe);
+        const safe = Math.round(safeProbe.getBoundingClientRect().height || 0);
+        safeProbe.remove();
+        return safe;
+    }
+    
+    /**
+     * 💬 Create and inject fixed reply overlay (mobile only)
+     * Creates a fixed overlay element outside the modal container
+     * This ensures the reply bar stays pinned to the bottom regardless of sheet state
+     */
+    _createFixedReplyOverlay() {
+        // Only create on mobile
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return;
+        
+        // Remove any existing overlay first
+        this._removeFixedReplyOverlay();
+        
+        // Create overlay element
+        this.fixedReplyOverlay = document.createElement('div');
+        this.fixedReplyOverlay.className = 'comments-fixed-reply';
+        
+        // Set initial content
+        this._updateFixedReplyOverlayContent();
+        
+        // Append to document.body (outside modal container)
+        document.body.appendChild(this.fixedReplyOverlay);
+        
+        console.log('✅ Created fixed reply overlay');
+    }
+    
+    /**
+     * 💬 Update the content of the fixed reply overlay
+     * Updates the reply form HTML inside the overlay
+     */
+    _updateFixedReplyOverlayContent() {
+        if (!this.fixedReplyOverlay) return;
+        
+        const replyFormHtml = this.renderReplyForm();
+        this.fixedReplyOverlay.innerHTML = replyFormHtml;
+    }
+    
+    /**
+     * 💬 Measure and update reply bar height
+     * Measures the fixed reply overlay and updates CSS variables
+     * Also updates body padding-bottom to prevent content overlap
+     */
+    _measureAndUpdateReplyBar() {
+        if (!this.fixedReplyOverlay || !this.modalBody) return;
+        if (window.innerWidth > this.MOBILE_BREAKPOINT) return;
+        
+        // Use requestAnimationFrame for accurate measurements
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // Measure safe area using helper method
+                const safe = this._measureSafeAreaInset();
+                
+                // Measure reply form height
+                const formH = this.fixedReplyOverlay.offsetHeight || 64;
+                
+                // Set CSS variable for reply form height
+                document.documentElement.style.setProperty('--reply-form-height', `${formH}px`);
+                
+                // Set body padding-bottom = formH + safe (no extra bottom offset needed for fixed bar)
+                const pad = formH + safe;
+                this.modalBody.style.paddingBottom = `${pad}px`;
+                
+                console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${formH}px, safe-area: ${safe}px)`);
+            });
+        });
+    }
+    
+    /**
+     * 💬 Remove fixed reply overlay
+     * Removes the fixed overlay element from the DOM
+     */
+    _removeFixedReplyOverlay() {
+        if (this.fixedReplyOverlay && this.fixedReplyOverlay.parentNode) {
+            this.fixedReplyOverlay.parentNode.removeChild(this.fixedReplyOverlay);
+        }
+        this.fixedReplyOverlay = null;
+        console.log('🗑️ Removed fixed reply overlay');
     }
     
     /**
@@ -674,6 +785,13 @@ class CoverCommentsModal {
             // Hide Telegram back button and attach our handler
             this.handleTelegramBackButton(true);
             
+            // 🔧 Create fixed reply overlay on mobile (after render, before animation)
+            if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+                this._createFixedReplyOverlay();
+                // Measure and update reply bar height + body padding
+                this._measureAndUpdateReplyBar();
+            }
+            
             // Fetch fresh data with cache-busting
             await this.loadComments();
             
@@ -745,6 +863,9 @@ class CoverCommentsModal {
         
         // 🔧 Restore bottom nav and remove nav-hidden classes on mobile
         if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
+            // Remove fixed reply overlay
+            this._removeFixedReplyOverlay();
+            
             // Show bottom nav using the bottomNavInstance
             if (window.bottomNavInstance) {
                 window.bottomNavInstance.setVisible(true);
@@ -896,6 +1017,10 @@ class CoverCommentsModal {
         const commentsHtml = this.renderComments();
         const replyFormHtml = this.renderReplyForm();
         
+        // On mobile: don't render reply form inside modal (use fixed overlay instead)
+        // On desktop: render reply form inside modal as before
+        const isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
+        
         this.modal.innerHTML = `
             <div class="cover-comments-modal__content">
                 <div class="cover-comments-modal__header" aria-label="Потяните вниз чтобы закрыть">
@@ -906,7 +1031,7 @@ class CoverCommentsModal {
                     ${this.hasMore && !this.loading ? '<button class="cover-comments-modal__load-more">Показать ещё</button>' : ''}
                     ${this.loading && this.comments.length > 0 ? '<div class="cover-comments-modal__loading-more">Загрузка...</div>' : ''}
                 </div>
-                ${replyFormHtml}
+                ${isMobile ? '' : replyFormHtml}
             </div>
         `;
         
@@ -914,40 +1039,40 @@ class CoverCommentsModal {
         this.modalBody = this.modal.querySelector('.cover-comments-modal__body');
         this.modalHeader = this.modal.querySelector('.cover-comments-modal__header');
         
-        // 🔧 FIX: Measure reply form height and set body padding once on mobile
-        const bodyEl = this.modalBody;
-        const replyEl = this.modal.querySelector('.cover-comments-modal__reply-form');
-        if (bodyEl && replyEl && window.innerWidth <= this.MOBILE_BREAKPOINT) {
-            // Double requestAnimationFrame ensures accurate measurements:
-            // First RAF: runs after style/layout calculations
-            // Second RAF: runs after paint, ensuring all layout is complete and measurements are accurate
-            requestAnimationFrame(() => {
+        // 🔧 On mobile: update fixed reply overlay content and measure
+        if (isMobile) {
+            // Update fixed overlay content if it exists
+            this._updateFixedReplyOverlayContent();
+            // Measure and update reply bar height
+            this._measureAndUpdateReplyBar();
+        } else {
+            // Desktop: measure reply form inside modal as before
+            const bodyEl = this.modalBody;
+            const replyEl = this.modal.querySelector('.cover-comments-modal__reply-form');
+            if (bodyEl && replyEl) {
                 requestAnimationFrame(() => {
-                    // Measure safe area using a probe element
-                    const safeProbe = document.createElement('div');
-                    safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
-                    document.body.appendChild(safeProbe);
-                    const safe = Math.round(safeProbe.getBoundingClientRect().height || 0);
-                    safeProbe.remove();
-                    
-                    // Measure reply form height
-                    const formH = replyEl.offsetHeight || 64;
-                    
-                    // Set CSS variable for reply form height
-                    document.documentElement.style.setProperty('--reply-form-height', `${formH}px`);
-                    
-                    // Set CSS variable for extra bottom breathing space (matches CSS default)
-                    const extraBottomPx = this.REPLY_EXTRA_BOTTOM_PX;
-                    document.documentElement.style.setProperty('--reply-extra-bottom', `${extraBottomPx}px`);
-                    
-                    // Set body padding-bottom = formH + safe + extra bottom offset
-                    // This ensures content scrolls properly without being hidden behind the form
-                    const pad = formH + safe + extraBottomPx;
-                    bodyEl.style.paddingBottom = `${pad}px`;
-                    
-                    console.log(`🔧 Set body padding-bottom: ${pad}px (form: ${formH}px, safe-area: ${safe}px, extra: ${extraBottomPx}px)`);
+                    requestAnimationFrame(() => {
+                        // Measure safe area using helper method
+                        const safe = this._measureSafeAreaInset();
+                        
+                        // Measure reply form height
+                        const formH = replyEl.offsetHeight || 64;
+                        
+                        // Set CSS variable for reply form height
+                        document.documentElement.style.setProperty('--reply-form-height', `${formH}px`);
+                        
+                        // Set CSS variable for extra bottom breathing space
+                        const extraBottomPx = this.REPLY_EXTRA_BOTTOM_PX;
+                        document.documentElement.style.setProperty('--reply-extra-bottom', `${extraBottomPx}px`);
+                        
+                        // Set body padding-bottom
+                        const pad = formH + safe + extraBottomPx;
+                        bodyEl.style.paddingBottom = `${pad}px`;
+                        
+                        console.log(`🔧 Set body padding-bottom (desktop): ${pad}px`);
+                    });
                 });
-            });
+            }
         }
         
         // Reattach event listeners after render (modalBody changed)
@@ -1183,20 +1308,25 @@ class CoverCommentsModal {
             ? '<button class="reply-form__cancel" data-action="cancel-reply">Отмена</button>'
             : '';
         
-        return `
-            <div class="cover-comments-modal__reply-form">
-                <div class="reply-form">
-                    ${cancelBtn}
-                    <textarea class="reply-form__input" 
-                              placeholder="${placeholder}"
-                              maxlength="500"
-                              rows="1"></textarea>
-                    <button class="reply-form__submit" data-action="submit-reply">
-                        Отправить
-                    </button>
-                </div>
+        // For mobile: return just the inner form HTML (used in fixed overlay)
+        // For desktop: return with wrapper div (used inside modal)
+        const isMobile = window.innerWidth <= this.MOBILE_BREAKPOINT;
+        
+        const formHtml = `
+            <div class="reply-form">
+                ${cancelBtn}
+                <textarea class="reply-form__input" 
+                          placeholder="${placeholder}"
+                          maxlength="500"
+                          rows="1"></textarea>
+                <button class="reply-form__submit" data-action="submit-reply">
+                    Отправить
+                </button>
             </div>
         `;
+        
+        // On desktop, wrap in the container div; on mobile, return just the form
+        return isMobile ? formHtml : `<div class="cover-comments-modal__reply-form">${formHtml}</div>`;
     }
     
     /**
@@ -1276,6 +1406,25 @@ class CoverCommentsModal {
     /**
      * 🎯 Attach internal listeners (for modal content)
      */
+    /**
+     * 🎯 Handle submit reply action
+     * Extracted handler for use by both modal and fixed overlay event listeners
+     */
+    _handleSubmitReplyAction(e) {
+        e.preventDefault();
+        this.handleSubmitReply();
+    }
+    
+    /**
+     * 🎯 Handle cancel reply action
+     * Extracted handler for use by both modal and fixed overlay event listeners
+     */
+    _handleCancelReplyAction(e) {
+        e.preventDefault();
+        this.replyingTo = null;
+        this.render();
+    }
+    
     attachInternalListeners() {
         // Load more button
         const loadMoreBtn = this.modal.querySelector('.cover-comments-modal__load-more');
@@ -1342,16 +1491,13 @@ class CoverCommentsModal {
             
             // Submit reply
             if (target.dataset.action === 'submit-reply') {
-                e.preventDefault();
-                this.handleSubmitReply();
+                this._handleSubmitReplyAction(e);
                 return;
             }
             
             // Cancel reply
             if (target.dataset.action === 'cancel-reply') {
-                e.preventDefault();
-                this.replyingTo = null;
-                this.render();
+                this._handleCancelReplyAction(e);
                 return;
             }
             
@@ -1367,8 +1513,35 @@ class CoverCommentsModal {
             }
         };
         
-        // Attach delegated click handler
+        // Attach delegated click handler to modal
         this.modal.addEventListener('click', this.boundDelegatedClickHandler);
+        
+        // Also attach to fixed reply overlay if it exists (mobile)
+        if (this.fixedReplyOverlay) {
+            // Remove old listener if exists
+            if (this.boundFixedReplyClickHandler) {
+                this.fixedReplyOverlay.removeEventListener('click', this.boundFixedReplyClickHandler);
+            }
+            
+            // Create click handler for fixed reply overlay
+            this.boundFixedReplyClickHandler = (e) => {
+                const target = e.target;
+                
+                // Submit reply
+                if (target.dataset.action === 'submit-reply') {
+                    this._handleSubmitReplyAction(e);
+                    return;
+                }
+                
+                // Cancel reply
+                if (target.dataset.action === 'cancel-reply') {
+                    this._handleCancelReplyAction(e);
+                    return;
+                }
+            };
+            
+            this.fixedReplyOverlay.addEventListener('click', this.boundFixedReplyClickHandler);
+        }
     }
     
     /**
@@ -1388,10 +1561,16 @@ class CoverCommentsModal {
             this.modalHeader.removeEventListener('touchend', this.boundHandleTouchEnd);
         }
         
-        // Remove delegated click handler
+        // Remove delegated click handler from modal
         if (this.boundDelegatedClickHandler && this.modal) {
             this.modal.removeEventListener('click', this.boundDelegatedClickHandler);
             this.boundDelegatedClickHandler = null;
+        }
+        
+        // Remove delegated click handler from fixed reply overlay
+        if (this.boundFixedReplyClickHandler && this.fixedReplyOverlay) {
+            this.fixedReplyOverlay.removeEventListener('click', this.boundFixedReplyClickHandler);
+            this.boundFixedReplyClickHandler = null;
         }
     }
     
@@ -1488,7 +1667,14 @@ class CoverCommentsModal {
         
         // Focus on textarea and prefill with @username
         requestAnimationFrame(() => {
-            const textarea = this.modal.querySelector('.reply-form__input');
+            // Check both modal and fixed overlay for textarea
+            let textarea = this.modal.querySelector('.reply-form__input');
+            
+            // On mobile, check fixed overlay instead
+            if (!textarea && this.fixedReplyOverlay) {
+                textarea = this.fixedReplyOverlay.querySelector('.reply-form__input');
+            }
+            
             if (textarea) {
                 textarea.value = `@${userName} `;
                 textarea.focus();
@@ -1507,8 +1693,15 @@ class CoverCommentsModal {
      * 📤 Handle submit reply
      */
     async handleSubmitReply() {
-        const textarea = this.modal.querySelector('.reply-form__input');
-        const submitBtn = this.modal.querySelector('.reply-form__submit');
+        // Check both modal and fixed overlay for textarea and submit button
+        let textarea = this.modal.querySelector('.reply-form__input');
+        let submitBtn = this.modal.querySelector('.reply-form__submit');
+        
+        // On mobile, check fixed overlay instead
+        if (!textarea && this.fixedReplyOverlay) {
+            textarea = this.fixedReplyOverlay.querySelector('.reply-form__input');
+            submitBtn = this.fixedReplyOverlay.querySelector('.reply-form__submit');
+        }
         
         if (!textarea) return;
         
