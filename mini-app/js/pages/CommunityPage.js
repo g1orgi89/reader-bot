@@ -1341,7 +1341,7 @@ async refreshSpotlight() {
      * 🔄 B) Centralized refresh for all community feeds
      * Refreshes appropriate feeds based on current active tab and filter
      * @param {Object} options - Refresh options
-     * @param {boolean} options.force - Force refresh even if recently refreshed
+     * @param {boolean} options.force - Force refresh even if recently refreshed (reserved for future use)
      */
     async refreshCommunityFeeds({ force = false } = {}) {
         try {
