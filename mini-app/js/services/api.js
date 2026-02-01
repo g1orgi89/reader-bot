@@ -1874,7 +1874,36 @@ class ApiService {
         if (options.ts) params.append('ts', options.ts); // Cache-busting timestamp
         
         console.log(`📸 ApiService: Getting covers (feed=${options.feed}, cursor=${options.cursor}, ts=${options.ts})...`);
-        return this.request('GET', `/covers?${params.toString()}`);
+        
+        // 🔧 FIX: Include Telegram auth headers to enable server-side like state computation
+        // This ensures the backend can return correct 'liked' and 'likesCount' for the current user
+        const initDataRaw = this.resolveTelegramInitDataRaw();
+        const userId = this.resolveUserId();
+        
+        // Use custom headers instead of default request() to ensure auth is always included
+        const url = `${this.baseURL}/covers?${params.toString()}`;
+        
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `tma ${initDataRaw || ''}`,
+                    'X-User-Id': String(userId || ''),
+                    'X-Telegram-Init-Data': initDataRaw || ''
+                },
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch covers');
+            }
+            return data;
+        } catch (error) {
+            console.error('❌ ApiService: Failed to get covers:', error);
+            throw error;
+        }
     }
     
     /**
