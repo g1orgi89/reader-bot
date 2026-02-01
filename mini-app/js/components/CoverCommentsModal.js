@@ -100,6 +100,7 @@ class CoverCommentsModal {
         this._isDraggingSheet = false; // Track if user is dragging the sheet
         this._scrollThrottleTimer = null; // For throttling scroll updates
         this._keyboardResizeHandler = null; // Handler for keyboard resize events
+        this._viewportUpdateDebounceTimer = null; // Debounce timer for viewport updates
         
         // iOS Fix Service (cached)
         this._iosFixService = null;
@@ -542,9 +543,18 @@ class CoverCommentsModal {
             this._boundUpdateVisibleHeight = () => {
                 // Skip updates while animating
                 if (this.isAnimating) return;
-                this._updateVisibleHeightVar();
-                // Also update reply bar height on viewport changes
-                this._measureAndUpdateReplyBar();
+                
+                // Debounce viewport updates to prevent excessive recalculations
+                if (this._viewportUpdateDebounceTimer) {
+                    clearTimeout(this._viewportUpdateDebounceTimer);
+                }
+                
+                this._viewportUpdateDebounceTimer = setTimeout(() => {
+                    this._updateVisibleHeightVar();
+                    // Also update reply bar height on viewport changes
+                    this._measureAndUpdateReplyBar();
+                    this._viewportUpdateDebounceTimer = null;
+                }, 100); // 100ms debounce
             };
         }
         
@@ -568,6 +578,12 @@ class CoverCommentsModal {
     _removeViewportListeners() {
         if (!this._boundUpdateVisibleHeight) return;
         
+        // Clear any pending debounce timer
+        if (this._viewportUpdateDebounceTimer) {
+            clearTimeout(this._viewportUpdateDebounceTimer);
+            this._viewportUpdateDebounceTimer = null;
+        }
+        
         // Remove visualViewport resize listener
         if (window.visualViewport) {
             window.visualViewport.removeEventListener('resize', this._boundUpdateVisibleHeight);
@@ -580,6 +596,19 @@ class CoverCommentsModal {
         if (this.telegram && this.telegram.offEvent) {
             this.telegram.offEvent('viewportChanged', this._boundUpdateVisibleHeight);
         }
+    }
+    
+    /**
+     * 📏 Measure safe area inset (iOS)
+     * @returns {number} Safe area inset height in pixels
+     */
+    _measureSafeAreaInset() {
+        const safeProbe = document.createElement('div');
+        safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
+        document.body.appendChild(safeProbe);
+        const safe = Math.round(safeProbe.getBoundingClientRect().height || 0);
+        safeProbe.remove();
+        return safe;
     }
     
     /**
@@ -630,12 +659,8 @@ class CoverCommentsModal {
         // Use requestAnimationFrame for accurate measurements
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                // Measure safe area
-                const safeProbe = document.createElement('div');
-                safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
-                document.body.appendChild(safeProbe);
-                const safe = Math.round(safeProbe.getBoundingClientRect().height || 0);
-                safeProbe.remove();
+                // Measure safe area using helper method
+                const safe = this._measureSafeAreaInset();
                 
                 // Measure reply form height
                 const formH = this.fixedReplyOverlay.offsetHeight || 64;
@@ -1027,12 +1052,8 @@ class CoverCommentsModal {
             if (bodyEl && replyEl) {
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        // Measure safe area
-                        const safeProbe = document.createElement('div');
-                        safeProbe.style.cssText = 'position:fixed;bottom:0;left:0;width:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
-                        document.body.appendChild(safeProbe);
-                        const safe = Math.round(safeProbe.getBoundingClientRect().height || 0);
-                        safeProbe.remove();
+                        // Measure safe area using helper method
+                        const safe = this._measureSafeAreaInset();
                         
                         // Measure reply form height
                         const formH = replyEl.offsetHeight || 64;
@@ -1385,6 +1406,25 @@ class CoverCommentsModal {
     /**
      * 🎯 Attach internal listeners (for modal content)
      */
+    /**
+     * 🎯 Handle submit reply action
+     * Extracted handler for use by both modal and fixed overlay event listeners
+     */
+    _handleSubmitReplyAction(e) {
+        e.preventDefault();
+        this.handleSubmitReply();
+    }
+    
+    /**
+     * 🎯 Handle cancel reply action
+     * Extracted handler for use by both modal and fixed overlay event listeners
+     */
+    _handleCancelReplyAction(e) {
+        e.preventDefault();
+        this.replyingTo = null;
+        this.render();
+    }
+    
     attachInternalListeners() {
         // Load more button
         const loadMoreBtn = this.modal.querySelector('.cover-comments-modal__load-more');
@@ -1451,16 +1491,13 @@ class CoverCommentsModal {
             
             // Submit reply
             if (target.dataset.action === 'submit-reply') {
-                e.preventDefault();
-                this.handleSubmitReply();
+                this._handleSubmitReplyAction(e);
                 return;
             }
             
             // Cancel reply
             if (target.dataset.action === 'cancel-reply') {
-                e.preventDefault();
-                this.replyingTo = null;
-                this.render();
+                this._handleCancelReplyAction(e);
                 return;
             }
             
@@ -1492,16 +1529,13 @@ class CoverCommentsModal {
                 
                 // Submit reply
                 if (target.dataset.action === 'submit-reply') {
-                    e.preventDefault();
-                    this.handleSubmitReply();
+                    this._handleSubmitReplyAction(e);
                     return;
                 }
                 
                 // Cancel reply
                 if (target.dataset.action === 'cancel-reply') {
-                    e.preventDefault();
-                    this.replyingTo = null;
-                    this.render();
+                    this._handleCancelReplyAction(e);
                     return;
                 }
             };
