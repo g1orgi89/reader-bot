@@ -1845,10 +1845,16 @@ async refreshSpotlight() {
             // Update count in button data attribute
             button.dataset.favorites = storeEntry.count;
             
-            // Update count in UI
-            const favoritesCountElement = quoteCard.querySelector('.favorites-count');
-            if (favoritesCountElement) {
-                favoritesCountElement.textContent = storeEntry.count;
+            // Update icon in button (emoji hearts)
+            const likeIconElement = button.querySelector('.like-icon');
+            if (likeIconElement) {
+                likeIconElement.textContent = storeEntry.liked ? '❤️' : '♡';
+            }
+            
+            // Update count in UI - support both .like-count and legacy .favorites-count
+            const likeCountElement = button.querySelector('.like-count') || quoteCard.querySelector('.favorites-count');
+            if (likeCountElement) {
+                likeCountElement.textContent = storeEntry.count;
             }
         });
     }
