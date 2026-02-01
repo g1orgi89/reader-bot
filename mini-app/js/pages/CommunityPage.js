@@ -1340,9 +1340,8 @@ async refreshSpotlight() {
     /**
      * 🔄 B) Centralized refresh for all community feeds
      * Refreshes appropriate feeds based on current active tab and filter
-     * @param {Object} options - Refresh options (reserved for future use)
      */
-    async refreshCommunityFeeds(options = {}) {
+    async refreshCommunityFeeds() {
         try {
             const currentTab = this.activeTab;
             
@@ -4853,7 +4852,8 @@ renderAchievementsSection() {
             // Prepend new post to the beginning
             this.coversPosts = [newPost, ...this.coversPosts];
             
-            // Rerender immediately to show new post
+            // Rerender immediately to show new post (optimistic update)
+            // Note: This is separate from _reloadCoversAfterMutation() which does the final server refresh
             this.rerender();
             
             // Rebind upload form listeners after rerender
