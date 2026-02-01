@@ -1338,6 +1338,75 @@ async refreshSpotlight() {
 }
     
     /**
+     * 🔄 B) Centralized refresh for all community feeds
+     * Refreshes appropriate feeds based on current active tab and filter
+     * @param {Object} options - Refresh options
+     * @param {boolean} options.force - Force refresh even if recently refreshed
+     */
+    async refreshCommunityFeeds({ force = false } = {}) {
+        try {
+            const currentTab = this.activeTab;
+            
+            if (currentTab === 'feed') {
+                // Refresh based on current feed filter
+                if (this.feedFilter === 'covers') {
+                    // Refresh Covers feed
+                    console.log('🔄 Refreshing Covers feed...');
+                    this.coversCursor = null;
+                    await this.loadCovers(false);
+                    this.rerender();
+                    this.attachCoverUploadFormListeners();
+                } else if (this.feedFilter === 'following') {
+                    // Refresh Following feed
+                    console.log('🔄 Refreshing Following feed...');
+                    await this.refreshSpotlight(); // Uses existing logic
+                } else {
+                    // Refresh All feed (Цитаты)
+                    console.log('🔄 Refreshing All feed...');
+                    await this.refreshSpotlight(); // Uses existing logic
+                }
+            } else if (currentTab === 'top') {
+                // Refresh Топ недели: popular quotes + leaderboard
+                console.log('🔄 Refreshing Top Week tab...');
+                
+                // Reload popular favorites quotes
+                await this.loadPopularFavorites(10);
+                
+                // Reload leaderboard
+                const leaderboardResponse = await this.api.getLeaderboard({ scope: 'week', limit: 10 });
+                if (leaderboardResponse?.success) {
+                    this.leaderboard = leaderboardResponse.data || [];
+                    this.userProgress = leaderboardResponse.me || null;
+                    this.loaded.leaderboard = true;
+                }
+                
+                // Partial update of popular week section and leaderboard
+                const popularSection = document.getElementById('popularWeekSection');
+                if (popularSection) {
+                    popularSection.outerHTML = this.renderPopularQuotesWeekSection();
+                }
+                
+                const leaderboardSection = document.getElementById('leaderboardSection');
+                if (leaderboardSection) {
+                    leaderboardSection.outerHTML = this.renderLeaderboardSection();
+                }
+                
+                // Reconcile like data and reattach listeners
+                this._reconcileAllLikeData();
+                this._likeStore.forEach((_, key) => this._updateAllLikeButtonsForKey(key));
+                this.attachQuoteCardListeners();
+                this.attachCommunityCardListeners();
+            }
+            
+            this.triggerHapticFeedback('light');
+            console.log('✅ Community feeds refreshed successfully');
+        } catch (error) {
+            console.error('❌ Error refreshing community feeds:', error);
+            this.showNotification('Ошибка обновления', 'error');
+        }
+    }
+    
+    /**
      * ➕ Подписаться на пользователя
      */
     async followUser(userId) {
