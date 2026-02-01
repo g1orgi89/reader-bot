@@ -1150,8 +1150,9 @@ class CommunityPage {
                                     data-quote-author="${this.escapeHtml(quote.author || '')}"
                                     data-favorites="${favoritesCount}"
                                     data-normalized-key="${normalizedKey}"
-                                    aria-label="Лайк"></button>
-                            <span class="favorites-count">${favoritesCount}</span>
+                                    aria-label="Лайк">
+                                <span class="like-icon">${isLiked ? '❤️' : '♡'}</span> <span class="like-count">${favoritesCount}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -2432,7 +2433,15 @@ async refreshSpotlight() {
                     <!-- Footer с лайками слева и действиями справа -->
                     <div class="quote-card__footer">
                         <div class="quote-card__likes">
-                            ❤ <span class="favorites-count">${likesCount}</span>
+                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}" 
+                                    data-quote-id="${item.id || ''}"
+                                    data-quote-text="${this.escapeHtml(item.text)}"
+                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
+                                    data-favorites="${likesCount}"
+                                    data-normalized-key="${normalizedKey}"
+                                    aria-label="Добавить в избранное">
+                                <span class="like-icon">${isLiked ? '❤️' : '♡'}</span> <span class="like-count">${likesCount}</span>
+                            </button>
                         </div>
                         <div class="quote-card__actions">
                             ${(owner?.userId || owner?.id || owner?._id || owner?.telegramId) ? `
@@ -2447,18 +2456,6 @@ async refreshSpotlight() {
                                     </svg>
                                 </button>
                             ` : ''}
-                            ${COMMUNITY_SHOW_ADD_BUTTON ? `<button type="button" class="quote-card__add-btn" 
-                                    data-quote-id="${item.id || ''}"
-                                    data-quote-text="${this.escapeHtml(item.text)}"
-                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    aria-label="Добавить цитату в дневник">+</button>` : ''}
-                            <button type="button" class="quote-card__heart-btn${isLiked ? ' favorited' : ''}" 
-                                    data-quote-id="${item.id || ''}"
-                                    data-quote-text="${this.escapeHtml(item.text)}"
-                                    data-quote-author="${this.escapeHtml(item.author || 'Неизвестный автор')}"
-                                    data-favorites="${likesCount}"
-                                    data-normalized-key="${normalizedKey}"
-                                    aria-label="Добавить в избранное"></button>
                         </div>
                     </div>
                 </div>
@@ -3097,8 +3094,9 @@ async refreshSpotlight() {
                                     data-quote-author="${this.escapeHtml(quote.author || 'Неизвестный автор')}"
                                     data-favorites="${favorites}"
                                     data-normalized-key="${normalizedKey}"
-                                    aria-label="Лайк"></button>
-                            <span class="favorites-count">${favorites}</span>
+                                    aria-label="Лайк">
+                                <span class="like-icon">${isLiked ? '❤️' : '♡'}</span> <span class="like-count">${favorites}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -5376,9 +5374,9 @@ renderAchievementsSection() {
         if (this.activeTab === 'feed') {
             // Feed tab - dispatch based on filter
             if (this.feedFilter === 'all') {
-                // Force rebuild spotlight mix
+                // 🔧 FIX C: Force rebuild spotlight mix with proper parameters
                 this._spotlightCache = { ts: 0, items: [] };
-                await this.buildSpotlightMix(true); // forceReload=true
+                await this.buildSpotlightMix(null, true); // targetCount=null (use default 12), forceReload=true
                 
                 // Optionally refresh background data
                 await Promise.allSettled([
