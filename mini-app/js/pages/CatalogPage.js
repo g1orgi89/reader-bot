@@ -1080,9 +1080,9 @@ class CatalogPage {
             return;
         }
     
-        // Для книги/разбора — старый алгоритм
+        // Для книги/разбора — используем purchaseUrl → utmLink → bebusel.info/{bookSlug}
         this.api.trackCatalogClick({ bookSlug: book.bookSlug, bookId: book.id }).catch(() => {});
-        const buyUrl = book.utmLink || `https://anna-busel.com/books?utm_source=telegram_bot&utm_medium=mini_app&utm_campaign=catalog&utm_content=${book.id}`;
+        const buyUrl = book.purchaseUrl || book.utmLink || `https://bebusel.info/${book.bookSlug}`;
         this.telegram.openLink(buyUrl);
     
         this.showSuccess(`📚 Переходим к покупке "${book.title}"`);
