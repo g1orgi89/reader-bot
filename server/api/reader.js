@@ -2522,7 +2522,7 @@ router.get('/catalog', async (req, res) => {
       .sort({ priority: -1, createdAt: -1 })
       .limit(parseInt(limit))
       .skip(parseInt(offset))
-      .lean(); // <- важно, plain JS objects
+      .lean({ virtuals: true }); // <- important, include virtuals like utmLink
     
     const total = await BookCatalog.countDocuments(query);
     
