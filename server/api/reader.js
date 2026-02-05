@@ -746,14 +746,16 @@ function buildEnrichedUserObject(user, userId) {
       userId: user.userId,
       name: user.name || (user.telegramUsername ? `@${user.telegramUsername}` : 'Пользователь'),
       telegramUsername: user.telegramUsername || null,
-      avatarUrl: user.avatarUrl || null
+      avatarUrl: user.avatarUrl || null,
+      badges: user.badges || []
     };
   }
   return {
     userId: userId,
     name: 'Пользователь',
     telegramUsername: null,
-    avatarUrl: null
+    avatarUrl: null,
+    badges: []
   };
 }
 
@@ -770,7 +772,12 @@ async function enrichPostsWithUserData(posts) {
     .select('userId name telegramUsername avatarUrl')
     .lean();
   
-  const userMap = new Map(users.map(u => [u.userId, u]));
+  // Fetch badges for all users in parallel
+  const badgesPromises = userIds.map(uid => getUserBadges(uid));
+  const badgesResults = await Promise.all(badgesPromises);
+  const badgesMap = new Map(userIds.map((uid, idx) => [uid, badgesResults[idx]]));
+  
+  const userMap = new Map(users.map(u => [u.userId, { ...u, badges: badgesMap.get(u.userId) || [] }]));
   
   return posts.map(post => ({
     ...post,
@@ -791,7 +798,12 @@ async function enrichCommentsWithUserData(comments) {
     .select('userId name telegramUsername avatarUrl')
     .lean();
   
-  const userMap = new Map(users.map(u => [u.userId, u]));
+  // Fetch badges for all users in parallel
+  const badgesPromises = userIds.map(uid => getUserBadges(uid));
+  const badgesResults = await Promise.all(badgesPromises);
+  const badgesMap = new Map(userIds.map((uid, idx) => [uid, badgesResults[idx]]));
+  
+  const userMap = new Map(users.map(u => [u.userId, { ...u, badges: badgesMap.get(u.userId) || [] }]));
   
   return comments.map(comment => ({
     ...comment,
