@@ -10,9 +10,18 @@
  * - Recent quotes
  * - Follow/Unfollow functionality
  * - Edit profile (own profile only)
+ * - Badge icons for gamification achievements
  * 
  * @version 1.0.0
  */
+
+/**
+ * 🏅 Badge icon map - maps badge IDs to asset paths
+ * @type {Object<string, string>}
+ */
+const BADGE_ICON_MAP = {
+    alice_badge: '/assets/badges/alice.png'
+};
 
 class ProfilePage {
     constructor(app) {
@@ -583,7 +592,53 @@ class ProfilePage {
     }
     
     /**
+     * 🏅 Render badge icons for profile display (32px chips)
+     * @param {Array<string>} badges - Array of badge IDs
+     * @returns {string} HTML for badge icon row
+     */
+    renderBadgeIcons(badges) {
+        if (!badges || badges.length === 0) return '';
+        
+        const badgeHTML = badges
+            .filter(badgeId => BADGE_ICON_MAP[badgeId]) // Only render known badges
+            .map(badgeId => {
+                const iconPath = BADGE_ICON_MAP[badgeId];
+                const altText = badgeId === 'alice_badge' 
+                    ? 'Бейдж «Алиса в стране чудес»'
+                    : `Бейдж ${badgeId}`;
+                
+                return `<img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-chip" />`;
+            })
+            .join('');
+        
+        if (!badgeHTML) return '';
+        
+        return `<div class="profile-badges-row">${badgeHTML}</div>`;
+    }
+    
+    /**
+     * ⭐ Render inline badge icon (18px for username display)
+     * @param {Array<string>} badges - Array of badge IDs
+     * @returns {string} HTML for inline badge icon (first badge only)
+     */
+    renderInlineBadges(badges) {
+        if (!badges || badges.length === 0) return '';
+        
+        // Show only the first badge inline (primary badge)
+        const primaryBadge = badges.find(badgeId => BADGE_ICON_MAP[badgeId]);
+        if (!primaryBadge) return '';
+        
+        const iconPath = BADGE_ICON_MAP[primaryBadge];
+        const altText = primaryBadge === 'alice_badge' 
+            ? 'Бейдж «Алиса в стране чудес»'
+            : `Бейдж ${primaryBadge}`;
+        
+        return `<img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline" />`;
+    }
+    
+    /**
      * 👤 Render profile card
+     * UPDATED: Added badge icons under avatar and next to username
      */
     renderProfileCard() {
         const profile = this.profileData || {};
@@ -612,6 +667,10 @@ class ProfilePage {
         const avatarUrl = this.resolveAvatarUrl();
         const initials = this.getInitials(name);
         
+        // Get badges from profile data (from PR-1 backend changes)
+        // Fallback to achievements in app state if not in profile
+        const badges = profile.badges || this.state?.get?.('achievements')?.badges || [];
+        
         return `
             <div class="profile-card profile-header grid">
                 <div class="profile-left">
@@ -622,12 +681,13 @@ class ProfilePage {
                         ` : ''}
                         <div class="profile-avatar-fallback">${initials}</div>
                     </div>
+                    ${this.renderBadgeIcons(badges)}
                 </div>
                 
                 <div class="profile-right">
                     <div class="user-heading-row">
                         <div class="user-name">${name}</div>
-                        ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
+                        ${formattedUsername ? `<div class="user-username">${formattedUsername}${this.renderInlineBadges(badges)}</div>` : ''}
                     </div>
                     
                     ${status ? `
@@ -1104,6 +1164,7 @@ class ProfilePage {
     /**
      * 👤 Render user card for followers/following lists
      * UPDATED: Includes data-action="navigate-to-profile" and fallback data attributes
+     * UPDATED: Added inline badge support
      */
     renderUserCard(user) {
         const name = user.name || user.firstName || 'Пользователь';
@@ -1121,6 +1182,9 @@ class ProfilePage {
         // Get follow status for this user (we'll need to track this)
         const isFollowing = this.followStatusCache?.[userId] || false;
         
+        // Get badges from user data
+        const badges = user.badges || [];
+        
         return `
             <div class="user-card" 
                  data-user-id="${userId || ''}" 
@@ -1137,7 +1201,7 @@ class ProfilePage {
                 </div>
                 <div class="user-info">
                     <div class="user-name">${name}</div>
-                    ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
+                    ${formattedUsername ? `<div class="user-username">${formattedUsername}${this.renderInlineBadges(badges)}</div>` : ''}
                     ${bio ? `<div class="user-bio">${bio}</div>` : ''}
                 </div>
             </div>

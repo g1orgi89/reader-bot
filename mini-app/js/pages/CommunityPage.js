@@ -29,6 +29,11 @@ const WARMUP_STATS_DELAY_MS = 2000;
 // ✅ FIX C: Spotlight build cooldown to prevent double/triple rebuilds on initial page entry
 const SPOTLIGHT_BUILD_COOLDOWN_MS = 400;
 
+// 🏅 Badge asset mapping for achievement display
+const COMMUNITY_BADGE_PATHS = {
+    alice_badge: '/assets/badges/alice.png'
+};
+
 class CommunityPage {
     constructor(app) {
         this.app = app;
@@ -1132,6 +1137,10 @@ class CommunityPage {
             const displayName = this._getDisplayNameRow(owner);
             const timeStr = quote.createdAt ? this.formatRelativeTime(new Date(quote.createdAt)) : '';
             
+            // Extract and render badge
+            const ownerBadges = owner?.badges || [];
+            const badgeMarkup = this.createInlineBadgeMarkup(ownerBadges);
+            
             const normalizedKey = this._computeLikeKey(quote.text, quote.author);
             const storeEntry = this._likeStore.get(normalizedKey);
             const isLiked = storeEntry ? storeEntry.liked : !!quote.likedByMe;
@@ -1145,7 +1154,7 @@ class CommunityPage {
                             <span class="quote-card__user-name" 
                                   data-user-id="${userId}" 
                                   data-is-following="${isFollowing}"
-                                  style="cursor: pointer;">${displayName}</span>
+                                  style="cursor: pointer;">${displayName}${badgeMarkup}</span>
                             ${timeStr ? `<div class="quote-card__time">${timeStr}</div>` : ''}
                         </div>
                     </div>
@@ -2502,6 +2511,26 @@ async refreshSpotlight() {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+        
+        /**
+         * 🏅 Создать HTML для инлайн бейджа пользователя
+         * @param {Array<string>} badgeList - Список ID бейджей пользователя
+         * @returns {string} HTML разметка инлайн бейджа или пустая строка
+         */
+        createInlineBadgeMarkup(badgeList) {
+            if (!badgeList || badgeList.length === 0) return '';
+            
+            // Показываем только первый (основной) бейдж
+            const topBadge = badgeList.find(bid => COMMUNITY_BADGE_PATHS[bid]);
+            if (!topBadge) return '';
+            
+            const assetPath = COMMUNITY_BADGE_PATHS[topBadge];
+            const badgeLabel = topBadge === 'alice_badge' 
+                ? 'Бейдж «Алиса в стране чудес»'
+                : `Бейдж ${topBadge}`;
+            
+            return `<img src="${assetPath}" alt="${badgeLabel}" title="${badgeLabel}" class="badge-inline" />`;
         }
         
     /**

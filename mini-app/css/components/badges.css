@@ -1,0 +1,125 @@
+/**
+ * 🏅 BADGES - Badge component styles
+ * 
+ * Badge icons displayed next to usernames and under avatars
+ * Part of the gamification feature for Reader Bot
+ * 
+ * Components:
+ * - .profile-badges-row: Flex row container for badges under avatar
+ * - .badge-chip: 32px badge icon for profile page
+ * - .badge-inline: 18px inline badge icon next to username
+ */
+
+/* ============================================================================
+   🏆 PROFILE BADGES ROW (under avatar)
+   ============================================================================ */
+
+.profile-badges-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm) 0;
+    flex-wrap: wrap;
+}
+
+/* ============================================================================
+   🎖️ BADGE CHIP (32px for profile display)
+   ============================================================================ */
+
+.badge-chip {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-round);
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-fast);
+    cursor: help;
+}
+
+.badge-chip:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-md);
+}
+
+/* Touch-friendly wrapper for accessibility (44px minimum touch target) */
+.badge-chip-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    padding: var(--spacing-sm);
+}
+
+.badge-chip-wrapper .badge-chip {
+    /* Badge size remains 32px, wrapper provides touch target */
+}
+
+/* ============================================================================
+   ⭐ INLINE BADGE (18px next to username)
+   ============================================================================ */
+
+.badge-inline {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-round);
+    object-fit: cover;
+    vertical-align: middle;
+    margin-left: var(--spacing-xs);
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Inline badge in username context */
+.user-username .badge-inline,
+.profile-modal-username .badge-inline {
+    margin-left: var(--spacing-xs);
+}
+
+/* ============================================================================
+   🎨 BADGE TOOLTIPS (optional enhancement)
+   ============================================================================ */
+
+.badge-chip[title],
+.badge-inline[title] {
+    cursor: help;
+}
+
+/* ============================================================================
+   📱 MOBILE OPTIMIZATIONS
+   ============================================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+    .badge-chip {
+        /* Slightly larger on mobile for better visibility */
+        width: 36px;
+        height: 36px;
+    }
+    
+    .badge-inline {
+        /* Keep inline badge small on mobile */
+        width: 18px;
+        height: 18px;
+    }
+}
+
+/* ============================================================================
+   🌙 DARK MODE SUPPORT
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+    .badge-chip,
+    .badge-inline {
+        /* Slightly brighter shadow in dark mode for visibility */
+        box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+    }
+    
+    .badge-chip:hover {
+        box-shadow: 0 4px 8px rgba(255, 255, 255, 0.15);
+    }
+}
