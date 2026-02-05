@@ -56,6 +56,116 @@
 
 ## 📝 ЗАПИСИ
 
+## 2026-02-05 - Achievements UX Fixes: Alice Progress Integration, Menu Entry, Backend Aggregation
+
+**Задача:** Fix Achievements UX, wire Alice progress to real actions, expose Achievements entry in top menu, harmonize Alice audio card, fix backend likes counting, surface badges in profile payload  
+**Фактически затрачено:** 3 часа  
+**Ссылка на план:** Месяц 2 - Геймификация (частичная доработка)
+
+### Изменения
+
+**A) Top Menu - Achievements Entry:**
+- Enabled "Мои достижения" menu item in `TopMenu.js`
+- Placed directly after "Мой профиль" as specified
+- Action maps to `/achievements` route
+
+**B) Achievements Page Redesign:**
+- Updated header to show Alice-based counts: "Ваши награды (0 из 1)" or "(1 из 1)"
+- Fixed Alice badge image path from `/assets/badges/alice-badge.png` to `/assets/badges/alice.png`
+- Progress bars now use `var(--primary-color)` terracotta color
+- Bars render with minimum width to be visible even at 0%
+- Bar positioned before "Осталось N" text
+- Manual refresh button (🔄) already implemented
+- App-wide event subscriptions already implemented (quote:added, like:changed, follow:changed, photo:uploaded)
+
+**C) Free Audios Page - Alice Card:**
+- Updated Alice card badge icon path to `/assets/badges/alice.png`
+- Locked state: shows badge icon in subtitle row, CTA navigates to /achievements
+- Unlocked state: shows "Осталось N дн." and play button
+- Card stays pinned at top in both states
+- Verified audio.css styles are aligned with design system
+
+**D) Backend - Likes Aggregation Fix:**
+- Fixed `countLikesGivenToOthers` in `badgesService.js`
+- Now splits `normalizedKey` into `normalizedText` and `normalizedAuthor`
+- Matches against Quote's `normalizedText` and `normalizedAuthor` fields
+- Filters out self-likes (userId != current user)
+- Returns unique count of community quote likes
+
+**E) Audio Service - Free List Filter:**
+- Updated `listFreeAudios()` in `audioService.js`
+- Now filters only `audio.isFree === true`
+- Prevents premium content (alice_wonderland) from appearing in free list
+- Eliminates duplicates when Alice card is pinned separately
+
+**F) Profile Badges (Optional Enhancement):**
+- Added `badges` field to `buildEnrichedUserObject()`
+- Updated `enrichPostsWithUserData()` and `enrichCommentsWithUserData()`
+- Fetches badges in parallel for all users in batch operations
+- `getUserBadges()` already implemented, checks for alice_wonderland entitlement
+- Profile API already returns badges array
+- Enables badge icons rendering in profile and next to usernames
+
+**G) CSS Verification:**
+- Verified `achievements.css` uses `var(--primary-color)` for progress bars
+- Added comment for minimum width handling (applied via inline style)
+- No new CSS variables added, follows constraint
+
+### Files Modified
+
+```
+mini-app/js/components/navigation/TopMenu.js
+mini-app/js/pages/AchievementsPage.js
+mini-app/css/pages/achievements.css
+mini-app/js/pages/FreeAudiosPage.js
+server/services/gamification/badgesService.js
+server/services/audio/audioService.js
+server/api/reader.js
+```
+
+### Testing Notes
+
+**Manual Testing Required:**
+1. Menu: Verify "Мои достижения" appears under "Мой профиль" and navigates to /achievements
+2. Achievements page:
+   - Header shows "0 из 1" initially
+   - Progress bars visible (terracotta color) even at 0%
+   - Manual refresh button updates values
+   - Real-time updates: add quote → streak updates; like community quote → likes counter increases
+3. Free audios page:
+   - Only one Alice card at top (no duplicates in list)
+   - Locked state: badge icon visible, CTA navigates to /achievements
+   - Unlocked state: shows remaining days, play button works
+4. Backend:
+   - Like community quote (another user) → increases Alice progress likes counter
+   - Unlike → decreases counter
+   - Self-likes excluded from count
+5. Profile badges: check API payload includes badges array when Alice entitlement exists
+
+### Known Limitations
+
+- Photo rubric filter for "книжный кадр" not implemented (TODO in badgesService.js - needs PhotoPost.rubric field)
+- Current implementation counts all published photos as placeholder until rubric field is added
+
+### Rollback Plan
+
+If issues occur:
+```bash
+# Re-comment Achievements menu entry in TopMenu.js
+# Revert AchievementsPage header and Alice section
+# Revert likes aggregation in badgesService.js
+# Remove isFree filter from audioService.js if needed
+```
+
+### Next Steps
+
+- [ ] Add PhotoPost rubric field for "книжный кадр" filtering
+- [ ] Test on dev.unibotz.com:3003
+- [ ] Monitor Alice badge claim success rate
+- [ ] Track user engagement with Achievements page
+
+---
+
 ## 2025-12-25 - ProfileModal Stability Fixes: Close Behavior, Stats Loading, Image Error Handling
 
 **Задача:** Стабилизировать модалку профиля, устранить глобальный onerror крэш, правильная загрузка счётчиков для «своего» профиля, автозакрытие модалок при навигации  
