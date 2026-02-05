@@ -9,11 +9,15 @@ class FreeAudiosPage {
     this.telegram = app.telegram;
     this.items = [];
     this.loaded = false;
+    this.aliceMeta = null;
+    this.aliceLoaded = false;
   }
 
   init() {
     this.items = [];
     this.loaded = false;
+    this.aliceMeta = null;
+    this.aliceLoaded = false;
   }
 
   renderTopTabs() {
@@ -43,6 +47,58 @@ class FreeAudiosPage {
     `;
   }
 
+  renderAliceCard() {
+    if (!this.aliceLoaded) {
+      return '';
+    }
+    
+    const unlockStatus = this.aliceMeta?.unlockStatus || false;
+    const remainingDays = this.aliceMeta?.remainingDays || 0;
+    
+    if (!unlockStatus) {
+      // Locked state - show CTA to achievements
+      return `
+        <div class="alice-audio-card locked">
+          <div class="audio-card-content">
+            <div class="audio-cover-wrapper">
+              <img class="audio-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="this.style.display='none'">
+              <div class="audio-locked-overlay">
+                <div class="lock-icon">🔒</div>
+              </div>
+            </div>
+            <div class="audio-card-info">
+              <h3 class="audio-card-title">Алиса в стране чудес</h3>
+              <p class="audio-card-subtitle">Требуется бейдж</p>
+              <p class="audio-card-description">Выполните условия для получения доступа к эксклюзивному аудиоразбору</p>
+              <button class="audio-cta-button" data-action="navigate-achievements">
+                Получить доступ
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      // Unlocked state - show play button and remaining days
+      return `
+        <div class="alice-audio-card unlocked">
+          <div class="audio-card-content">
+            <div class="audio-cover-wrapper">
+              <img class="audio-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="this.style.display='none'">
+            </div>
+            <div class="audio-card-info">
+              <h3 class="audio-card-title">Алиса в стране чудес</h3>
+              <p class="audio-card-subtitle">Осталось ${remainingDays} дн.</p>
+              <p class="audio-card-description">Эксклюзивный аудиоразбор классического произведения</p>
+              <button class="audio-play-button" data-audio-id="alice_wonderland">
+                ▶ Прослушать
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
   renderList() {
     if (!this.loaded) {
       return `
@@ -54,10 +110,17 @@ class FreeAudiosPage {
         </div>
       `;
     }
+    
+    const aliceCardHTML = this.renderAliceCard();
+    
     if (!Array.isArray(this.items) || this.items.length === 0) {
-      return this.renderEmptyStateBlock();
+      return `
+        ${aliceCardHTML}
+        ${this.renderEmptyStateBlock()}
+      `;
     }
     return `
+      ${aliceCardHTML}
       <div class="cards">
         ${this.items.map(x => `
           <div class="book-card" data-id="${this.escape(x.id)}">
@@ -120,6 +183,31 @@ class FreeAudiosPage {
         this.app.router.navigate(`/free-audios/${encodeURIComponent(id)}`, { state: { id } });
       });
     });
+    
+    // Alice card CTA button (navigate to achievements)
+    const ctaButton = document.querySelector('.audio-cta-button[data-action="navigate-achievements"]');
+    if (ctaButton) {
+      ctaButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+          this.telegram.hapticFeedback('medium');
+        }
+        this.app.router.navigate('/achievements');
+      });
+    }
+    
+    // Alice card play button (navigate to player)
+    const playButton = document.querySelector('.audio-play-button[data-audio-id]');
+    if (playButton) {
+      playButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        const audioId = playButton.getAttribute('data-audio-id');
+        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
+          this.telegram.hapticFeedback('light');
+        }
+        this.app.router.navigate(`/free-audios/${encodeURIComponent(audioId)}`, { state: { id: audioId } });
+      });
+    }
   }
 
   parseListResponse(json) {
@@ -136,6 +224,22 @@ class FreeAudiosPage {
 
   async onShow() {
     try {
+      // Fetch Alice metadata
+      try {
+        const aliceRes = await fetch('/api/audio/alice_wonderland?userId=me', { credentials: 'include' });
+        if (aliceRes.ok) {
+          this.aliceMeta = await aliceRes.json();
+        } else {
+          // Fallback to locked state
+          this.aliceMeta = { unlockStatus: false, remainingDays: 0 };
+        }
+      } catch (e) {
+        console.warn('⚠️ FreeAudiosPage: Failed to load Alice metadata:', e);
+        this.aliceMeta = { unlockStatus: false, remainingDays: 0 };
+      }
+      this.aliceLoaded = true;
+      
+      // Fetch free audio list
       const res = await fetch('/api/audio/free', { credentials: 'include' });
       if (!res.ok) {
         throw new Error(`HTTP error ${res.status}`);

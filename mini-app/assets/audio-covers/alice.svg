@@ -1,0 +1,8 @@
+<svg width="800" height="450" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="450" fill="#F5F2EC"/>
+  <text x="400" y="200" font-family="Arial, sans-serif" font-size="48" fill="#2C1810" text-anchor="middle" font-weight="bold">Алиса</text>
+  <text x="400" y="260" font-family="Arial, sans-serif" font-size="36" fill="#5D4037" text-anchor="middle">в стране чудес</text>
+  <text x="400" y="320" font-family="Arial, sans-serif" font-size="24" fill="#8D6E63" text-anchor="middle">Льюис Кэрролл</text>
+  <circle cx="400" cy="380" r="30" fill="#D2452C" opacity="0.3"/>
+  <path d="M400 365 L400 395 M385 380 L415 380" stroke="#D2452C" stroke-width="3" fill="none"/>
+</svg>
