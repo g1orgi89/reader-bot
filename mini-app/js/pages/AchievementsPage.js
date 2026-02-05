@@ -53,6 +53,33 @@ class AchievementsPage {
         });
         
         this.subscriptions.push(achievementsSubscription);
+        
+        // Subscribe to app-wide events for real-time Alice progress updates
+        if (this.app && this.app.on) {
+            // Quote added event
+            this.app.on('quote:added', () => {
+                console.log('📖 Quote added, refreshing Alice progress...');
+                this.refreshAliceProgress();
+            });
+            
+            // Like changed event
+            this.app.on('like:changed', () => {
+                console.log('❤️ Like changed, refreshing Alice progress...');
+                this.refreshAliceProgress();
+            });
+            
+            // Follow changed event
+            this.app.on('follow:changed', () => {
+                console.log('👥 Follow changed, refreshing Alice progress...');
+                this.refreshAliceProgress();
+            });
+            
+            // Photo uploaded event
+            this.app.on('photo:uploaded', () => {
+                console.log('📸 Photo uploaded, refreshing Alice progress...');
+                this.refreshAliceProgress();
+            });
+        }
     }
     
     /**
@@ -112,8 +139,7 @@ class AchievementsPage {
             <div class="content">
                 ${this.renderHeader()}
                 ${this.renderAliceBadgeSection()}
-                ${this.renderProgressSection()}
-                ${this.renderAchievementsList()}
+                ${this.renderEarnedAchievements()}
                 ${this.renderError()}
             </div>
         `;
@@ -141,7 +167,12 @@ class AchievementsPage {
         if (this.aliceLoading) {
             return `
                 <div class="alice-badge-section">
-                    <h3>📖 Бейдж «Алиса в стране чудес»</h3>
+                    <div class="alice-badge-header">
+                        <h3>📖 Бейдж «Алиса в стране чудес»</h3>
+                        <button class="alice-refresh-button" id="aliceRefreshButton" disabled>
+                            🔄
+                        </button>
+                    </div>
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
                         <p>Загрузка прогресса...</p>
@@ -155,43 +186,51 @@ class AchievementsPage {
         }
         
         const { 
-            bookPhotos = { current: 0, required: 10 },
-            friendSubscriptions = { current: 0, required: 5 },
-            quoteLikes = { current: 0, required: 10 },
-            streakDays = { current: 0, required: 30 },
+            photos = { current: 0, required: 10 },
+            following = { current: 0, required: 5 },
+            likesGivenToOthers = { current: 0, required: 10 },
+            streak = { current: 0, required: 30 },
             completed = false
         } = this.aliceProgress;
         
         const progressItems = [
             {
                 label: '10 фото в рубрику «книжный кадр»',
-                current: bookPhotos.current,
-                required: bookPhotos.required,
-                remaining: Math.max(0, bookPhotos.required - bookPhotos.current)
+                current: photos.current,
+                required: photos.required,
+                remaining: Math.max(0, photos.required - photos.current)
             },
             {
                 label: '5 подписок на книжных друзей',
-                current: friendSubscriptions.current,
-                required: friendSubscriptions.required,
-                remaining: Math.max(0, friendSubscriptions.required - friendSubscriptions.current)
+                current: following.current,
+                required: following.required,
+                remaining: Math.max(0, following.required - following.current)
             },
             {
-                label: '10 лайков цитат от других',
-                current: quoteLikes.current,
-                required: quoteLikes.required,
-                remaining: Math.max(0, quoteLikes.required - quoteLikes.current)
+                label: '10 лайков цитат сообщества',
+                current: likesGivenToOthers.current,
+                required: likesGivenToOthers.required,
+                remaining: Math.max(0, likesGivenToOthers.required - likesGivenToOthers.current)
             },
             {
                 label: 'непрерывная серия 30 дней',
-                current: streakDays.current,
-                required: streakDays.required,
-                remaining: Math.max(0, streakDays.required - streakDays.current)
+                current: streak.current,
+                required: streak.required,
+                remaining: Math.max(0, streak.required - streak.current)
             }
         ];
         
         return `
             <div class="alice-badge-section">
-                <h3>📖 Бейдж «Алиса в стране чудес»</h3>
+                <div class="alice-badge-header">
+                    <div class="alice-badge-title-wrapper">
+                        <img src="/assets/badges/alice-badge.png" alt="Alice Badge" class="alice-badge-image" onerror="this.style.display='none'">
+                        <h3>📖 Бейдж «Алиса в стране чудес»</h3>
+                    </div>
+                    <button class="alice-refresh-button" id="aliceRefreshButton" title="Обновить прогресс">
+                        🔄
+                    </button>
+                </div>
                 <p class="alice-badge-description">Выполните все условия для получения доступа к аудиоразбору</p>
                 
                 <div class="alice-progress-list">
@@ -205,7 +244,7 @@ class AchievementsPage {
                                 <div class="alice-progress-fill" style="width: ${Math.min(100, (item.current / item.required) * 100)}%"></div>
                             </div>
                             <div class="alice-progress-remaining">
-                                ${item.remaining > 0 ? `Осталось: ${item.remaining}` : '✓ Выполнено'}
+                                ${item.remaining > 0 ? `Осталось ${item.remaining}` : '✓ Выполнено'}
                             </div>
                         </div>
                     `).join('')}
@@ -223,60 +262,20 @@ class AchievementsPage {
     }
     
     /**
-     * 📈 Рендер секции прогресса
+     * 🏆 Рендер полученных наград (только разблокированные)
      */
-    renderProgressSection() {
-        return `
-            <div class="progress-section">
-                <h3>📈 Ваш прогресс</h3>
-                <div class="progress-cards">
-                    ${this.renderProgressCard('quotes', 'Цитаты', '📚', this.progress.quotes)}
-                    ${this.renderProgressCard('streak', 'Серии', '🔥', this.progress.streak)}
-                    ${this.renderProgressCard('exploration', 'Исследование', '🌟', this.progress.exploration)}
-                </div>
-            </div>
-        `;
-    }
-    
-    /**
-     * 📊 Рендер карточки прогресса
-     */
-    renderProgressCard(type, title, emoji, data) {
-        const current = data?.current || 0;
-        const target = data?.target || 100;
-        const percentage = Math.min((current / target) * 100, 100);
-        
-        return `
-            <div class="progress-card">
-                <div class="progress-header">
-                    <span class="progress-emoji">${emoji}</span>
-                    <span class="progress-title">${title}</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${percentage}%"></div>
-                </div>
-                <div class="progress-text">${current}/${target}</div>
-            </div>
-        `;
-    }
-    
-    /**
-     * 🏆 Рендер списка достижений
-     */
-    renderAchievementsList() {
+    renderEarnedAchievements() {
         const unlockedAchievements = this.achievements.filter(a => a.unlocked);
-        const lockedAchievements = this.achievements.filter(a => !a.unlocked);
+        
+        if (unlockedAchievements.length === 0) {
+            return '';
+        }
         
         return `
             <div class="achievements-section">
                 <h3>🏆 Полученные награды</h3>
                 <div class="achievements-grid">
                     ${unlockedAchievements.map(achievement => this.renderAchievementItem(achievement, true)).join('')}
-                </div>
-                
-                <h3>🔒 Еще предстоит получить</h3>
-                <div class="achievements-grid">
-                    ${lockedAchievements.map(achievement => this.renderAchievementItem(achievement, false)).join('')}
                 </div>
             </div>
         `;
@@ -341,14 +340,55 @@ class AchievementsPage {
             console.warn('⚠️ Failed to load Alice progress:', error);
             // Set fallback data
             this.aliceProgress = {
-                bookPhotos: { current: 0, required: 10 },
-                friendSubscriptions: { current: 0, required: 5 },
-                quoteLikes: { current: 0, required: 10 },
-                streakDays: { current: 0, required: 30 },
+                photos: { current: 0, required: 10 },
+                following: { current: 0, required: 5 },
+                likesGivenToOthers: { current: 0, required: 10 },
+                streak: { current: 0, required: 30 },
                 completed: false
             };
         } finally {
             this.aliceLoading = false;
+        }
+    }
+    
+    /**
+     * 🔄 Refresh Alice progress (for manual or event-triggered updates)
+     */
+    async refreshAliceProgress() {
+        if (this.aliceLoading) return;
+        
+        try {
+            // Fetch latest progress
+            await this.loadAliceProgress();
+            
+            // Update the Alice section only
+            const aliceSection = document.querySelector('.alice-badge-section');
+            if (aliceSection) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = this.renderAliceBadgeSection();
+                const newAliceSection = tempDiv.firstElementChild;
+                
+                if (newAliceSection) {
+                    aliceSection.replaceWith(newAliceSection);
+                    
+                    // Re-attach event listeners for the Alice section
+                    const aliceClaimButton = document.getElementById('aliceClaimButton');
+                    if (aliceClaimButton) {
+                        aliceClaimButton.addEventListener('click', () => {
+                            this.handleAliceClaimClick();
+                        });
+                    }
+                    
+                    const aliceRefreshButton = document.getElementById('aliceRefreshButton');
+                    if (aliceRefreshButton) {
+                        aliceRefreshButton.addEventListener('click', () => {
+                            this.handleRefreshClick();
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('❌ Failed to refresh Alice progress:', error);
         }
     }
     
@@ -431,6 +471,26 @@ class AchievementsPage {
                 this.handleAliceClaimClick();
             });
         }
+        
+        // Alice refresh button handler
+        const aliceRefreshButton = document.getElementById('aliceRefreshButton');
+        if (aliceRefreshButton) {
+            aliceRefreshButton.addEventListener('click', () => {
+                this.handleRefreshClick();
+            });
+        }
+    }
+    
+    /**
+     * 🔄 Handle manual refresh button click
+     */
+    async handleRefreshClick() {
+        // Haptic feedback
+        if (this.telegram?.hapticFeedback) {
+            this.telegram.hapticFeedback('light');
+        }
+        
+        await this.refreshAliceProgress();
     }
     
     /**
