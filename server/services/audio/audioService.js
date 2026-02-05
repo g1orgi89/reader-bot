@@ -74,6 +74,23 @@ const FREE_AUDIO_METADATA = {
     tracks: [
       { id: 'eat_pray_love-01', title: 'Полный аудиоразбор', file: 'eat_pray_love/01.mp3' }
     ]
+  },
+  
+  // Premium content (gated behind entitlement)
+  alice_wonderland: {
+    id: 'alice_wonderland',
+    title: 'Разбор: «Алиса в стране чудес»',
+    author: 'Льюис Кэрролл',
+    description: 'Философский анализ классической сказки о поиске себя и познании мира',
+    coverUrl: '/assets/book-covers/alice_wonderland.png',
+    playerCoverUrl: '/assets/audio-covers/alice_wonderland-player.png',
+    isFree: false,
+    requiresEntitlement: true,
+    tracks: [
+      { id: 'alice_wonderland-01', title: 'Часть 1', file: 'alice_wonderland/01.mp3' },
+      { id: 'alice_wonderland-02', title: 'Часть 2', file: 'alice_wonderland/02.mp3' },
+      { id: 'alice_wonderland-03', title: 'Часть 3', file: 'alice_wonderland/03.mp3' }
+    ]
   }
   
   // More free audios can be added here
@@ -198,25 +215,42 @@ async function isUnlocked(userId, audioId) {
 
     // Check if it's a direct container ID in FREE_AUDIO_METADATA
     if (FREE_AUDIO_METADATA[audioId]) {
-      logger.info(`✅ Free audio ${audioId} is unlocked for all users`);
-      return true;
+      // Check if this content is actually free or requires entitlement
+      if (FREE_AUDIO_METADATA[audioId].isFree) {
+        logger.info(`✅ Free audio ${audioId} is unlocked for all users`);
+        return true;
+      }
+      // If not free, fall through to entitlement check below
     }
 
-    // Check if it's a track ID from a free container (format: containerId-trackNumber)
+    // Check if it's a track ID from a container (format: containerId-trackNumber)
+    let containerForTrack = null;
     for (const containerId in FREE_AUDIO_METADATA) {
       const container = FREE_AUDIO_METADATA[containerId];
       if (container.tracks) {
         const track = container.tracks.find(t => t.id === audioId);
         if (track) {
-          logger.info(`✅ Free audio ${audioId} is unlocked for all users`);
-          return true;
+          containerForTrack = container;
+          // Check if the parent container is free
+          if (container.isFree) {
+            logger.info(`✅ Free audio ${audioId} is unlocked for all users`);
+            return true;
+          }
+          // If not free, check entitlement for the container (not the track ID)
+          break;
         }
       }
     }
 
     // For premium content, check entitlements
-    // Import already at top level to avoid circular dependencies
-    const hasAccess = await hasAudioAccess(userId, audioId);
+    // If this is a track from a premium container, check entitlement for the container
+    let checkId = audioId;
+    if (containerForTrack && !containerForTrack.isFree) {
+      checkId = containerForTrack.id;
+      logger.info(`🔐 Checking entitlement for container ${checkId} (track: ${audioId})`);
+    }
+    
+    const hasAccess = await hasAudioAccess(userId, checkId);
     
     logger.info(`${hasAccess ? '✅' : '❌'} Audio ${audioId} ${hasAccess ? 'unlocked' : 'locked'} for user ${userId}`);
     return hasAccess;

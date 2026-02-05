@@ -107,18 +107,50 @@ router.get('/:id', async (req, res) => {
 
     // Check if audio is unlocked for this user
     let unlocked = false;
+    let remainingDays = null;
+    
     if (userId) {
       unlocked = await audioService.isUnlocked(userId, id);
+      
+      // For gated content (alice_wonderland), include remainingDays if unlocked
+      if (unlocked && audio.requiresEntitlement) {
+        const entitlementService = require('../services/access/entitlementService');
+        
+        // Resolve userId to ObjectId
+        const UserProfile = require('../models/userProfile');
+        let userObjectId = null;
+        
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+          userObjectId = new mongoose.Types.ObjectId(userId);
+        } else {
+          const profile = await UserProfile.findOne({ userId });
+          if (profile) {
+            userObjectId = profile._id;
+          }
+        }
+        
+        if (userObjectId) {
+          remainingDays = await entitlementService.getRemainingDays(userObjectId, id);
+        }
+      }
+    }
+
+    // Prepare response object
+    const audioResponse = {
+      ...audio,
+      unlocked
+    };
+    
+    // Add remainingDays only if available (for gated content)
+    if (remainingDays !== null) {
+      audioResponse.remainingDays = remainingDays;
     }
 
     // Return container with tracks if applicable
     if (audio.tracks) {
       return res.json({
         success: true,
-        audio: {
-          ...audio,
-          unlocked
-        },
+        audio: audioResponse,
         tracks: audio.tracks
       });
     }
@@ -126,10 +158,7 @@ router.get('/:id', async (req, res) => {
     // Return single audio/track
     res.json({
       success: true,
-      audio: {
-        ...audio,
-        unlocked
-      }
+      audio: audioResponse
     });
   } catch (error) {
     logger.error(`❌ Error fetching audio metadata:`, error);

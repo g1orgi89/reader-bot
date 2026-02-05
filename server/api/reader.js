@@ -358,6 +358,51 @@ function isAdmin(req) {
 }
 
 /**
+ * Get badges for a user (e.g., Alice badge if claimed)
+ * @param {string} userId - Telegram user ID
+ * @returns {Promise<Array<string>>} Array of badge identifiers
+ */
+async function getUserBadges(userId) {
+  try {
+    const badges = [];
+    
+    // Resolve userId to ObjectId
+    const UserEntitlement = require('../models/UserEntitlement');
+    const UserProfile = require('../models/userProfile');
+    
+    let userObjectId = null;
+    if (require('mongoose').Types.ObjectId.isValid(userId)) {
+      userObjectId = new require('mongoose').Types.ObjectId(userId);
+    } else {
+      const profile = await UserProfile.findOne({ userId });
+      if (profile) {
+        userObjectId = profile._id;
+      }
+    }
+    
+    if (!userObjectId) {
+      return badges;
+    }
+    
+    // Check for Alice badge (entitlement to alice_wonderland audio)
+    const aliceEntitlement = await UserEntitlement.findOne({
+      userId: userObjectId,
+      kind: 'audio',
+      resourceId: 'alice_wonderland'
+    });
+    
+    if (aliceEntitlement && aliceEntitlement.isValid()) {
+      badges.push('alice_badge');
+    }
+    
+    return badges;
+  } catch (error) {
+    console.error('Error getting user badges:', error);
+    return [];
+  }
+}
+
+/**
  * Get current day key in Europe/Moscow timezone
  * @returns {string} Day key in format YYYY-MM-DD
  */
@@ -1389,6 +1434,9 @@ router.get('/profile',telegramAuth, async (req, res) => {
       });
     }
 
+    // Get user badges
+    const badges = await getUserBadges(userId);
+
     res.json({
       success: true,
       user: {
@@ -1402,7 +1450,8 @@ router.get('/profile',telegramAuth, async (req, res) => {
         registeredAt: user.registeredAt,
         source: user.source,
         preferences: user.preferences,
-        settings: user.settings
+        settings: user.settings,
+        badges
       }
     });
   } catch (error) {
@@ -1498,6 +1547,9 @@ router.get('/users/:id', telegramAuth, async (req, res) => {
     // Get follow counts
     const followCounts = await Follow.getCounts(targetUserId);
     
+    // Get user badges
+    const badges = await getUserBadges(targetUserId);
+    
     // Return public profile data
     res.json({
       success: true,
@@ -1511,6 +1563,7 @@ router.get('/users/:id', telegramAuth, async (req, res) => {
         telegramUsername: user.telegramUsername,
         status: user.status,
         registeredAt: user.registeredAt,
+        badges,
         stats: {
           totalQuotes,
           followers: followCounts.followers || 0,
@@ -6106,6 +6159,69 @@ router.post('/covers/schedule', telegramAuth, coverUpload.single('image'), async
     }
     
     res.status(500).json({ success: false, error: 'Ошибка планирования поста' });
+  }
+});
+
+// ============================================================================
+// GAMIFICATION ROUTES
+// ============================================================================
+
+const badgesService = require('../services/gamification/badgesService');
+
+/**
+ * @description GET /api/reader/gamification/progress/alice - Get Alice badge progress
+ * @route GET /api/reader/gamification/progress/alice
+ * @access Private (telegramAuth)
+ * @returns {Object} Progress object with 4 counters, completed flag, and percent
+ */
+router.get('/gamification/progress/alice', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    console.log(`📊 Fetching Alice badge progress for user ${userId}...`);
+    
+    const progress = await badgesService.getAliceProgress(userId);
+    
+    res.json({
+      success: true,
+      progress
+    });
+  } catch (error) {
+    console.error('❌ Error getting Alice progress:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get Alice badge progress',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * @description POST /api/reader/gamification/alice/claim - Claim Alice badge and grant audio access
+ * @route POST /api/reader/gamification/alice/claim
+ * @access Private (telegramAuth)
+ * @returns {Object} Result with success flag and details
+ */
+router.post('/gamification/alice/claim', telegramAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    console.log(`🎁 Processing Alice badge claim for user ${userId}...`);
+    
+    const result = await badgesService.claimAlice(userId);
+    
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error claiming Alice badge:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to claim Alice badge',
+      details: error.message
+    });
   }
 });
 
