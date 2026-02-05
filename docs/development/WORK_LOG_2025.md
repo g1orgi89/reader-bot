@@ -3883,3 +3883,107 @@ npm test tests/integration/alice_gamification.test.js
 ---
 
 <!-- Следующие записи добавляются ниже -->
+
+## 2026-02-05 - Achievements UX and Alice Progress Fixes (Variant B)
+
+**Task:** Fix Achievements UX and wire Alice progress to real user actions  
+**Plan ref:** Gamification improvements (PR Variant B)  
+**Time:** 3.5h
+
+### Summary
+
+Implemented comprehensive fixes to the Achievements system and Alice badge gamification:
+
+1. **Top Menu**: Achievements entry already enabled under "Мой профиль" (verified)
+2. **Achievements Page UX Polish**: 
+   - Updated header to Alice-based counters ("0 из 1" / "1 из 1")
+   - Removed emoji from badge title
+   - Enlarged badge icon to 72px
+   - Added completed item styling (left border + green text)
+   - Fixed progress bars to be visible even at 0%
+   - Added userId query param to avoid demo-user fallback
+   - Real-time updates via app-wide events maintained
+3. **Audio Section**: 
+   - Refactored Alice card rendering (locked/unlocked states)
+   - Added larger badge icon (48px) in locked state subtitle
+   - Filtered out 'alice_wonderland' from generic list to avoid duplicates
+4. **Backend Fixes**:
+   - Fixed likes aggregation in badgesService to use Set-based matching
+   - Ensured audioService filters only free content (already correct)
+   - Updated API response format for progress endpoint
+5. **Badges in Profile**: Already implemented in getUserBadges function
+
+### Files Modified
+
+**Frontend:**
+- `mini-app/js/pages/AchievementsPage.js` - UX updates, userId in fetch, completed styling
+- `mini-app/css/pages/achievements.css` - Larger badge (72px), completed class, terracotta bars
+- `mini-app/js/pages/FreeAudiosPage.js` - Alice card refactor, filter duplicates, large badge icon
+- `mini-app/css/pages/audio.css` - Large badge icon style (48px)
+
+**Backend:**
+- `server/services/gamification/badgesService.js` - Fixed countLikesGivenToOthers aggregation
+- `server/api/reader.js` - Updated progress endpoint response format
+
+**Docs:**
+- `docs/development/WORK_LOG_2025.md` - This entry
+
+### Technical Details
+
+**Likes Aggregation Fix:**
+Changed from complex $or query to Set-based matching:
+1. Fetch all user's favorites
+2. Fetch all quotes from other users
+3. Reconstruct normalizedKey from each quote
+4. Count matches using Set lookup
+
+This is more efficient and handles the normalizedKey split correctly.
+
+**Progress Bar Visibility:**
+- Removed min-width inline style logic
+- Set min-height: 8px in CSS to ensure bars always visible
+- Width still animates from 0% to 100%
+
+**Completed Items Styling:**
+- Added .completed class when remaining === 0
+- Left border: 4px solid var(--primary-color)
+- Remaining text color: #10b981 (green)
+
+### Testing Steps (dev.unibotz.com:3003)
+
+1. **Menu**: Open top menu → see "Мои достижения" → navigates to /achievements
+2. **Achievements Page**:
+   - Header shows "0 из 1" or "1 из 1"
+   - Badge icon is ~72px (larger than before)
+   - Progress bars visible even at 0%
+   - Completed items have left border and green "✓ Выполнено"
+   - Likes label reads "10 лайков цитат сообщества"
+3. **Real-time Updates** (if events wired):
+   - Add quote → streak refreshes
+   - Like community quote → likes counter updates
+   - Follow/unfollow → following updates
+   - Upload photo → photos updates
+4. **Audio Page** (/free-audios):
+   - Single Alice card pinned at top
+   - Locked: shows "Требуется бейдж" + large badge icon (48px) + CTA
+   - Unlocked: shows "Осталось N дн." + play button
+   - No duplicate Alice in regular list
+
+### Deploy Notes
+
+- Ensure Nginx static mapping for `/assets/badges/` exists (already confirmed)
+- No new dependencies added
+- No database migrations needed
+- Backend changes are backward compatible
+
+### Rollback Plan
+
+If issues arise:
+1. Revert badgesService.js likes aggregation (use git)
+2. Revert AchievementsPage.js to previous header logic
+3. Revert FreeAudiosPage.js to show Alice in title row
+4. Keep API response format change (it's cleaner)
+
+Часы: 3.5
+
+---

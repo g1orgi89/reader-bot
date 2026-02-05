@@ -96,12 +96,26 @@
   gap: var(--spacing-sm);
 }
 
+.audio-card-subtitle-with-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
 .audio-badge-icon {
   width: 24px;
   height: 24px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+}
+
+.audio-badge-icon--large {
+  width: 48px;
+  height: 48px;
 }
 
 .audio-card-title {

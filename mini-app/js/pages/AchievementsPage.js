@@ -225,8 +225,8 @@ class AchievementsPage {
             <div class="alice-badge-section">
                 <div class="alice-badge-header">
                     <div class="alice-badge-title-wrapper">
-                        <img src="/assets/badges/alice.png" alt="Alice Badge" class="alice-badge-image" onerror="this.style.display='none'">
-                        <h3>📖 Бейдж «Алиса в стране чудес»</h3>
+                        <img src="/assets/badges/alice.png" alt="Alice Badge" class="alice-badge-image" loading="lazy" onerror="this.style.display='none'">
+                        <h3>Бейдж «Алиса в стране чудес»</h3>
                     </div>
                     <button class="alice-refresh-button" id="aliceRefreshButton" title="Обновить прогресс">
                         🔄
@@ -237,16 +237,16 @@ class AchievementsPage {
                 <div class="alice-progress-list">
                     ${progressItems.map(item => {
                         const widthPercent = Math.min(100, (item.current / item.required) * 100);
-                        // Ensure bar is visible even at 0%
-                        const minWidth = widthPercent > 0 ? widthPercent : 0;
+                        const isCompleted = item.remaining === 0;
+                        const completedClass = isCompleted ? ' completed' : '';
                         return `
-                        <div class="alice-progress-item">
+                        <div class="alice-progress-item${completedClass}">
                             <div class="alice-progress-header">
                                 <span class="alice-progress-label">${item.label}</span>
                                 <span class="alice-progress-counter">${item.current}/${item.required}</span>
                             </div>
                             <div class="alice-progress-bar">
-                                <div class="alice-progress-fill" style="width: ${minWidth}%; min-width: ${minWidth > 0 ? '2px' : '0'}"></div>
+                                <div class="alice-progress-fill" style="width: ${widthPercent}%"></div>
                             </div>
                             <div class="alice-progress-remaining">
                                 ${item.remaining > 0 ? `Осталось ${item.remaining}` : '✓ Выполнено'}
@@ -330,8 +330,21 @@ class AchievementsPage {
         try {
             this.aliceLoading = true;
             
+            // Get current userId
+            let userId = null;
+            if (this.state && typeof this.state.getCurrentUserId === 'function') {
+                userId = this.state.getCurrentUserId();
+            } else if (this.state && this.state.get) {
+                userId = this.state.get('user.profile.id') || this.state.get('user.telegramData.id');
+            }
+            
+            // Build URL with userId query param to avoid demo-user fallback
+            const url = userId && userId !== 'demo-user'
+                ? `/api/reader/gamification/progress/alice?userId=${encodeURIComponent(userId)}`
+                : '/api/reader/gamification/progress/alice';
+            
             // Fetch Alice progress from backend
-            const response = await fetch('/api/reader/gamification/progress/alice', {
+            const response = await fetch(url, {
                 credentials: 'include'
             });
             
