@@ -1622,9 +1622,8 @@ class ProfilePage {
             })
             .join('');
         
-        if (!badgeChips) return '';
-        
-        return `<div class="profile-badges-row">${badgeChips}</div>`;
+        // If no known badges after filtering, return empty string
+        return badgeChips ? `<div class="profile-badges-row">${badgeChips}</div>` : '';
     }
     
     /**
