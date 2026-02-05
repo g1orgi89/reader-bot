@@ -102,6 +102,29 @@ pm2 stop reader-bot
 - MongoDB integration with indexing
 - Rate limiting & security middleware
 - GPT integration (implemented); Anthropic (Claude) optional
+- **Audio System** with access control and entitlements
+- **Gamification System** with badges and progress tracking
+
+**Audio Features:**
+- Free audio content (e.g., "Маленький принц", "Ешь, молись, люби")
+- Gated premium audio (e.g., "Алиса в стране чудес" via badge)
+- Entitlement-based access control
+- 30-day time-limited access grants
+- Progress tracking per audio/track
+- Container support for multi-track audios
+
+**Gamification & Badges:**
+- **Alice Badge** ("Алиса в стране чудес") - IMPLEMENTED
+  - Requirement: 10 photos in "книжный кадр" rubric
+  - Requirement: 5 follows (subscriptions)
+  - Requirement: 10 likes given to others' quotes
+  - Requirement: 30-day continuous activity streak
+  - Reward: 30-day access to "Alice in Wonderland" audio analysis
+  - Badge appears in user profiles and next to usernames
+- Progress tracking API: `GET /api/reader/gamification/progress/alice`
+- Claim API: `POST /api/reader/gamification/alice/claim`
+- Idempotent claiming (can't double-claim)
+- Badges shown in profile responses
 
 **User Interface:**
 - Profile & Settings pages
@@ -111,9 +134,11 @@ pm2 stop reader-bot
 #### 🔄 Partially Implemented / Planned
 
 **Achievements & Gamification:**
+- ✅ Backend implemented (Alice badge)
 - UI and design exist
-- Badge system for milestones planned
-- Integration with API pending
+- Frontend integration with badge API pending
+- Badge rendering in UI pending
+- Additional badges planned
 
 **Admin Panel:**
 - Pages and CSS exist from previous codebase

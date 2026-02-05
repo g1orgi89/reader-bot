@@ -50,37 +50,96 @@ curl http://localhost:3002/api/audio/free
 
 ### 2. Get Audio Metadata
 
-Get metadata for a specific audio, including unlock status.
+Get metadata for a specific audio, including unlock status and remaining days for gated content.
 
 **Endpoint:** `GET /api/audio/:id`
 
 **Parameters:**
-- `id` (path) - Audio identifier (e.g., "free-1", "premium-1")
+- `id` (path) - Audio identifier (e.g., "malenkii_princ", "alice_wonderland")
 - `userId` (query, optional) - User ID to check unlock status
 
 **Response:**
 
+For free audio:
 ```json
 {
   "success": true,
   "audio": {
-    "id": "free-1",
-    "title": "Введение в психологию чтения",
-    "author": "Анна Бусел",
-    "description": "Вводный аудиоразбор о психологии чтения и работе с книгами",
-    "durationSec": 1800,
-    "coverUrl": "/assets/audio/free-1-cover.jpg",
-    "audioUrl": "/media/free/intro-psychology-reading.mp3",
+    "id": "malenkii_princ",
+    "title": "Разбор: «Маленький принц»",
+    "author": "Антуан де Сент-Экзюпери",
+    "description": "Этот разбор прослушало более 35.000 человек!",
+    "coverUrl": "/assets/book-covers/malenkii_princ.png",
+    "playerCoverUrl": "/assets/audio-covers/malenkii_princ-player.png",
     "isFree": true,
     "unlocked": true
-  }
+  },
+  "tracks": [
+    {
+      "id": "malenkii_princ-01",
+      "title": "Часть 1",
+      "file": "malenkii_princ/01.mp3"
+    }
+  ]
 }
 ```
+
+For gated audio (with user access):
+```json
+{
+  "success": true,
+  "audio": {
+    "id": "alice_wonderland",
+    "title": "Разбор: «Алиса в стране чудес»",
+    "author": "Льюис Кэрролл",
+    "description": "Философский анализ классической сказки о поиске себя и познании мира",
+    "coverUrl": "/assets/book-covers/alice_wonderland.png",
+    "playerCoverUrl": "/assets/audio-covers/alice_wonderland-player.png",
+    "isFree": false,
+    "requiresEntitlement": true,
+    "unlocked": true,
+    "remainingDays": 25
+  },
+  "tracks": [
+    {
+      "id": "alice_wonderland-01",
+      "title": "Часть 1",
+      "file": "alice_wonderland/01.mp3"
+    }
+  ]
+}
+```
+
+For gated audio (without access):
+```json
+{
+  "success": true,
+  "audio": {
+    "id": "alice_wonderland",
+    "title": "Разбор: «Алиса в стране чудес»",
+    "author": "Льюис Кэрролл",
+    "description": "Философский анализ классической сказки о поиске себя и познании мира",
+    "coverUrl": "/assets/book-covers/alice_wonderland.png",
+    "playerCoverUrl": "/assets/audio-covers/alice_wonderland-player.png",
+    "isFree": false,
+    "requiresEntitlement": true,
+    "unlocked": false
+  },
+  "tracks": [...]
+}
+```
+
+**New Fields:**
+- `unlocked` (boolean) - Whether the user has access to this audio
+- `remainingDays` (number, optional) - Days remaining on entitlement (only for gated content with access)
+  - Positive number: Days remaining until expiration
+  - `-1`: Never expires (permanent access)
+  - Not present: Not a gated audio or no access
 
 **Example:**
 
 ```bash
-curl "http://localhost:3002/api/audio/free-1?userId=USER_ID"
+curl "http://localhost:3002/api/audio/alice_wonderland?userId=USER_ID"
 ```
 
 **Error Responses:**
@@ -424,3 +483,121 @@ audio.play();
 3. **Analytics**: Track listening time, completion rates, etc.
 4. **Offline Support**: Generate temporary download tokens
 5. **Quality Levels**: Support multiple quality levels (128kbps, 256kbps, etc.)
+
+---
+
+## Gamification & Badges
+
+### Alice Badge ("Алиса в стране чудес")
+
+The Alice badge is a gamification feature that grants 30-day access to the "Alice in Wonderland" audio analysis upon completion of specific requirements.
+
+#### Requirements
+
+Users must complete all of the following:
+
+1. **10 photos** in the "книжный кадр" (book frame) rubric
+2. **5 follows** (subscriptions to other users)
+3. **10 likes** given to quotes authored by other users
+4. **30-day continuous streak** - at least one activity per day for 30 consecutive days
+   - Activity types: photo posted, quote saved, like given, follow
+
+#### Get Progress
+
+**Endpoint:** `GET /api/reader/gamification/progress/alice`
+
+**Authentication:** Required (telegramAuth)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "progress": {
+    "photos": { "current": 8, "required": 10 },
+    "following": { "current": 5, "required": 5 },
+    "likesGivenToOthers": { "current": 12, "required": 10 },
+    "streak": { "current": 25, "required": 30 },
+    "completed": false,
+    "percent": 83
+  }
+}
+```
+
+**Example:**
+
+```bash
+curl "http://localhost:3002/api/reader/gamification/progress/alice" \
+  -H "Authorization: tma TELEGRAM_INIT_DATA"
+```
+
+#### Claim Badge
+
+**Endpoint:** `POST /api/reader/gamification/alice/claim`
+
+**Authentication:** Required (telegramAuth)
+
+**Response:**
+
+Success (first time):
+```json
+{
+  "success": true,
+  "message": "Badge claimed successfully",
+  "expiresAt": "2026-03-07T18:00:00.000Z"
+}
+```
+
+Success (already claimed):
+```json
+{
+  "success": true,
+  "message": "Badge already claimed",
+  "alreadyClaimed": true
+}
+```
+
+Failure (requirements not met):
+```json
+{
+  "success": false,
+  "error": "Requirements not met",
+  "progress": { ... }
+}
+```
+
+**Example:**
+
+```bash
+curl -X POST "http://localhost:3002/api/reader/gamification/alice/claim" \
+  -H "Authorization: tma TELEGRAM_INIT_DATA"
+```
+
+#### Access to Alice Audio
+
+After claiming the badge:
+- User receives a 30-day entitlement to `alice_wonderland` audio
+- The entitlement is tracked in the UserEntitlement collection
+- Progress is idempotent - claiming multiple times doesn't extend or duplicate the entitlement
+- Audio metadata endpoint will show `unlocked: true` and `remainingDays: N`
+
+#### Profile Badges
+
+User profiles include a `badges` array that contains claimed badge identifiers:
+
+**Endpoint:** `GET /api/reader/profile` or `GET /api/reader/users/:id`
+
+**Response includes:**
+```json
+{
+  "success": true,
+  "user": {
+    "userId": "123456",
+    "name": "Test User",
+    ...
+    "badges": ["alice_badge"]
+  }
+}
+```
+
+The frontend can use this array to render badge icons under avatars and next to usernames.

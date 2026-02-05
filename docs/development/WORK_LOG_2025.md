@@ -3346,3 +3346,247 @@ const coverUpload = multer({
 ---
 
 <!-- Следующие записи добавляются ниже -->
+
+## 2026-02-05: Alice Gamification Badge Implementation (Backend)
+
+### Задача
+
+Реализовать backend поддержку для бейджа "Алиса в стране чудес" с gated audio доступом.
+
+### Контекст
+
+Gamification система для повышения вовлечённости пользователей через достижения (badges). Первый бейдж — "Алиса в стране чудес" — даёт 30-дневный доступ к premium аудиоразбору при выполнении 4 требований.
+
+### Реализация
+
+#### 1. Badges Service (`server/services/gamification/badgesService.js`)
+
+**Функции прогресса:**
+- `countBookFramePhotos(userId)` — подсчёт фото в рубрике "книжный кадр"
+  - TODO: добавить поле rubric в PhotoPost
+  - Временно: все published photos
+- `countFollows(userId)` — подсчёт подписок (Follow.countFollowing)
+- `countLikesGivenToOthers(userId)` — лайки чужих цитат
+  - Сопоставляет Favorite с Quote по normalizedKey
+  - Фильтрует по quote.userId != текущий пользователь
+- `calculateStreak(userId)` — серия дней с активностью
+  - Активность: PhotoPost, Quote, Favorite, Follow
+  - Подсчёт от сегодня назад до первого пропуска
+
+**Основные методы:**
+- `getAliceProgress(userId)` — возвращает прогресс по 4 требованиям
+  - photos: { current, required: 10 }
+  - following: { current, required: 5 }
+  - likesGivenToOthers: { current, required: 10 }
+  - streak: { current, required: 30 }
+  - completed: boolean
+  - percent: 0-100
+
+- `claimAlice(userId)` — claim бейджа и выдача доступа
+  - Проверка completed
+  - Создание entitlement через entitlementService.grantAudio
+  - resourceId: 'alice_wonderland'
+  - expiresAt: +30 дней
+  - metadata: { badge: 'alice', progress }
+  - Idempotent (повторный claim не дублирует)
+
+#### 2. Entitlement Service Extension
+
+**Новый метод:**
+- `getRemainingDays(userId, audioId)` — оставшиеся дни до истечения
+  - Возвращает Math.ceil((expiresAt - now) / 86400000)
+  - -1 для permanent entitlements
+  - null для несуществующих или expired
+
+#### 3. Audio Service Updates
+
+**alice_wonderland metadata:**
+```javascript
+{
+  id: 'alice_wonderland',
+  title: 'Разбор: «Алиса в стране чудес»',
+  author: 'Льюис Кэрролл',
+  description: 'Философский анализ классической сказки...',
+  isFree: false,
+  requiresEntitlement: true,
+  tracks: [...]
+}
+```
+
+**isUnlocked() обновление:**
+- Различает free vs premium content по isFree flag
+- Для треков проверяет parent container entitlement
+- Для alice_wonderland tracks проверяет alice_wonderland entitlement
+
+#### 4. Reader API Routes
+
+**Новые endpoints:**
+
+```javascript
+// Прогресс
+GET /api/reader/gamification/progress/alice
+// Ответ: { success, progress: { photos, following, ... } }
+
+// Claim
+POST /api/reader/gamification/alice/claim
+// Ответ: { success, message, expiresAt } или { success: false, error }
+```
+
+**Обновлённые endpoints:**
+
+```javascript
+// Профиль
+GET /api/reader/profile
+GET /api/reader/users/:id
+// Новое поле: badges: ['alice_badge']
+
+// Audio metadata
+GET /api/audio/:id
+// Новые поля для gated content:
+// - unlocked: boolean
+// - remainingDays: number (если unlocked)
+```
+
+**Helper функция:**
+- `getUserBadges(userId)` — возвращает массив badge IDs
+  - Проверяет UserEntitlement для alice_wonderland
+  - Возвращает ['alice_badge'] если валидный
+
+#### 5. Audio API Updates
+
+**GET /api/audio/:id:**
+- Добавлено: resolveUserObjectId
+- Добавлено: remainingDays для gated content
+- Условие: только для requiresEntitlement === true && unlocked === true
+
+**GET /api/audio/:id/stream-url:**
+- Уже корректно возвращает 403 через audioService.getStreamUrl
+- Проверка access через isUnlocked
+
+#### 6. Tests
+
+**Integration test** (`tests/integration/alice_gamification.test.js`):
+- Progress calculation для каждого требования
+- Streak calculation
+- Badge claiming успешный и failed сценарии
+- Idempotency проверка
+- Entitlement integration
+
+**Unit test** (`tests/unit/entitlement.test.js`):
+- grantAudio с/без expiration
+- hasAudioAccess для valid/expired/nonexistent
+- getRemainingDays edge cases (permanent, expired, partial days)
+- revokeAudio
+- getUserAudioEntitlements filtering
+
+**Примечание:** тесты не запускаются в CI из-за network restrictions (mongodb-memory-server download blocked)
+
+#### 7. Documentation
+
+**docs/audio/API.md:**
+- Обновлён GET /api/audio/:id с remainingDays примерами
+- Добавлена секция "Gamification & Badges"
+- Документированы endpoints /gamification/progress/alice и /gamification/alice/claim
+- Примеры ответов для всех сценариев
+
+**docs/PROJECT_KNOWLEDGE.md:**
+- Добавлен раздел "Audio Features"
+- Добавлен раздел "Gamification & Badges"
+- Описание Alice badge requirements и workflow
+
+### Изменённые/Созданные файлы
+
+**Новые:**
+1. `server/services/gamification/badgesService.js` — логика прогресса и claiming
+2. `tests/integration/alice_gamification.test.js` — интеграционные тесты
+3. `tests/unit/entitlement.test.js` — unit тесты
+
+**Изменённые:**
+1. `server/services/access/entitlementService.js` — добавлен getRemainingDays()
+2. `server/services/audio/audioService.js` — обновлён isUnlocked() и metadata
+3. `server/api/reader.js` — gamification routes + badges в profile
+4. `server/api/audio.js` — remainingDays в GET /:id
+5. `docs/audio/API.md` — документация endpoints
+6. `docs/PROJECT_KNOWLEDGE.md` — обновление feature list
+7. `docs/development/WORK_LOG_2025.md` — эта запись
+
+### Технические детали
+
+**Подход к прогрессу:**
+- Aggregation-based (не event-sourcing) для MVP
+- Прямые запросы к коллекциям (PhotoPost, Follow, Favorite, Quote)
+- TODO placeholders для будущих оптимизаций (counters)
+
+**Data source TODOs:**
+- PhotoPost.rubric field — нужно добавить для фильтра "книжный кадр"
+- Quote.authorUserId mapping — для точного подсчёта likes to others
+
+**Entitlement pattern:**
+- kind: 'audio'
+- resourceId: 'alice_wonderland'
+- expiresAt: Date (30 дней)
+- metadata.badge: 'alice'
+
+**Badges в профиле:**
+- Проверка через UserEntitlement
+- Возврат ['alice_badge'] массивом
+- Frontend может отображать иконки
+
+### Тестирование на dev.unibotz.com:3003
+
+**1. Progress API:**
+- [ ] GET /api/reader/gamification/progress/alice
+- [ ] Проверить корректность счётчиков на тестовых данных
+- [ ] Проверить percent calculation
+
+**2. Claim API (negative):**
+- [ ] POST /api/reader/gamification/alice/claim без completion
+- [ ] Должен вернуть success: false, error: 'Requirements not met'
+
+**3. Claim API (positive):**
+- [ ] Создать тестового пользователя с выполненными требованиями
+- [ ] POST /api/reader/gamification/alice/claim
+- [ ] Должен вернуть success: true, expiresAt
+- [ ] Проверить создание entitlement в БД
+
+**4. Audio gating:**
+- [ ] GET /api/audio/alice_wonderland без entitlement → unlocked: false
+- [ ] GET /api/audio/alice_wonderland с entitlement → unlocked: true, remainingDays: N
+- [ ] GET /api/audio/alice_wonderland/stream-url без entitlement → 403
+- [ ] GET /api/audio/alice_wonderland/stream-url с entitlement → URL
+
+**5. Profile badges:**
+- [ ] GET /api/reader/profile без бейджа → badges: []
+- [ ] GET /api/reader/profile с Alice бейджем → badges: ['alice_badge']
+- [ ] GET /api/reader/users/:id с бейджем → badges: ['alice_badge']
+
+**6. Idempotency:**
+- [ ] Повторный claim после успешного → success: true, alreadyClaimed: true
+- [ ] Только 1 entitlement в БД
+
+### Следующие шаги
+
+**Backend (future PRs):**
+1. Добавить rubric field в PhotoPost model
+2. Добавить authorUserId mapping в Quote или Favorite
+3. Оптимизировать через counters вместо aggregation
+4. Event-sourcing для activity tracking
+5. Дополнительные бейджи
+
+**Frontend (PR-2+):**
+1. Achievements страница с прогресс-барами
+2. Badge icons под аватарами
+3. Badge display в ProfileModal
+4. Claim button и UI flow
+5. Notification при получении бейджа
+
+**DevOps:**
+1. Добавить alice_wonderland audio файлы в /media
+2. Настроить nginx для /media/alice_wonderland
+3. Добавить covers для alice_wonderland
+
+Часы: 3.5
+
+---
+
+<!-- Следующие записи добавляются ниже -->
