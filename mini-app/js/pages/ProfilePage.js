@@ -14,6 +14,12 @@
  * @version 1.0.0
  */
 
+// 🏅 BADGE MAPPING: Badge ID to asset path
+const BADGE_ICON_MAP = {
+    alice_badge: '/assets/badges/alice.png',
+    // Future badges can be added here
+};
+
 class ProfilePage {
     constructor(app) {
         this.app = app;
@@ -622,12 +628,13 @@ class ProfilePage {
                         ` : ''}
                         <div class="profile-avatar-fallback">${initials}</div>
                     </div>
+                    ${this.renderBadgeIcons(profile.badges)}
                 </div>
                 
                 <div class="profile-right">
                     <div class="user-heading-row">
                         <div class="user-name">${name}</div>
-                        ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
+                        ${formattedUsername ? `<div class="user-username">${formattedUsername}${this.renderInlineBadges(profile.badges)}</div>` : ''}
                     </div>
                     
                     ${status ? `
@@ -1137,7 +1144,7 @@ class ProfilePage {
                 </div>
                 <div class="user-info">
                     <div class="user-name">${name}</div>
-                    ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
+                    ${formattedUsername ? `<div class="user-username">${formattedUsername}${this.renderInlineBadges(user.badges)}</div>` : ''}
                     ${bio ? `<div class="user-bio">${bio}</div>` : ''}
                 </div>
             </div>
@@ -1587,6 +1594,65 @@ class ProfilePage {
         if (words.length === 0) return '?';
         if (words.length === 1) return (words[0][0] || '?').toUpperCase();
         return `${(words[0][0] || '').toUpperCase()}${(words[1][0] || '').toUpperCase()}`;
+    }
+    
+    /**
+     * 🏅 Render badge icons (chip row under avatar - 32px)
+     * @param {Array<string>} badges - Array of badge IDs
+     * @returns {string} HTML string of badge chips
+     */
+    renderBadgeIcons(badges) {
+        if (!badges || !Array.isArray(badges) || badges.length === 0) {
+            return '';
+        }
+        
+        const badgeChips = badges
+            .filter(badgeId => BADGE_ICON_MAP[badgeId]) // Only render known badges
+            .map(badgeId => {
+                const iconPath = BADGE_ICON_MAP[badgeId];
+                const altText = badgeId === 'alice_badge' 
+                    ? 'Бейдж «Алиса в стране чудес»'
+                    : `Бейдж ${badgeId}`;
+                
+                return `
+                    <span class="badge-chip">
+                        <img src="${iconPath}" alt="${altText}" loading="lazy" />
+                    </span>
+                `;
+            })
+            .join('');
+        
+        if (!badgeChips) return '';
+        
+        return `<div class="profile-badges-row">${badgeChips}</div>`;
+    }
+    
+    /**
+     * ⭐ Render inline badge (single icon next to username - 18px)
+     * @param {Array<string>} badges - Array of badge IDs (uses first badge only)
+     * @returns {string} HTML string of inline badge icon
+     */
+    renderInlineBadges(badges) {
+        if (!badges || !Array.isArray(badges) || badges.length === 0) {
+            return '';
+        }
+        
+        // Use the first badge only for inline display
+        const firstBadge = badges[0];
+        if (!BADGE_ICON_MAP[firstBadge]) {
+            return '';
+        }
+        
+        const iconPath = BADGE_ICON_MAP[firstBadge];
+        const altText = firstBadge === 'alice_badge' 
+            ? 'Бейдж «Алиса в стране чудес»'
+            : `Бейдж ${firstBadge}`;
+        
+        return `
+            <span class="badge-inline">
+                <img src="${iconPath}" alt="${altText}" loading="lazy" />
+            </span>
+        `;
     }
     
     

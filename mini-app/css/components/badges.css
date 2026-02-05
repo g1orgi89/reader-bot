@@ -1,0 +1,96 @@
+/**
+ * 🏅 BADGES COMPONENT - badges.css
+ * 
+ * Badge icons for user gamification
+ * Used in ProfilePage, ProfileModal, and CommunityPage
+ * 
+ * Features:
+ * - Badge chips (32px) under avatar
+ * - Inline badges (18px) next to usernames
+ * - Supports iOS safe area
+ * - Touch-friendly where applicable
+ * 
+ * @version 1.0.0
+ */
+
+/* ============================================================================
+   🏅 PROFILE BADGES ROW (under avatar)
+   ============================================================================ */
+
+.profile-badges-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+/* ============================================================================
+   🎖️ BADGE CHIP (32px square)
+   ============================================================================ */
+
+.badge-chip {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.badge-chip img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ============================================================================
+   ⭐ INLINE BADGE (18px next to username)
+   ============================================================================ */
+
+.badge-inline {
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: var(--spacing-xs);
+}
+
+.badge-inline img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ============================================================================
+   📱 MOBILE OPTIMIZATIONS
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .profile-badges-row {
+        gap: var(--spacing-xs);
+    }
+}
+
+/* ============================================================================
+   🔍 ACCESSIBILITY
+   ============================================================================ */
+
+.badge-chip img,
+.badge-inline img {
+    /* Ensure images have proper alt text in HTML */
+    font-size: 0; /* Hide broken image text */
+}
+
+/* Loading state for lazy-loaded badges */
+.badge-chip img[loading="lazy"],
+.badge-inline img[loading="lazy"] {
+    background: var(--bg-secondary);
+}

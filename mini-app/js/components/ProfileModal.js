@@ -14,6 +14,12 @@
  * @version 1.0.0
  */
 
+// 🏅 BADGE MAPPING: Badge ID to asset path
+const BADGE_ICON_MAP_MODAL = {
+    alice_badge: '/assets/badges/alice.png',
+    // Future badges can be added here
+};
+
 class ProfileModal {
     constructor(app) {
         this.app = app;
@@ -432,7 +438,7 @@ class ProfileModal {
                     <div class="profile-modal-right">
                         <div class="profile-modal-heading-row">
                             <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
-                            ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                            ${username ? `<p class="profile-modal-username">${username}${this.renderInlineBadges(profile.badges)}</p>` : ''}
                         </div>
                         
                         ${status ? `
@@ -759,6 +765,34 @@ class ProfileModal {
         if (words.length === 0) return '?';
         if (words.length === 1) return (words[0][0] || '?').toUpperCase();
         return `${(words[0][0] || '').toUpperCase()}${(words[1][0] || '').toUpperCase()}`;
+    }
+    
+    /**
+     * ⭐ Render inline badge (single icon next to username - 18px)
+     * @param {Array<string>} badges - Array of badge IDs (uses first badge only)
+     * @returns {string} HTML string of inline badge icon
+     */
+    renderInlineBadges(badges) {
+        if (!badges || !Array.isArray(badges) || badges.length === 0) {
+            return '';
+        }
+        
+        // Use the first badge only for inline display
+        const firstBadge = badges[0];
+        if (!BADGE_ICON_MAP_MODAL[firstBadge]) {
+            return '';
+        }
+        
+        const iconPath = BADGE_ICON_MAP_MODAL[firstBadge];
+        const altText = firstBadge === 'alice_badge' 
+            ? 'Бейдж «Алиса в стране чудес»'
+            : `Бейдж ${firstBadge}`;
+        
+        return `
+            <span class="badge-inline">
+                <img src="${iconPath}" alt="${altText}" loading="lazy" />
+            </span>
+        `;
     }
     
     /**

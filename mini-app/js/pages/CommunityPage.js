@@ -29,6 +29,12 @@ const WARMUP_STATS_DELAY_MS = 2000;
 // ✅ FIX C: Spotlight build cooldown to prevent double/triple rebuilds on initial page entry
 const SPOTLIGHT_BUILD_COOLDOWN_MS = 400;
 
+// 🏅 BADGE MAPPING: Badge ID to asset path
+const BADGE_ICON_MAP_COMMUNITY = {
+    alice_badge: '/assets/badges/alice.png',
+    // Future badges can be added here
+};
+
 class CommunityPage {
     constructor(app) {
         this.app = app;
@@ -2562,6 +2568,34 @@ async refreshSpotlight() {
     }
     
     /**
+     * ⭐ Render inline badge (single icon next to username - 18px)
+     * @param {Array<string>} badges - Array of badge IDs (uses first badge only)
+     * @returns {string} HTML string of inline badge icon
+     */
+    renderInlineBadges(badges) {
+        if (!badges || !Array.isArray(badges) || badges.length === 0) {
+            return '';
+        }
+        
+        // Use the first badge only for inline display
+        const firstBadge = badges[0];
+        if (!BADGE_ICON_MAP_COMMUNITY[firstBadge]) {
+            return '';
+        }
+        
+        const iconPath = BADGE_ICON_MAP_COMMUNITY[firstBadge];
+        const altText = firstBadge === 'alice_badge' 
+            ? 'Бейдж «Алиса в стране чудес»'
+            : `Бейдж ${firstBadge}`;
+        
+        return `
+            <span class="badge-inline">
+                <img src="${iconPath}" alt="${altText}" loading="lazy" />
+            </span>
+        `;
+    }
+    
+    /**
      * 📝 Get display name row with username (Name · @username)
      * @param {Object} user - User object with name and telegramUsername
      * @returns {string} Formatted display name
@@ -2570,8 +2604,9 @@ async refreshSpotlight() {
         if (!user) return 'Пользователь';
         const name = user.name || 'Пользователь';
         const username = user.telegramUsername;
+        const badgeHtml = this.renderInlineBadges(user.badges);
         if (username) {
-            return `${this.escapeHtml(name)} · @${this.escapeHtml(username)}`;
+            return `${this.escapeHtml(name)} · @${this.escapeHtml(username)}${badgeHtml}`;
         }
         return this.escapeHtml(name);
     }
