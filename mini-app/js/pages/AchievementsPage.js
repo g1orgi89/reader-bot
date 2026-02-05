@@ -23,6 +23,10 @@ class AchievementsPage {
         this.achievements = [];
         this.progress = {};
         
+        // Alice badge state
+        this.aliceProgress = null;
+        this.aliceLoading = false;
+        
         // Подписки на изменения состояния
         this.subscriptions = [];
         
@@ -107,6 +111,7 @@ class AchievementsPage {
         return `
             <div class="content">
                 ${this.renderHeader()}
+                ${this.renderAliceBadgeSection()}
                 ${this.renderProgressSection()}
                 ${this.renderAchievementsList()}
                 ${this.renderError()}
@@ -125,6 +130,94 @@ class AchievementsPage {
             <div class="page-header">
                 <h1>🏆 Достижения</h1>
                 <p>Ваши награды и прогресс (${unlockedCount}/${totalCount})</p>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🎖️ Рендер секции Alice Badge
+     */
+    renderAliceBadgeSection() {
+        if (this.aliceLoading) {
+            return `
+                <div class="alice-badge-section">
+                    <h3>📖 Бейдж «Алиса в стране чудес»</h3>
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка прогресса...</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (!this.aliceProgress) {
+            return '';
+        }
+        
+        const { 
+            bookPhotos = { current: 0, required: 10 },
+            friendSubscriptions = { current: 0, required: 5 },
+            quoteLikes = { current: 0, required: 10 },
+            streakDays = { current: 0, required: 30 },
+            completed = false
+        } = this.aliceProgress;
+        
+        const progressItems = [
+            {
+                label: '10 фото в рубрику «книжный кадр»',
+                current: bookPhotos.current,
+                required: bookPhotos.required,
+                remaining: Math.max(0, bookPhotos.required - bookPhotos.current)
+            },
+            {
+                label: '5 подписок на книжных друзей',
+                current: friendSubscriptions.current,
+                required: friendSubscriptions.required,
+                remaining: Math.max(0, friendSubscriptions.required - friendSubscriptions.current)
+            },
+            {
+                label: '10 лайков цитат от других',
+                current: quoteLikes.current,
+                required: quoteLikes.required,
+                remaining: Math.max(0, quoteLikes.required - quoteLikes.current)
+            },
+            {
+                label: 'непрерывная серия 30 дней',
+                current: streakDays.current,
+                required: streakDays.required,
+                remaining: Math.max(0, streakDays.required - streakDays.current)
+            }
+        ];
+        
+        return `
+            <div class="alice-badge-section">
+                <h3>📖 Бейдж «Алиса в стране чудес»</h3>
+                <p class="alice-badge-description">Выполните все условия для получения доступа к аудиоразбору</p>
+                
+                <div class="alice-progress-list">
+                    ${progressItems.map(item => `
+                        <div class="alice-progress-item">
+                            <div class="alice-progress-header">
+                                <span class="alice-progress-label">${item.label}</span>
+                                <span class="alice-progress-counter">${item.current}/${item.required}</span>
+                            </div>
+                            <div class="alice-progress-bar">
+                                <div class="alice-progress-fill" style="width: ${Math.min(100, (item.current / item.required) * 100)}%"></div>
+                            </div>
+                            <div class="alice-progress-remaining">
+                                ${item.remaining > 0 ? `Осталось: ${item.remaining}` : '✓ Выполнено'}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <button 
+                    class="alice-claim-button" 
+                    id="aliceClaimButton"
+                    ${!completed ? 'disabled' : ''}
+                >
+                    ${completed ? 'Получить доступ к разбору «Алиса»' : 'Выполните все условия'}
+                </button>
             </div>
         `;
     }
@@ -224,6 +317,101 @@ class AchievementsPage {
     }
     
     /**
+     * 📊 Загрузка прогресса Alice Badge
+     */
+    async loadAliceProgress() {
+        if (this.aliceLoading) return;
+        
+        try {
+            this.aliceLoading = true;
+            
+            // Fetch Alice progress from backend
+            const response = await fetch('/api/reader/gamification/progress/alice', {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.aliceProgress = data;
+            
+        } catch (error) {
+            console.warn('⚠️ Failed to load Alice progress:', error);
+            // Set fallback data
+            this.aliceProgress = {
+                bookPhotos: { current: 0, required: 10 },
+                friendSubscriptions: { current: 0, required: 5 },
+                quoteLikes: { current: 0, required: 10 },
+                streakDays: { current: 0, required: 30 },
+                completed: false
+            };
+        } finally {
+            this.aliceLoading = false;
+        }
+    }
+    
+    /**
+     * 🎖️ Обработчик клика по кнопке получения Alice Badge
+     */
+    async handleAliceClaimClick() {
+        if (!this.aliceProgress?.completed) {
+            return;
+        }
+        
+        try {
+            // Haptic feedback
+            if (this.telegram?.hapticFeedback) {
+                this.telegram.hapticFeedback('medium');
+            }
+            
+            // POST request to claim badge
+            const response = await fetch('/api/reader/gamification/alice/claim', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Show success alert
+                const message = 'Бейдж «Алиса» получен! Доступ открыт на 30 дней.';
+                if (this.telegram?.showAlert) {
+                    this.telegram.showAlert(message);
+                } else {
+                    alert(message);
+                }
+                
+                // Navigate to free audios page
+                setTimeout(() => {
+                    if (this.app?.router) {
+                        this.app.router.navigate('/free-audios');
+                    } else {
+                        window.location.hash = '#/free-audios';
+                    }
+                }, 500);
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to claim Alice badge:', error);
+            const errorMsg = 'Ошибка при получении бейджа. Попробуйте позже.';
+            if (this.telegram?.showAlert) {
+                this.telegram.showAlert(errorMsg);
+            } else {
+                alert(errorMsg);
+            }
+        }
+    }
+    
+    /**
      * 📱 Навешивание обработчиков событий
      */
     attachEventListeners() {
@@ -235,6 +423,14 @@ class AchievementsPage {
                 this.handleAchievementClick(achievementId);
             });
         });
+        
+        // Alice claim button handler
+        const aliceClaimButton = document.getElementById('aliceClaimButton');
+        if (aliceClaimButton) {
+            aliceClaimButton.addEventListener('click', () => {
+                this.handleAliceClaimClick();
+            });
+        }
     }
     
     /**
@@ -382,11 +578,21 @@ ${achievement.hint ? `💡 Подсказка: ${achievement.hint}` : ''}
     /**
      * Вызывается при показе страницы
      */
-    onShow() {
+    async onShow() {
         console.log('🏆 AchievementsPage: onShow');
         // Refresh data if needed
         if (this.achievements.length === 0) {
-            this.loadAchievementsData();
+            await this.loadAchievementsData();
+        }
+        
+        // Load Alice progress
+        await this.loadAliceProgress();
+        
+        // Re-render the page content
+        const container = document.getElementById('page-content');
+        if (container) {
+            container.innerHTML = this.render();
+            this.attachEventListeners();
         }
     }
     

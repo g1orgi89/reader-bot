@@ -2018,6 +2018,28 @@ class ApiService {
         console.log(`📸 ApiService: Deleting comment ${commentId} from post ${postId}...`);
         return this.request('DELETE', `/covers/${postId}/comments/${commentId}`);
     }
+    
+    // ============================================================================
+    // === GAMIFICATION / ALICE BADGE METHODS ===
+    // ============================================================================
+    
+    /**
+     * Get Alice badge progress
+     * @returns {Promise<Object>} Progress data for Alice badge
+     */
+    async getAliceProgress() {
+        console.log('🎖️ ApiService: Getting Alice badge progress...');
+        return this.request('GET', '/gamification/progress/alice');
+    }
+    
+    /**
+     * Claim Alice badge
+     * @returns {Promise<Object>} Result of claim operation
+     */
+    async claimAlice() {
+        console.log('🎖️ ApiService: Claiming Alice badge...');
+        return this.request('POST', '/gamification/alice/claim');
+    }
 }
 
 // 🌍 Глобальный экспорт (только если window доступен)

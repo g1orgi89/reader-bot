@@ -28,6 +28,136 @@
   color: var(--text-secondary);
 }
 
+/* ==========================================
+   ALICE AUDIO CARD (SPECIAL PROMO CARD)
+   ========================================== */
+
+.alice-audio-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.alice-audio-card.locked {
+  border: 2px solid var(--primary-color);
+}
+
+.alice-audio-card.unlocked {
+  border: 2px solid var(--success-color);
+}
+
+.audio-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.audio-cover-wrapper {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+}
+
+.audio-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.audio-locked-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lock-icon {
+  font-size: 48px;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.audio-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.audio-card-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.audio-card-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+.alice-audio-card.unlocked .audio-card-subtitle {
+  color: var(--success-color);
+}
+
+.audio-card-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.audio-cta-button,
+.audio-play-button {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: var(--spacing-sm);
+}
+
+.audio-cta-button {
+  background: var(--primary-color);
+  color: white;
+}
+
+.audio-cta-button:hover {
+  background: var(--primary-dark);
+}
+
+.audio-cta-button:active {
+  transform: scale(0.98);
+}
+
+.audio-play-button {
+  background: var(--success-color);
+  color: white;
+}
+
+.audio-play-button:hover {
+  background: var(--success-light);
+}
+
+.audio-play-button:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================
+   REGULAR AUDIO CARDS LIST
+   ========================================== */
+
 /* Audio Cards List */
 .audios-list {
   display: flex;

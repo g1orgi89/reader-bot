@@ -264,12 +264,12 @@ const MENU_ITEMS = [
         page: PAGES.PROFILE
     },
     {
-        //id: 'achievements',
-        //title: 'Мои достижения', 
-        //icon: 'award',
-        //page: PAGES.ACHIEVEMENTS
-    //},
-    //{
+        id: 'achievements',
+        title: 'Мои достижения', 
+        icon: 'award',
+        page: PAGES.ACHIEVEMENTS
+    },
+    {
         id: 'settings',
         title: 'Настройки',
         icon: 'settings',

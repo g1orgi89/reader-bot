@@ -1,0 +1,4 @@
+# This is a placeholder for alice.png
+# The actual image should be added by the design team
+# Recommended size: 800x450 (16:9 aspect ratio)
+# Subject: "Алиса в стране чудес" book cover
