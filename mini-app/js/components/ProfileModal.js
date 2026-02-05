@@ -10,9 +10,18 @@
  * - Quick stats (quotes, followers, following)
  * - Follow/Unfollow button
  * - "Open Full Profile" action to navigate to /profile page
+ * - Badge icons for gamification achievements
  * 
  * @version 1.0.0
  */
+
+/**
+ * 🏅 Badge icon map - maps badge IDs to asset paths
+ * @type {Object<string, string>}
+ */
+const BADGE_ICON_MAP_MODAL = {
+    alice_badge: '/assets/badges/alice.png'
+};
 
 class ProfileModal {
     constructor(app) {
@@ -388,7 +397,28 @@ class ProfileModal {
     }
     
     /**
+     * ⭐ Render inline badge icon (18px for username display)
+     * @param {Array<string>} badges - Array of badge IDs
+     * @returns {string} HTML for inline badge icon (first badge only)
+     */
+    renderInlineBadge(badges) {
+        if (!badges || badges.length === 0) return '';
+        
+        // Show only the first badge inline (primary badge)
+        const primaryBadge = badges.find(badgeId => BADGE_ICON_MAP_MODAL[badgeId]);
+        if (!primaryBadge) return '';
+        
+        const iconPath = BADGE_ICON_MAP_MODAL[primaryBadge];
+        const altText = primaryBadge === 'alice_badge' 
+            ? 'Бейдж «Алиса в стране чудес»'
+            : `Бейдж ${primaryBadge}`;
+        
+        return `<img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline" />`;
+    }
+    
+    /**
      * 🎨 Render modal content
+     * UPDATED: Added inline badge support
      */
     render() {
         if (!this.modal || !this.profileData) return;
@@ -408,6 +438,10 @@ class ProfileModal {
         
         const currentUserId = this.state.getCurrentUserId();
         const isOwnProfile = String(currentUserId) === String(this.userId);
+        
+        // Extract badge data for display
+        const userBadges = profile.badges || [];
+        const inlineBadgeMarkup = this.renderInlineBadge(userBadges);
         
         this.modal.innerHTML = `
             <div class="modal-content profile-modal-content">
@@ -432,7 +466,7 @@ class ProfileModal {
                     <div class="profile-modal-right">
                         <div class="profile-modal-heading-row">
                             <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
-                            ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                            ${username ? `<p class="profile-modal-username">${username}${inlineBadgeMarkup}</p>` : ''}
                         </div>
                         
                         ${status ? `
