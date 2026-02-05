@@ -125,25 +125,27 @@ async function countLikesGivenToOthers(userId) {
 /**
  * Calculate activity streak - consecutive days ending today with at least one activity
  * An activity day is one where the user: posted a photo, saved a quote, liked, or followed
+ * Uses UTC for consistent timezone handling
  * @param {string} userId - Telegram user ID
  * @returns {Promise<number>} Number of consecutive days
  */
 async function calculateStreak(userId) {
   try {
+    // Use UTC to avoid timezone issues
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
     
     // We'll check day by day going backwards from today
     let streak = 0;
-    let currentDate = new Date(today);
+    let currentDate = new Date(todayUTC);
     
     // Check up to MAX_STREAK_CHECK_DAYS (reasonable limit to avoid infinite loop)
     for (let i = 0; i < MAX_STREAK_CHECK_DAYS; i++) {
       const dayStart = new Date(currentDate);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0);
       
       const dayEnd = new Date(currentDate);
-      dayEnd.setHours(23, 59, 59, 999);
+      dayEnd.setUTCHours(23, 59, 59, 999);
       
       // Check for any activity on this day
       const hasActivity = await checkActivityOnDay(userId, dayStart, dayEnd);
@@ -151,7 +153,7 @@ async function calculateStreak(userId) {
       if (hasActivity) {
         streak++;
         // Move to previous day
-        currentDate.setDate(currentDate.getDate() - 1);
+        currentDate.setUTCDate(currentDate.getUTCDate() - 1);
       } else {
         // Streak broken
         break;

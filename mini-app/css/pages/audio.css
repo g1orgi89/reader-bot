@@ -89,11 +89,27 @@
   gap: var(--spacing-sm);
 }
 
+.audio-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.audio-badge-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .audio-card-title {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
   margin: 0;
+  flex: 1;
 }
 
 .audio-card-subtitle {

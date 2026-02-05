@@ -209,6 +209,29 @@ describe('Alice Gamification Badge', () => {
       expect(progress.streak.current).toBe(10);
     });
 
+    it('should increment streak when adding a quote today', async () => {
+      const userId = 'test_user_123';
+      
+      await UserProfile.create({ userId, name: 'Test User' });
+      
+      // No prior activity, add a quote today
+      const today = new Date();
+      await Quote.create({
+        userId,
+        text: 'My first quote',
+        author: 'Test Author',
+        normalizedText: 'my first quote',
+        normalizedAuthor: 'test author',
+        normalizedKey: 'my first quote|||test author',
+        createdAt: today
+      });
+      
+      const progress = await badgesService.getAliceProgress(userId);
+      
+      // Should have streak of at least 1 since we added a quote today
+      expect(progress.streak.current).toBeGreaterThanOrEqual(1);
+    });
+
     it('should detect completed requirements', async () => {
       const userId = 'test_user_123';
       const otherUserId = 'other_user';
@@ -287,6 +310,102 @@ describe('Alice Gamification Badge', () => {
       
       expect(result.success).toBe(false);
       expect(result.error).toBe('Requirements not met');
+    });
+
+    it('should handle like added and removed correctly', async () => {
+      const userId = 'test_user_123';
+      const otherUserId = 'other_user_456';
+      
+      await UserProfile.create({ userId, name: 'Test User' });
+      
+      // Create a quote by another user
+      const quote = await Quote.create({
+        userId: otherUserId,
+        text: 'Test quote',
+        author: 'Test Author',
+        normalizedText: 'test quote',
+        normalizedAuthor: 'test author',
+        normalizedKey: 'test quote|||test author'
+      });
+      
+      // Initially no likes
+      let progress = await badgesService.getAliceProgress(userId);
+      expect(progress.likesGivenToOthers.current).toBe(0);
+      
+      // Add like
+      await Favorite.create({
+        userId,
+        text: quote.text,
+        author: quote.author,
+        normalizedKey: quote.normalizedKey
+      });
+      
+      // Check count increased
+      progress = await badgesService.getAliceProgress(userId);
+      expect(progress.likesGivenToOthers.current).toBe(1);
+      
+      // Remove like (simulate unlike by deleting the favorite)
+      await Favorite.deleteOne({
+        userId,
+        normalizedKey: quote.normalizedKey
+      });
+      
+      // Check count decreased
+      progress = await badgesService.getAliceProgress(userId);
+      expect(progress.likesGivenToOthers.current).toBe(0);
+    });
+
+    it('should handle follow and unfollow correctly', async () => {
+      const userId = 'test_user_123';
+      const targetUserId = 'target_user_456';
+      
+      await UserProfile.create({ userId, name: 'Test User' });
+      
+      // Initially no follows
+      let progress = await badgesService.getAliceProgress(userId);
+      expect(progress.following.current).toBe(0);
+      
+      // Add follow
+      await Follow.create({
+        followerId: userId,
+        followingId: targetUserId
+      });
+      
+      // Check count increased
+      progress = await badgesService.getAliceProgress(userId);
+      expect(progress.following.current).toBe(1);
+      
+      // Unfollow (delete the follow)
+      await Follow.deleteOne({
+        followerId: userId,
+        followingId: targetUserId
+      });
+      
+      // Check count decreased
+      progress = await badgesService.getAliceProgress(userId);
+      expect(progress.following.current).toBe(0);
+    });
+
+    it('should handle photo upload correctly', async () => {
+      const userId = 'test_user_123';
+      
+      await UserProfile.create({ userId, name: 'Test User' });
+      
+      // Initially no photos
+      let progress = await badgesService.getAliceProgress(userId);
+      expect(progress.photos.current).toBe(0);
+      
+      // Upload photo
+      await PhotoPost.create({
+        userId,
+        imageUrl: '/test/photo.jpg',
+        dayKey: '2025-01-15',
+        status: 'published'
+      });
+      
+      // Check count increased
+      progress = await badgesService.getAliceProgress(userId);
+      expect(progress.photos.current).toBe(1);
     });
 
     it('should successfully claim badge when requirements met', async () => {

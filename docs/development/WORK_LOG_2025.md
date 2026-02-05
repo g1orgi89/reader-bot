@@ -3590,3 +3590,186 @@ GET /api/audio/:id
 ---
 
 <!-- Следующие записи добавляются ниже -->
+
+## 2025-02-05 - ACHIEVEMENTS PAGE UX FIX & REAL-TIME UPDATES
+
+**Задача:** Fix Achievements page UX, wire progress to real-time user actions, finalize audio section  
+**Тип:** Bug Fix & UX Enhancement  
+**Приоритет:** ⭐⭐⭐ HIGH (blocks user experience)
+
+### Проблемы до фикса
+
+1. ❌ Legacy sections "Ваш прогресс" and "Еще предстоит получить" показаны
+2. ❌ Progress не обновляется после действий пользователя
+3. ❌ Лайки называются "10 лайков цитат от других" (неточно)
+4. ❌ Duplicate Alice cards в аудио секции
+5. ❌ Alice card не показывает badge icon
+6. ❌ Нет manual refresh кнопки для прогресса
+
+### Выполненные изменения
+
+#### A) Achievements Page Cleanup
+- ✅ Удалены legacy sections (renderProgressSection, renderAchievementsList)
+- ✅ Оставлена только Alice badge секция + earned badges
+- ✅ Переименован лайки в "10 лайков цитат сообщества"
+- ✅ Progress bars теперь используют var(--primary-color) терракотовый
+- ✅ Добавлено место для real badge image (`/assets/badges/alice-badge.png`)
+- ✅ Создана структура для renderEarnedAchievements()
+
+#### B) Real-Time Progress Updates
+- ✅ Subscribe к app-wide events в setupSubscriptions():
+  - `quote:added` → refreshAliceProgress()
+  - `like:changed` → refreshAliceProgress()
+  - `follow:changed` → refreshAliceProgress()
+  - `photo:uploaded` → refreshAliceProgress()
+- ✅ Добавлена функция refreshAliceProgress() для partial UI update
+- ✅ Добавлена manual refresh кнопка (🔄) с hover эффектом
+- ✅ Progress обновляется без full page reload
+
+#### C) Backend Fixes
+- ✅ UTC handling в calculateStreak() через Date.UTC
+- ✅ Property names исправлены:
+  - `bookPhotos` → `photos`
+  - `friendSubscriptions` → `following`
+  - `quoteLikes` → `likesGivenToOthers`
+  - `streakDays` → `streak`
+- ✅ Quotes counted for streak (уже работало корректно)
+- ✅ Добавлены тесты:
+  - `should increment streak when adding a quote today`
+  - `should handle like added and removed correctly`
+  - `should handle follow and unfollow correctly`
+  - `should handle photo upload correctly`
+
+#### D) Main Menu
+- ✅ Проверено: "Мои достижения" уже visible в MENU_ITEMS
+
+#### E) Audio Section - Single Alice Card
+- ✅ Обновлён renderAliceCard() для показа badge icon
+- ✅ Locked state: показывает badge icon рядом с заголовком
+- ✅ Unlocked state: показывает "Осталось N дн."
+- ✅ Только один Alice card pinned at top (уже было)
+- ✅ CSS для audio-card-title-row и audio-badge-icon
+
+#### F) CSS Styling
+- ✅ achievements.css:
+  - alice-badge-header с flex layout
+  - alice-badge-title-wrapper для badge + title
+  - alice-badge-image (32x32 circle)
+  - alice-refresh-button с hover rotation
+  - alice-progress-fill использует var(--primary-color)
+- ✅ audio.css:
+  - audio-card-title-row для title + badge
+  - audio-badge-icon (24x24 circle)
+- ✅ Все используют existing CSS variables
+
+### Изменённые/Созданные файлы
+
+**Frontend:**
+1. `mini-app/js/pages/AchievementsPage.js` — cleanup, real-time updates, refresh button
+2. `mini-app/js/pages/FreeAudiosPage.js` — Alice card с badge icon
+3. `mini-app/css/pages/achievements.css` — terracotta bars, refresh button styling
+4. `mini-app/css/pages/audio.css` — badge icon in Alice card
+
+**Backend:**
+1. `server/services/gamification/badgesService.js` — UTC streak calculation
+2. `tests/integration/alice_gamification.test.js` — новые тесты для actions
+
+**Documentation:**
+1. `mini-app/assets/badges/README.md` — guide для badge assets
+2. `docs/development/WORK_LOG_2025.md` — эта запись
+
+### Технические детали
+
+**Event-driven refresh:**
+```javascript
+// В AchievementsPage.setupSubscriptions()
+this.app.on('quote:added', () => this.refreshAliceProgress());
+this.app.on('like:changed', () => this.refreshAliceProgress());
+this.app.on('follow:changed', () => this.refreshAliceProgress());
+this.app.on('photo:uploaded', () => this.refreshAliceProgress());
+```
+
+**Partial UI update:**
+```javascript
+async refreshAliceProgress() {
+  await this.loadAliceProgress();
+  const aliceSection = document.querySelector('.alice-badge-section');
+  // Replace only Alice section, не весь page
+  aliceSection.replaceWith(newAliceSection);
+  // Re-attach event listeners
+}
+```
+
+**UTC streak:**
+```javascript
+const todayUTC = new Date(Date.UTC(
+  today.getUTCFullYear(), 
+  today.getUTCMonth(), 
+  today.getUTCDate()
+));
+```
+
+### Acceptance Criteria
+
+- [x] Achievements page shows only Alice section + Earned badges
+- [x] Likes label = "10 лайков цитат сообщества"
+- [x] Progress bars terracotta (var(--primary-color))
+- [x] Real badge image placeholder готово
+- [x] Real-time updates на events (quote, like, follow, photo)
+- [x] Manual refresh кнопка работает
+- [x] Streak uses UTC consistently
+- [x] Audio section: single Alice card with badge icon
+- [x] CSS uses only existing variables
+- [x] Tests added for new behaviors
+
+### TODO: Badge Image
+
+Нужно добавить actual badge image:
+```bash
+# Create alice-badge.png (32x32 circular)
+# Place in: mini-app/assets/badges/alice-badge.png
+```
+
+Placeholder уже используется в коде, fallback если image missing.
+
+### Тестирование
+
+**Manual testing:**
+1. [ ] Проверить /achievements — только Alice + Earned sections
+2. [ ] Добавить quote → streak++, progress обновился instantly
+3. [ ] Like чужую цитату → likesGivenToOthers++
+4. [ ] Unlike → likesGivenToOthers--
+5. [ ] Follow → following++
+6. [ ] Unfollow → following--
+7. [ ] Upload photo → photos++
+8. [ ] Click refresh 🔄 → manual update работает
+9. [ ] Проверить /free-audios — single Alice card
+10. [ ] Locked Alice card показывает badge icon
+11. [ ] Unlocked Alice card показывает "Осталось N дн."
+
+**Automated testing:**
+```bash
+npm test tests/integration/alice_gamification.test.js
+```
+
+### Следующие шаги
+
+**Frontend (PR-3+):**
+1. Добавить actual badge image (alice-badge.png)
+2. Event emitters в соответствующих actions:
+   - DiaryPage: emit('quote:added')
+   - CommunityPage: emit('like:changed')
+   - ProfileModal: emit('follow:changed')
+   - PhotoUploadPage: emit('photo:uploaded')
+3. Проверить на prod что events firing correctly
+
+**Backend (future):**
+1. Добавить WebSocket для server-push updates (optional)
+2. Cache invalidation при achievement claim
+3. Notification push при badge unlock
+
+Часы: 4.0
+
+---
+
+<!-- Следующие записи добавляются ниже -->

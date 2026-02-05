@@ -56,7 +56,7 @@ class FreeAudiosPage {
     const remainingDays = this.aliceMeta?.remainingDays || 0;
     
     if (!unlockStatus) {
-      // Locked state - show CTA to achievements
+      // Locked state - show CTA to achievements with badge icon
       return `
         <div class="alice-audio-card locked">
           <div class="audio-card-content">
@@ -67,7 +67,10 @@ class FreeAudiosPage {
               </div>
             </div>
             <div class="audio-card-info">
-              <h3 class="audio-card-title">Алиса в стране чудес</h3>
+              <div class="audio-card-title-row">
+                <h3 class="audio-card-title">Алиса в стране чудес</h3>
+                <img src="/assets/badges/alice-badge.png" alt="Alice Badge" class="audio-badge-icon" onerror="this.style.display='none'">
+              </div>
               <p class="audio-card-subtitle">Требуется бейдж</p>
               <p class="audio-card-description">Выполните условия для получения доступа к эксклюзивному аудиоразбору</p>
               <button class="audio-cta-button" data-action="navigate-achievements">
