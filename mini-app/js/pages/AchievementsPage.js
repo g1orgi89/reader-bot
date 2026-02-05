@@ -318,6 +318,7 @@ class AchievementsPage {
     
     /**
      * 📊 Загрузка прогресса Alice Badge
+     * Note: Endpoint path defined by backend PR-1 specification
      */
     async loadAliceProgress() {
         if (this.aliceLoading) return;
@@ -325,7 +326,7 @@ class AchievementsPage {
         try {
             this.aliceLoading = true;
             
-            // Fetch Alice progress from backend
+            // Fetch Alice progress from backend (endpoint from PR-1 spec)
             const response = await fetch('/api/reader/gamification/progress/alice', {
                 credentials: 'include'
             });
@@ -390,14 +391,15 @@ class AchievementsPage {
                     alert(message);
                 }
                 
-                // Navigate to free audios page
+                // Navigate to free audios page after a brief delay to allow alert to be visible
+                const NAVIGATION_DELAY_MS = 500;
                 setTimeout(() => {
                     if (this.app?.router) {
                         this.app.router.navigate('/free-audios');
                     } else {
                         window.location.hash = '#/free-audios';
                     }
-                }, 500);
+                }, NAVIGATION_DELAY_MS);
             }
             
         } catch (error) {
