@@ -3590,3 +3590,110 @@ GET /api/audio/:id
 ---
 
 <!-- Следующие записи добавляются ниже -->
+
+## 2026-02-05 - PR-3: Frontend Badge Icons (Variant 1 - No Home Banner)
+
+**Задача:** Gamification UI - Badge Icons Across App  
+**Фактически затрачено:** 2 часа
+
+### Цель
+
+Реализовать отображение бейджей (badge icons) в интерфейсе приложения для завершения Alice gamification UI. Badge icons отображаются под аватарами и рядом с именами пользователей в разных частях приложения.
+
+### Что реализовано
+
+**1. Badge Assets:**
+- Создана директория `mini-app/assets/badges/`
+- Добавлены файлы Alice badge:
+  - `alice.png` (32x32px)
+  - `alice.webp` (оптимизированная версия)
+- README.md с описанием использования
+
+**2. CSS Стили (`mini-app/css/components/badges.css`):**
+- `.profile-badges-row` - flex row для чипов под аватаром
+- `.badge-chip` - 32px квадратные чипы
+- `.badge-inline` - 18px inline иконки рядом с username
+- Использование только существующих CSS переменных из `variables.css`
+- Поддержка iOS safe area
+- Loading state для lazy-loaded изображений
+
+**3. ProfilePage.js:**
+- Добавлен `BADGE_ICON_MAP` для сопоставления badge ID с путями к файлам
+- Helper метод `renderBadgeIcons(badges)` - рендерит чипы под аватаром (32px)
+- Helper метод `renderInlineBadges(badges)` - рендерит inline иконку рядом с username (18px)
+- Интеграция в `renderProfileCard()`:
+  - Badge chips под аватаром в `.profile-left`
+  - Inline badge рядом с `@username` в `.user-username`
+- Интеграция в `renderUserCard()`:
+  - Inline badge рядом с username в карточках подписчиков/подписок
+
+**4. ProfileModal.js:**
+- Добавлен `BADGE_ICON_MAP_MODAL`
+- Helper метод `renderInlineBadges(badges)`
+- Интеграция в `render()`:
+  - Inline badge рядом с username в модальном окне
+
+**5. CommunityPage.js:**
+- Добавлен `BADGE_ICON_MAP_COMMUNITY`
+- Helper метод `renderInlineBadges(badges)`
+- Обновлен `_getDisplayNameRow(user)`:
+  - Inline badge рядом с username в user cards (лента, списки)
+
+**6. index.html:**
+- Подключен `css/components/badges.css` в секции компонентов
+
+### Затронутые файлы
+
+- `mini-app/assets/badges/alice.png` (новый)
+- `mini-app/assets/badges/alice.webp` (новый)
+- `mini-app/assets/badges/README.md` (новый)
+- `mini-app/css/components/badges.css` (новый)
+- `mini-app/index.html` (изменён)
+- `mini-app/js/pages/ProfilePage.js` (изменён)
+- `mini-app/js/components/ProfileModal.js` (изменён)
+- `mini-app/js/pages/CommunityPage.js` (изменён)
+
+### Acceptance Criteria
+
+✅ ProfilePage показывает badge chip row под аватаром когда `user.badges` включает 'alice_badge'  
+✅ ProfilePage показывает inline badge рядом с @username  
+✅ ProfileModal показывает inline badge рядом с username  
+✅ CommunityPage показывает inline badge рядом с usernames в user cards  
+✅ Assets загружаются корректно  
+✅ Используются только существующие CSS переменные  
+✅ Поддержка mobile safe-area  
+
+### Тестирование
+
+**Ручное тестирование необходимо на dev.unibotz.com:3003:**
+1. Открыть `/profile?user=me` с `badges=['alice_badge']` → chip row под аватаром и inline badge рядом с @username
+2. Открыть профиль другого пользователя с badges → inline badge рядом с username
+3. Открыть вкладки followers/following → inline badge рядом с usernames где есть badges
+4. Открыть ProfileModal из Community → inline badge рядом с username
+5. Проверить layout integrity на iOS/Android
+6. Проверить touch targets и safe-area
+
+### Примечания
+
+- Вариант 1: Home banner НЕ включён в этот PR (только badge icons)
+- Backend должен возвращать `user.badges` массив в профиле (из PR-1)
+- Если `badges` отсутствует или пустой, ничего не рендерится (fallback)
+- Используется `loading="lazy"` для оптимизации загрузки изображений
+- Alt text на русском: "Бейдж «Алиса в стране чудес»"
+
+### Следующие шаги
+
+**Frontend:**
+- Тестирование на реальных устройствах iOS/Android
+- Проверка интеграции с backend API (user.badges payload)
+- Опционально: добавление home banner (Variant 2)
+
+**Backend:**
+- Убедиться что GET /api/reader/profile/:userId возвращает `badges` массив
+- Убедиться что GET /api/reader/users/:id возвращает `badges` массив
+
+Часы: 2
+
+---
+
+<!-- Следующие записи добавляются ниже -->

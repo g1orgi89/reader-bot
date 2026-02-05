@@ -121,6 +121,17 @@ pm2 stop reader-bot
   - Requirement: 30-day continuous activity streak
   - Reward: 30-day access to "Alice in Wonderland" audio analysis
   - Badge appears in user profiles and next to usernames
+  - **Frontend: Badge Icons (PR-3) - IMPLEMENTED**
+    - Badge chips (32px) displayed under avatar on ProfilePage
+    - Inline badge icons (18px) next to usernames in:
+      - ProfilePage (own profile and user cards)
+      - ProfileModal (quick preview)
+      - CommunityPage (user cards in feed/lists)
+    - Assets: `/assets/badges/alice.png` and `alice.webp`
+    - CSS: `badges.css` component with `.badge-chip` and `.badge-inline` classes
+    - Badge mapping: `BADGE_ICON_MAP` in ProfilePage, ProfileModal, CommunityPage
+    - Renders only when `user.badges` array includes 'alice_badge'
+    - Fallback: If `badges` absent/empty, nothing is rendered
 - Progress tracking API: `GET /api/reader/gamification/progress/alice`
 - Claim API: `POST /api/reader/gamification/alice/claim`
 - Idempotent claiming (can't double-claim)
@@ -135,9 +146,8 @@ pm2 stop reader-bot
 
 **Achievements & Gamification:**
 - ✅ Backend implemented (Alice badge)
+- ✅ Frontend badge icons implemented (PR-3)
 - UI and design exist
-- Frontend integration with badge API pending
-- Badge rendering in UI pending
 - Additional badges planned
 
 **Admin Panel:**
