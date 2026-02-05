@@ -100,20 +100,33 @@ async function countLikesGivenToOthers(userId) {
       return 0;
     }
 
-    // Optimize: Get all normalizedKeys and query quotes in one go
-    const normalizedKeys = favorites.map(f => f.normalizedKey);
-    
-    // Find quotes with matching normalizedKeys NOT authored by this user
-    const quotesFromOthers = await Quote.find({
-      normalizedKey: { $in: normalizedKeys },
-      userId: { $ne: userId }
-    }).select('normalizedKey').lean();
-    
-    // Create a Set of normalizedKeys that belong to other users
-    const keysFromOthers = new Set(quotesFromOthers.map(q => q.normalizedKey));
-    
+    // Split normalizedKey into normalizedText and normalizedAuthor
+    // normalizedKey format: "normalizedText|||normalizedAuthor"
+    const favoriteKeys = favorites.map(f => {
+      const parts = f.normalizedKey.split('|||');
+      return {
+        normalizedText: parts[0] || '',
+        normalizedAuthor: parts[1] || ''
+      };
+    });
+
+    // Find quotes with matching normalized fields NOT authored by this user
+    // We need to match on both normalizedText AND normalizedAuthor
+    const matchedQuotes = await Quote.find({
+      userId: { $ne: userId },
+      $or: favoriteKeys.map(key => ({
+        normalizedText: key.normalizedText,
+        normalizedAuthor: key.normalizedAuthor
+      }))
+    }).select('normalizedText normalizedAuthor').lean();
+
+    // Create a Set of unique quote keys from matched quotes
+    const matchedKeys = new Set(
+      matchedQuotes.map(q => `${q.normalizedText}|||${q.normalizedAuthor}`)
+    );
+
     // Count how many of user's favorites match quotes from others
-    const likesCount = favorites.filter(f => keysFromOthers.has(f.normalizedKey)).length;
+    const likesCount = favorites.filter(f => matchedKeys.has(f.normalizedKey)).length;
     
     return likesCount;
   } catch (error) {

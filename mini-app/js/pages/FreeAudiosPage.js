@@ -69,7 +69,7 @@ class FreeAudiosPage {
             <div class="audio-card-info">
               <div class="audio-card-title-row">
                 <h3 class="audio-card-title">Алиса в стране чудес</h3>
-                <img src="/assets/badges/alice-badge.png" alt="Alice Badge" class="audio-badge-icon" onerror="this.style.display='none'">
+                <img src="/assets/badges/alice.png" alt="Alice Badge" class="audio-badge-icon" onerror="this.style.display='none'">
               </div>
               <p class="audio-card-subtitle">Требуется бейдж</p>
               <p class="audio-card-description">Выполните условия для получения доступа к эксклюзивному аудиоразбору</p>

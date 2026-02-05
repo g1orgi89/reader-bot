@@ -149,13 +149,14 @@ class AchievementsPage {
      * 📋 Рендер заголовка страницы
      */
     renderHeader() {
-        const unlockedCount = this.achievements.filter(a => a.unlocked).length;
-        const totalCount = this.achievements.length;
+        // Alice-based header: show "0 из 1" when not completed, "1 из 1" when completed
+        const completed = this.aliceProgress?.completed ? 1 : 0;
+        const total = 1;
         
         return `
             <div class="page-header">
                 <h1>🏆 Достижения</h1>
-                <p>Ваши награды и прогресс (${unlockedCount}/${totalCount})</p>
+                <p>Ваши награды (${completed} из ${total})</p>
             </div>
         `;
     }
@@ -224,7 +225,7 @@ class AchievementsPage {
             <div class="alice-badge-section">
                 <div class="alice-badge-header">
                     <div class="alice-badge-title-wrapper">
-                        <img src="/assets/badges/alice-badge.png" alt="Alice Badge" class="alice-badge-image" onerror="this.style.display='none'">
+                        <img src="/assets/badges/alice.png" alt="Alice Badge" class="alice-badge-image" onerror="this.style.display='none'">
                         <h3>📖 Бейдж «Алиса в стране чудес»</h3>
                     </div>
                     <button class="alice-refresh-button" id="aliceRefreshButton" title="Обновить прогресс">
@@ -234,20 +235,25 @@ class AchievementsPage {
                 <p class="alice-badge-description">Выполните все условия для получения доступа к аудиоразбору</p>
                 
                 <div class="alice-progress-list">
-                    ${progressItems.map(item => `
+                    ${progressItems.map(item => {
+                        const widthPercent = Math.min(100, (item.current / item.required) * 100);
+                        // Ensure bar is visible even at 0%
+                        const minWidth = widthPercent > 0 ? widthPercent : 0;
+                        return `
                         <div class="alice-progress-item">
                             <div class="alice-progress-header">
                                 <span class="alice-progress-label">${item.label}</span>
                                 <span class="alice-progress-counter">${item.current}/${item.required}</span>
                             </div>
                             <div class="alice-progress-bar">
-                                <div class="alice-progress-fill" style="width: ${Math.min(100, (item.current / item.required) * 100)}%"></div>
+                                <div class="alice-progress-fill" style="width: ${minWidth}%; min-width: ${minWidth > 0 ? '2px' : '0'}"></div>
                             </div>
                             <div class="alice-progress-remaining">
                                 ${item.remaining > 0 ? `Осталось ${item.remaining}` : '✓ Выполнено'}
                             </div>
                         </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
                 
                 <button 

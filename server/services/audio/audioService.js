@@ -102,24 +102,27 @@ const FREE_AUDIO_METADATA = {
  */
 async function listFreeAudios() {
   try {
-    const freeAudios = Object.values(FREE_AUDIO_METADATA).map(audio => {
-      const result = {
-        id: audio.id,
-        title: audio.title,
-        author: audio.author,
-        description: audio.description,
-        coverUrl: audio.coverUrl,
-        isFree: true
-      };
-      
-      // Only add audioUrl for single files (not containers)
-      if (audio.audioFile) {
-        result.audioUrl = `/media/free/${audio.audioFile}`;
-        result.durationSec = audio.durationSec;
-      }
-      
-      return result;
-    });
+    // Filter to only include content where isFree === true
+    const freeAudios = Object.values(FREE_AUDIO_METADATA)
+      .filter(audio => audio.isFree === true)
+      .map(audio => {
+        const result = {
+          id: audio.id,
+          title: audio.title,
+          author: audio.author,
+          description: audio.description,
+          coverUrl: audio.coverUrl,
+          isFree: true
+        };
+        
+        // Only add audioUrl for single files (not containers)
+        if (audio.audioFile) {
+          result.audioUrl = `/media/free/${audio.audioFile}`;
+          result.durationSec = audio.durationSec;
+        }
+        
+        return result;
+      });
 
     logger.info(`📚 Listed ${freeAudios.length} free audio(s)`);
     return freeAudios;

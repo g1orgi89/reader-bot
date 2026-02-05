@@ -158,6 +158,7 @@
     height: 100%;
     background: var(--primary-color);
     transition: width 0.3s ease;
+    min-width: 0; /* Ensure bar is visible even at 0% - set via inline style */
 }
 
 .alice-progress-remaining {
