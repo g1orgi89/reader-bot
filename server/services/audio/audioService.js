@@ -74,6 +74,23 @@ const FREE_AUDIO_METADATA = {
     tracks: [
       { id: 'eat_pray_love-01', title: 'Полный аудиоразбор', file: 'eat_pray_love/01.mp3' }
     ]
+  },
+  
+  // Premium content (gated behind entitlement)
+  alice_wonderland: {
+    id: 'alice_wonderland',
+    title: 'Разбор: «Алиса в стране чудес»',
+    author: 'Льюис Кэрролл',
+    description: 'Философский анализ классической сказки о поиске себя и познании мира',
+    coverUrl: '/assets/book-covers/alice_wonderland.png',
+    playerCoverUrl: '/assets/audio-covers/alice_wonderland-player.png',
+    isFree: false,
+    requiresEntitlement: true,
+    tracks: [
+      { id: 'alice_wonderland-01', title: 'Часть 1', file: 'alice_wonderland/01.mp3' },
+      { id: 'alice_wonderland-02', title: 'Часть 2', file: 'alice_wonderland/02.mp3' },
+      { id: 'alice_wonderland-03', title: 'Часть 3', file: 'alice_wonderland/03.mp3' }
+    ]
   }
   
   // More free audios can be added here

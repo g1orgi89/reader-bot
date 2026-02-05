@@ -92,6 +92,46 @@ async function getUserAudioEntitlements(userId) {
 }
 
 /**
+ * Get remaining days for an audio entitlement
+ * @param {mongoose.Types.ObjectId} userId - User ID
+ * @param {string} audioId - Audio identifier
+ * @returns {Promise<number|null>} Remaining days (rounded up), null if no entitlement or expired
+ */
+async function getRemainingDays(userId, audioId) {
+  try {
+    const entitlement = await UserEntitlement.findOne({ 
+      userId, 
+      kind: 'audio', 
+      resourceId: audioId 
+    });
+    
+    if (!entitlement) {
+      return null;
+    }
+    
+    // Check if entitlement is still valid
+    if (!entitlement.isValid()) {
+      return null;
+    }
+    
+    // If no expiration date, it never expires (return a large number or special value)
+    if (!entitlement.expiresAt) {
+      return -1; // -1 indicates "never expires"
+    }
+    
+    // Calculate remaining days (ceil to round up)
+    const now = new Date();
+    const msRemaining = entitlement.expiresAt - now;
+    const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+    
+    return Math.max(0, daysRemaining);
+  } catch (error) {
+    logger.error(`❌ Error getting remaining days for audio ${audioId}:`, error);
+    return null;
+  }
+}
+
+/**
  * Grant package access to a user
  * @param {mongoose.Types.ObjectId} userId - User ID
  * @param {string} packageId - Package identifier
@@ -132,6 +172,7 @@ module.exports = {
   grantAudio,
   revokeAudio,
   getUserAudioEntitlements,
+  getRemainingDays,
   grantPackage,
   grantSubscription
 };
