@@ -12,6 +12,9 @@ const UserProfile = require('../../models/userProfile');
 const entitlementService = require('../access/entitlementService');
 const logger = require('../../utils/logger');
 
+// Constants
+const MAX_STREAK_CHECK_DAYS = 60; // Maximum days to check for streak calculation
+
 /**
  * Resolve Telegram userId to MongoDB ObjectId
  * @param {string|number} rawUserId - Raw user ID (can be ObjectId string or Telegram numeric ID)
@@ -97,21 +100,20 @@ async function countLikesGivenToOthers(userId) {
       return 0;
     }
 
-    // For each favorite, find the original quote to check if author is different
-    // Use normalizedKey to find quotes
-    let likesCount = 0;
+    // Optimize: Get all normalizedKeys and query quotes in one go
+    const normalizedKeys = favorites.map(f => f.normalizedKey);
     
-    for (const favorite of favorites) {
-      // Find any quote with this normalizedKey that is NOT authored by userId
-      const quotesWithSameContent = await Quote.find({
-        normalizedKey: favorite.normalizedKey,
-        userId: { $ne: userId }
-      }).limit(1);
-      
-      if (quotesWithSameContent.length > 0) {
-        likesCount++;
-      }
-    }
+    // Find quotes with matching normalizedKeys NOT authored by this user
+    const quotesFromOthers = await Quote.find({
+      normalizedKey: { $in: normalizedKeys },
+      userId: { $ne: userId }
+    }).select('normalizedKey').lean();
+    
+    // Create a Set of normalizedKeys that belong to other users
+    const keysFromOthers = new Set(quotesFromOthers.map(q => q.normalizedKey));
+    
+    // Count how many of user's favorites match quotes from others
+    const likesCount = favorites.filter(f => keysFromOthers.has(f.normalizedKey)).length;
     
     return likesCount;
   } catch (error) {
@@ -135,8 +137,8 @@ async function calculateStreak(userId) {
     let streak = 0;
     let currentDate = new Date(today);
     
-    // Check up to 60 days (reasonable limit to avoid infinite loop)
-    for (let i = 0; i < 60; i++) {
+    // Check up to MAX_STREAK_CHECK_DAYS (reasonable limit to avoid infinite loop)
+    for (let i = 0; i < MAX_STREAK_CHECK_DAYS; i++) {
       const dayStart = new Date(currentDate);
       dayStart.setHours(0, 0, 0, 0);
       
