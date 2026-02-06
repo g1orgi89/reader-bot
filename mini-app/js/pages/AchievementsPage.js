@@ -89,8 +89,9 @@ class AchievementsPage {
         try {
             this.loading = true;
             
-            // Note: /achievements endpoint doesn't exist yet, using fallback data
-            // TODO: Implement backend /achievements endpoint if needed in the future
+            // Note: /achievements endpoint doesn't exist yet.
+            // For now, using static fallback data which provides the intended UI.
+            // The Alice badge progress is tracked separately via /gamification/progress/alice endpoint.
             this.achievements = this.getFallbackAchievements();
             this.progress = this.getFallbackProgress();
             
