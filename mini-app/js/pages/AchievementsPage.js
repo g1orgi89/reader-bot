@@ -224,13 +224,20 @@ class AchievementsPage {
                     }).join('')}
                 </div>
                 
-                <button 
-                    class="alice-claim-button" 
-                    id="aliceClaimButton"
-                    ${!completed ? 'disabled' : ''}
-                >
-                    ${completed ? 'Получить доступ к разбору' : 'Выполните все условия'}
-                </button>
+                ${progress.claimed ? `
+                    <div class="alice-claimed-message">
+                        <div class="alice-claimed-icon">✅</div>
+                        <div class="alice-claimed-text">Бейдж получен</div>
+                    </div>
+                ` : `
+                    <button 
+                        class="alice-claim-button" 
+                        id="aliceClaimButton"
+                        ${!completed ? 'disabled' : ''}
+                    >
+                        ${completed ? 'Получить доступ к разбору' : 'Выполните все условия'}
+                    </button>
+                `}
             </div>
         `;
     }
@@ -382,10 +389,29 @@ class AchievementsPage {
             const headerP = document.querySelector('.page-header p');
             if (headerP) headerP.textContent = `Ваши награды (${completed ? 1 : 0} из 1)`;
             
-            const claimBtn = document.getElementById('aliceClaimButton');
-            if (claimBtn) {
-                claimBtn.disabled = !completed;
-                claimBtn.textContent = completed ? 'Получить доступ к разбору' : 'Выполните все условия';
+            // Hide claim button and show claimed message if already claimed
+            if (data.claimed) {
+                const claimBtn = document.getElementById('aliceClaimButton');
+                if (claimBtn) {
+                    claimBtn.style.display = 'none';
+                }
+                // Show claimed message if not already visible
+                const badgeSection = document.querySelector('.alice-badge-section');
+                if (badgeSection && !badgeSection.querySelector('.alice-claimed-message')) {
+                    const claimedMessage = document.createElement('div');
+                    claimedMessage.className = 'alice-claimed-message';
+                    claimedMessage.innerHTML = `
+                        <div class="alice-claimed-icon">✅</div>
+                        <div class="alice-claimed-text">Бейдж получен</div>
+                    `;
+                    badgeSection.appendChild(claimedMessage);
+                }
+            } else {
+                const claimBtn = document.getElementById('aliceClaimButton');
+                if (claimBtn) {
+                    claimBtn.disabled = !completed;
+                    claimBtn.textContent = completed ? 'Получить доступ к разбору' : 'Выполните все условия';
+                }
             }
         } catch (error) {
             console.error('❌ Failed to refresh Alice progress:', error);

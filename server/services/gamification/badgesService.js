@@ -277,10 +277,27 @@ async function getAliceProgress(userId) {
     const streakPercent = Math.min((streak / 30) * 100, 100);
     const percent = Math.round((photosPercent + followingPercent + likesPercent + streakPercent) / 4);
 
+    // Check if badge has been claimed (either through achievement or entitlement)
+    let claimed = false;
+    try {
+      const userObjectId = await resolveUserObjectId(userId);
+      if (userObjectId) {
+        // Check if user has the achievement or entitlement
+        const userProfile = await UserProfile.findOne({ userId });
+        const hasAchievement = userProfile?.achievements?.some(a => a.achievementId === 'alice');
+        const hasAccess = await entitlementService.hasAudioAccess(userObjectId, 'alice_wonderland');
+        claimed = hasAchievement || hasAccess;
+      }
+    } catch (error) {
+      logger.warn(`⚠️ Could not check claim status for user ${userId}:`, error);
+      // Continue without claimed flag
+    }
+
     const progress = {
       ...requirements,
       completed,
-      percent
+      percent,
+      claimed
     };
 
     logger.info(`✅ Alice progress computed:`, progress);
