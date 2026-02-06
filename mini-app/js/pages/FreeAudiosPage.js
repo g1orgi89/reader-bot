@@ -71,8 +71,15 @@ class FreeAudiosPage {
    * @returns {string} Correctly pluralized word
    */
   pluralizeDays(n) {
-    if (n % 10 === 1 && n % 100 !== 11) return 'день';
-    if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'дня';
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    
+    if (mod10 === 1 && mod100 !== 11) {
+      return 'день';
+    }
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return 'дня';
+    }
     return 'дней';
   }
 
@@ -115,11 +122,10 @@ class FreeAudiosPage {
           <div class="book-footer">
             <div class="book-pricing">
               <div class="book-price">
-                Требуется бейдж
-                <img src="/assets/badges/alice.png" alt="Бейдж «Алиса»" class="audio-badge-icon audio-badge-icon--large" onerror="this.style.display='none'">
+                Получить доступ к разбору
               </div>
             </div>
-            <button class="buy-button" data-action="go-achievements">Получить доступ</button>
+            <button class="buy-button" data-action="go-achievements">Условия</button>
           </div>
         </div>
       `;

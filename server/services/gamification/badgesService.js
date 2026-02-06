@@ -10,42 +10,11 @@ const Favorite = require('../../models/Favorite');
 const Quote = require('../../models/quote');
 const UserProfile = require('../../models/userProfile');
 const entitlementService = require('../access/entitlementService');
+const { resolveUserObjectId } = require('../access/resolveUserId');
 const logger = require('../../utils/logger');
 
 // Constants
 const MAX_STREAK_CHECK_DAYS = 60; // Maximum days to check for streak calculation
-
-/**
- * Resolve Telegram userId to MongoDB ObjectId
- * @param {string|number} rawUserId - Raw user ID (can be ObjectId string or Telegram numeric ID)
- * @returns {Promise<mongoose.Types.ObjectId|null>} MongoDB ObjectId or null if not found
- */
-async function resolveUserObjectId(rawUserId) {
-  if (!rawUserId) {
-    return null;
-  }
-
-  const userIdStr = String(rawUserId);
-
-  // If already a valid ObjectId, return it
-  if (mongoose.Types.ObjectId.isValid(userIdStr)) {
-    return new mongoose.Types.ObjectId(userIdStr);
-  }
-
-  // Otherwise, try to find user by Telegram userId in UserProfile
-  try {
-    const userProfile = await UserProfile.findOne({ userId: userIdStr });
-    if (userProfile) {
-      return userProfile._id;
-    }
-    
-    logger.warn(`User not found for userId: ${userIdStr}`);
-    return null;
-  } catch (error) {
-    logger.error(`Error resolving user ID:`, error);
-    return null;
-  }
-}
 
 /**
  * Count photos in "книжный кадр" rubric for a user

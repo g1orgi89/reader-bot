@@ -10,7 +10,7 @@ const mongoose = require('mongoose');
 // Services
 const audioService = require('../services/audio/audioService');
 const AudioProgress = require('../models/AudioProgress');
-const UserProfile = require('../models/userProfile');
+const { resolveUserObjectId } = require('../services/access/resolveUserId');
 const logger = require('../utils/logger');
 
 /**
@@ -19,40 +19,6 @@ const logger = require('../utils/logger');
  * @returns {boolean} True if valid ObjectId
  */
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
-
-/**
- * Resolve Telegram userId to MongoDB ObjectId
- * Handles both ObjectId and numeric Telegram IDs
- * @param {string|number} rawUserId - Raw user ID (can be ObjectId string or Telegram numeric ID)
- * @returns {Promise<mongoose.Types.ObjectId|null>} MongoDB ObjectId or null if not found/invalid
- */
-async function resolveUserObjectId(rawUserId) {
-  if (!rawUserId) {
-    return null;
-  }
-
-  const userIdStr = String(rawUserId);
-
-  // If already a valid ObjectId, return it
-  if (isValidObjectId(userIdStr)) {
-    return new mongoose.Types.ObjectId(userIdStr);
-  }
-
-  // Otherwise, try to find user by Telegram userId in UserProfile
-  try {
-    const userProfile = await UserProfile.findOne({ userId: userIdStr });
-    if (userProfile) {
-      logger.debug(`Resolved Telegram ID to ObjectId: ${userProfile._id}`);
-      return userProfile._id;
-    }
-    
-    logger.warn(`User not found for provided userId`);
-    return null;
-  } catch (error) {
-    logger.error(`Error resolving user ID:`, error);
-    return null;
-  }
-}
 
 /**
  * GET /api/audio/free
@@ -74,6 +40,54 @@ router.get('/free', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch free audio list',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/audio/alice_wonderland
+ * Get Alice audio metadata with unlock status and timer
+ * @returns {Object} Alice metadata with unlockStatus and remainingDays
+ */
+router.get('/alice_wonderland', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    
+    logger.info(`📚 Fetching Alice audio metadata for user ${userId}...`);
+    
+    // Default to locked state
+    let unlockStatus = false;
+    let remainingDays = 0;
+    
+    if (userId) {
+      // Resolve userId to ObjectId
+      const userObjectId = await resolveUserObjectId(userId);
+      
+      if (userObjectId) {
+        // Check entitlement
+        const entitlementService = require('../services/access/entitlementService');
+        unlockStatus = await entitlementService.hasAudioAccess(userObjectId, 'alice_wonderland');
+        
+        if (unlockStatus) {
+          remainingDays = await entitlementService.getRemainingDays(userObjectId, 'alice_wonderland');
+          // If remainingDays is -1 (never expires), set to 30 for display
+          if (remainingDays === -1) {
+            remainingDays = 30;
+          }
+        }
+      }
+    }
+    
+    res.json({
+      unlockStatus,
+      remainingDays
+    });
+  } catch (error) {
+    logger.error('❌ Error fetching Alice metadata:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch Alice metadata',
       details: error.message
     });
   }
