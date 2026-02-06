@@ -406,20 +406,8 @@ class AchievementsPage {
                 this.telegram.hapticFeedback('medium');
             }
             
-            // POST request to claim badge
-            const response = await fetch('/api/reader/gamification/alice/claim', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error ${response.status}`);
-            }
-            
-            const result = await response.json();
+            // POST request to claim badge using ApiService (includes auth headers)
+            const result = await this.api.claimAlice();
             
             if (result.success) {
                 // Refresh Alice progress to show obtained badge
