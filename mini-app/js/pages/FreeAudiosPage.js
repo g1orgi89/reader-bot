@@ -56,22 +56,22 @@ class FreeAudiosPage {
     const remainingDays = this.aliceMeta?.remainingDays || 0;
     
     if (!unlockStatus) {
-      // Locked state - show CTA to achievements with badge icon
+      // Locked state - show CTA to achievements with larger badge icon in subtitle
       return `
         <div class="alice-audio-card locked">
           <div class="audio-card-content">
             <div class="audio-cover-wrapper">
-              <img class="audio-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="this.style.display='none'">
+              <img class="audio-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="this.style.display='none'">
               <div class="audio-locked-overlay">
                 <div class="lock-icon">🔒</div>
               </div>
             </div>
             <div class="audio-card-info">
-              <div class="audio-card-title-row">
-                <h3 class="audio-card-title">Алиса в стране чудес</h3>
-                <img src="/assets/badges/alice.png" alt="Alice Badge" class="audio-badge-icon" onerror="this.style.display='none'">
+              <h3 class="audio-card-title">Алиса в стране чудес</h3>
+              <div class="audio-card-subtitle-with-badge">
+                <span>Требуется бейдж</span>
+                <img src="/assets/badges/alice.png" alt="Alice Badge" class="audio-badge-icon audio-badge-icon--large" loading="lazy" onerror="this.style.display='none'">
               </div>
-              <p class="audio-card-subtitle">Требуется бейдж</p>
               <p class="audio-card-description">Выполните условия для получения доступа к эксклюзивному аудиоразбору</p>
               <button class="audio-cta-button" data-action="navigate-achievements">
                 Получить доступ
@@ -86,7 +86,7 @@ class FreeAudiosPage {
         <div class="alice-audio-card unlocked">
           <div class="audio-card-content">
             <div class="audio-cover-wrapper">
-              <img class="audio-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="this.style.display='none'">
+              <img class="audio-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="this.style.display='none'">
             </div>
             <div class="audio-card-info">
               <h3 class="audio-card-title">Алиса в стране чудес</h3>
@@ -116,7 +116,12 @@ class FreeAudiosPage {
     
     const aliceCardHTML = this.renderAliceCard();
     
-    if (!Array.isArray(this.items) || this.items.length === 0) {
+    // Filter out alice_wonderland from the generic list to avoid duplicates
+    const filteredItems = Array.isArray(this.items) 
+      ? this.items.filter(item => item.id !== 'alice_wonderland')
+      : [];
+    
+    if (filteredItems.length === 0) {
       return `
         ${aliceCardHTML}
         ${this.renderEmptyStateBlock()}
@@ -125,11 +130,11 @@ class FreeAudiosPage {
     return `
       ${aliceCardHTML}
       <div class="cards">
-        ${this.items.map(x => `
+        ${filteredItems.map(x => `
           <div class="book-card" data-id="${this.escape(x.id)}">
             <div class="book-main">
               <div class="book-cover cover-1">
-                <img class="book-cover-img" src="${this.escape(x.coverUrl||'')}" alt="${this.escape(x.title)}" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+                <img class="book-cover-img" src="${this.escape(x.coverUrl||'')}" alt="${this.escape(x.title)}" loading="lazy" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
                 <div class="cover-fallback-text" style="display: none;">${this.escape(x.title)}</div>
               </div>
               <div class="book-info">

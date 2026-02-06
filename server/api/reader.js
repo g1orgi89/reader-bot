@@ -6194,10 +6194,9 @@ router.get('/gamification/progress/alice', telegramAuth, async (req, res) => {
     
     const progress = await badgesService.getAliceProgress(userId);
     
-    res.json({
-      success: true,
-      progress
-    });
+    // Return progress data directly (not wrapped in success object)
+    // Frontend expects: { photos: {...}, following: {...}, likesGivenToOthers: {...}, streak: {...}, completed: bool }
+    res.json(progress);
   } catch (error) {
     console.error('❌ Error getting Alice progress:', error);
     res.status(500).json({
