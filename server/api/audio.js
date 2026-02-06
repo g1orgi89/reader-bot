@@ -13,6 +13,7 @@ const entitlementService = require('../services/access/entitlementService');
 const AudioProgress = require('../models/AudioProgress');
 const logger = require('../utils/logger');
 const { resolveUserObjectId } = require('../services/access/resolveUserId');
+const { generalLimiter } = require('../middleware/rateLimiting');
 
 /**
  * Helper to validate MongoDB ObjectId
@@ -350,7 +351,7 @@ router.get('/:containerId/last-track', async (req, res) => {
  * Query params: audioId (required), userId (optional in dev mode)
  * @returns {Object} { unlocked: boolean, expiresAt: Date|null, remainingDays: number|null }
  */
-router.get('/access', async (req, res) => {
+router.get('/access', generalLimiter, async (req, res) => {
   try {
     const { audioId, userId: rawUserId } = req.query;
     
