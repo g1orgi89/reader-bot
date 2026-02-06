@@ -56,18 +56,21 @@ class FreeAudiosPage {
     const remainingDays = this.aliceMeta?.remainingDays || 0;
     
     if (!unlockStatus) {
-      // Locked state - standard book-card structure with lock icon and badge requirement
+      // Locked state - standard book-card structure with lock overlay on cover
       return `
         <div class="book-card" data-id="alice_wonderland">
           <div class="book-main">
             <div class="book-cover cover-1">
               <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
               <div class="cover-fallback-text" style="display: none;">Алиса в стране чудес</div>
+              <div class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+              </div>
             </div>
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">Алиса в стране чудес</div>
+                  <div class="book-title">Разбор: &lt;&lt;Алиса в стране чудес&gt;&gt;</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
@@ -77,11 +80,11 @@ class FreeAudiosPage {
           <div class="book-footer">
             <div class="book-pricing">
               <div class="book-price" style="display: flex; align-items: center; gap: 8px;">
-                <span>🔒 Требуется бейдж</span>
-                <img src="/assets/badges/alice.png" alt="Alice Badge" style="width: 48px; height: 48px; object-fit: contain;" loading="lazy" onerror="this.style.display='none'">
+                <span>Требуется бейдж</span>
+                <img src="/assets/badges/alice.png" alt="Alice Badge" class="audio-badge-icon audio-badge-icon--large" loading="lazy" onerror="this.style.display='none'">
               </div>
             </div>
-            <button class="buy-button" data-action="navigate-achievements">Получить доступ</button>
+            <button class="buy-button" data-action="go-achievements">Получить доступ</button>
           </div>
         </div>
       `;
@@ -97,7 +100,7 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">Алиса в стране чудес</div>
+                  <div class="book-title">Разбор: &lt;&lt;Алиса в стране чудес&gt;&gt;</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
@@ -205,7 +208,7 @@ class FreeAudiosPage {
         }
         
         // Handle Alice card "Получить доступ" button
-        if (action === 'navigate-achievements') {
+        if (action === 'go-achievements') {
           this.app.router.navigate('/achievements');
         } 
         // Handle regular audio items and Alice card "Прослушать" button

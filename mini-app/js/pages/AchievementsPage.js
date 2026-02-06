@@ -54,32 +54,30 @@ class AchievementsPage {
         
         this.subscriptions.push(achievementsSubscription);
         
-        // Subscribe to app-wide events for real-time Alice progress updates
-        if (this.app && this.app.on) {
-            // Quote added event
-            this.app.on('quote:added', () => {
-                console.log('📖 Quote added, refreshing Alice progress...');
-                this.refreshAliceProgress();
-            });
-            
-            // Like changed event
-            this.app.on('like:changed', () => {
-                console.log('❤️ Like changed, refreshing Alice progress...');
-                this.refreshAliceProgress();
-            });
-            
-            // Follow changed event
-            this.app.on('follow:changed', () => {
-                console.log('👥 Follow changed, refreshing Alice progress...');
-                this.refreshAliceProgress();
-            });
-            
-            // Photo uploaded event
-            this.app.on('photo:uploaded', () => {
-                console.log('📸 Photo uploaded, refreshing Alice progress...');
-                this.refreshAliceProgress();
-            });
-        }
+        // Subscribe to window events for real-time Alice progress updates
+        this._quoteAddedHandler = () => {
+            console.log('📖 Quote added, refreshing Alice progress...');
+            this.refreshAliceProgress();
+        };
+        window.addEventListener('quote:added', this._quoteAddedHandler);
+        
+        this._likeChangedHandler = () => {
+            console.log('❤️ Like changed, refreshing Alice progress...');
+            this.refreshAliceProgress();
+        };
+        window.addEventListener('like:changed', this._likeChangedHandler);
+        
+        this._followChangedHandler = () => {
+            console.log('👥 Follow changed, refreshing Alice progress...');
+            this.refreshAliceProgress();
+        };
+        window.addEventListener('follow:changed', this._followChangedHandler);
+        
+        this._photoUploadedHandler = () => {
+            console.log('📸 Photo uploaded, refreshing Alice progress...');
+            this.refreshAliceProgress();
+        };
+        window.addEventListener('photo:uploaded', this._photoUploadedHandler);
     }
     
     /**
@@ -612,6 +610,20 @@ ${achievement.hint ? `💡 Подсказка: ${achievement.hint}` : ''}
             }
         });
         this.subscriptions = [];
+        
+        // Clean up window event listeners
+        if (this._quoteAddedHandler) {
+            window.removeEventListener('quote:added', this._quoteAddedHandler);
+        }
+        if (this._likeChangedHandler) {
+            window.removeEventListener('like:changed', this._likeChangedHandler);
+        }
+        if (this._followChangedHandler) {
+            window.removeEventListener('follow:changed', this._followChangedHandler);
+        }
+        if (this._photoUploadedHandler) {
+            window.removeEventListener('photo:uploaded', this._photoUploadedHandler);
+        }
         
         // Очистка состояния компонента
         this.loading = false;
