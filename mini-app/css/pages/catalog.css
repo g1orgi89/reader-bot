@@ -721,6 +721,35 @@
     100% { transform: scale(1); }
 }
 
+/* ✅ Alice card expired state - dimmed/transparent appearance */
+.book-card.alice-card.expired {
+    opacity: 0.6;
+    filter: grayscale(0.3);
+}
+
+.book-card.alice-card.expired:hover {
+    transform: none;
+    cursor: default;
+}
+
+/* Lock overlay for locked Alice card */
+.lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+}
+
+.lock-overlay .lock-icon {
+    font-size: 24px;
+}
+
 /* ==========================================
    CATALOG TOP SWITCHER
    ========================================== */
