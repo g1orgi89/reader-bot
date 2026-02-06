@@ -45,7 +45,9 @@ function renderUserNameWithBadge(user) {
   // Get badges array from either badges or achievements field
   let badges = user.badges || [];
   if (!badges.length && user.achievements && Array.isArray(user.achievements)) {
-    badges = user.achievements.map(a => a.achievementId || a.id);
+    badges = user.achievements
+      .map(a => a.achievementId || a.id)
+      .filter(Boolean); // Remove undefined/null values
   }
   
   // Find primary badge (first badge that has an icon)

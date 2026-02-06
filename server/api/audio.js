@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 
 // Services
 const audioService = require('../services/audio/audioService');
+const entitlementService = require('../services/access/entitlementService');
 const AudioProgress = require('../models/AudioProgress');
 const logger = require('../utils/logger');
 const { resolveUserObjectId } = require('../services/access/resolveUserId');
@@ -84,7 +85,6 @@ router.get('/:id', async (req, res) => {
         
         // For gated content (alice_wonderland), include remainingDays if unlocked
         if (unlocked && audio.requiresEntitlement) {
-          const entitlementService = require('../services/access/entitlementService');
           remainingDays = await entitlementService.getRemainingDays(userObjectId, id);
         }
       }
@@ -384,8 +384,6 @@ router.get('/access', async (req, res) => {
     
     if (unlocked) {
       // Get entitlement details if unlocked
-      const entitlementService = require('../services/access/entitlementService');
-      
       try {
         remainingDays = await entitlementService.getRemainingDays(userId, audioId);
         
