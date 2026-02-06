@@ -1095,6 +1095,15 @@ body[data-theme="telegram"] .menu-title {
     text-overflow: ellipsis;
 }
 
+.home-header-caption {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .home-header-username {
     font-size: var(--font-size-sm);
     color: var(--text-muted);
