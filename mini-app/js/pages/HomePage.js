@@ -352,7 +352,7 @@ class HomePage {
                         </div>
                         <div class="stat-card fade-in">
                             <div class="stat-label">Серия (дней подряд)</div>
-                            <div class="stat-value">${stats.currentStreak ?? '—'}</div>
+                            <div class="stat-value">${stats.currentStreak ?? stats.streak ?? '—'}</div>
                         </div>
                         <div class="stat-card fade-in">
                             <div class="stat-label">Любимый автор</div>
@@ -623,6 +623,10 @@ class HomePage {
                 </button>
                 <div class="home-header-info">
                     <div class="home-header-name">${name || 'Пользователь'}${badgeHtml}</div>
+<<<<<<< copilot/fix-alisa-audio-card
+                    ${username ? `<div class="home-header-caption">к ${username}</div>` : '<div class="home-header-caption">к имени</div>'}
+=======
+>>>>>>> main
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
                 </div>
                 <div class="home-header-spacer"></div>
@@ -964,7 +968,7 @@ class HomePage {
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Серия (дней подряд)</div>
-                  <div class="stat-value">${stats.currentStreak ?? '—'}</div>
+                  <div class="stat-value">${stats.currentStreak ?? stats.streak ?? '—'}</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Любимый автор</div>
@@ -1345,7 +1349,7 @@ class HomePage {
         }
         
         if (streakCard) {
-            streakCard.textContent = stats.loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : '—');
+            streakCard.textContent = stats.loading ? '⏳' : (stats.currentStreak != null ? stats.currentStreak : (stats.streak != null ? stats.streak : '—'));
         }
     }
     

@@ -20,6 +20,7 @@
  * @type {Object<string, string>}
  */
 const BADGE_ICON_MAP_MODAL = {
+    alice: '/assets/badges/alice.png',
     alice_badge: '/assets/badges/alice.png'
 };
 

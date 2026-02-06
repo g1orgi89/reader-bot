@@ -26,12 +26,12 @@
 }
 
 /* ============================================================================
-   🎖️ BADGE CHIP (40px for profile display)
+   🎖️ BADGE CHIP (44px for profile display)
    ============================================================================ */
 
 .badge-chip {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: var(--radius-round);
     object-fit: cover;
     flex-shrink: 0;
@@ -60,13 +60,13 @@
 }
 
 /* ============================================================================
-   ⭐ INLINE BADGE (24px next to username)
+   ⭐ INLINE BADGE (28px next to username)
    ============================================================================ */
 
 .badge-inline {
     display: inline-block;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: var(--radius-round);
     object-fit: cover;
     vertical-align: middle;
@@ -97,14 +97,14 @@
 @media (hover: none) and (pointer: coarse) {
     .badge-chip {
         /* Slightly larger on mobile for better visibility */
-        width: 44px;
-        height: 44px;
+        width: 48px;
+        height: 48px;
     }
     
     .badge-inline {
         /* Keep inline badge consistent on mobile */
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
     }
 }
 
