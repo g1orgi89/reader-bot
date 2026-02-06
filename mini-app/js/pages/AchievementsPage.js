@@ -89,11 +89,10 @@ class AchievementsPage {
         try {
             this.loading = true;
             
-            // Note: /achievements endpoint doesn't exist yet.
-            // For now, using static fallback data which provides the intended UI.
-            // The Alice badge progress is tracked separately via /gamification/progress/alice endpoint.
-            this.achievements = this.getFallbackAchievements();
-            this.progress = this.getFallbackProgress();
+            // Dev: no /achievements endpoint — avoid 404 by using empty list
+            this.achievements = [];
+            this.progress = {};
+            this.state.set('achievements', { items: [], progress: {} });
             
         } catch (error) {
             console.error('❌ Ошибка загрузки достижений:', error);
@@ -142,7 +141,7 @@ class AchievementsPage {
                 <div class="alice-badge-section">
                     <div class="alice-badge-header">
                         <div class="alice-badge-title-wrapper">
-                            <img src="/assets/badges/alice.png" alt="Alice Badge" class="alice-badge-image" loading="lazy" onerror="this.style.display='none'">
+                            <img src="/assets/badges/alice.png" alt="Бейдж «Алиса в стране чудес»" class="alice-badge-image">
                             <h3>Бейдж «Алиса в стране чудес»</h3>
                         </div>
                     </div>
@@ -197,7 +196,7 @@ class AchievementsPage {
             <div class="alice-badge-section">
                 <div class="alice-badge-header">
                     <div class="alice-badge-title-wrapper">
-                        <img src="/assets/badges/alice.png" alt="Alice Badge" class="alice-badge-image" loading="lazy" onerror="this.style.display='none'">
+                        <img src="/assets/badges/alice.png" alt="Бейдж «Алиса в стране чудес»" class="alice-badge-image">
                         <h3>Бейдж «Алиса в стране чудес»</h3>
                     </div>
                 </div>
@@ -349,24 +348,44 @@ class AchievementsPage {
             // Fetch latest progress
             await this.loadAliceProgress();
             
-            // Update the Alice section only
-            const aliceSection = document.querySelector('.alice-badge-section');
-            if (aliceSection) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = this.renderAliceBadgeSection();
-                const newAliceSection = tempDiv.firstElementChild;
-                
-                if (newAliceSection) {
-                    aliceSection.replaceWith(newAliceSection);
+            // Update counters in-place to prevent badge image flicker
+            const { photos, following, likesGivenToOthers, streak, completed } = this.aliceProgress || {};
+            const items = [
+                { current: photos?.current || 0, required: photos?.required || 10 },
+                { current: following?.current || 0, required: following?.required || 5 },
+                { current: likesGivenToOthers?.current || 0, required: likesGivenToOthers?.required || 10 },
+                { current: streak?.current || 0, required: streak?.required || 30 }
+            ];
+            
+            const list = document.querySelector('.alice-progress-list');
+            if (list) {
+                const rows = list.querySelectorAll('.alice-progress-item');
+                rows.forEach((row, idx) => {
+                    const item = items[idx];
+                    if (!item) return;
                     
-                    // Re-attach event listener for the Alice claim button
-                    const aliceClaimButton = document.getElementById('aliceClaimButton');
-                    if (aliceClaimButton) {
-                        aliceClaimButton.addEventListener('click', () => {
-                            this.handleAliceClaimClick();
-                        });
-                    }
-                }
+                    const percent = Math.min(100, (item.current / item.required) * 100);
+                    const counterEl = row.querySelector('.alice-progress-counter');
+                    if (counterEl) counterEl.textContent = `${item.current}/${item.required}`;
+                    
+                    const fill = row.querySelector('.alice-progress-fill');
+                    if (fill) fill.style.width = `${percent}%`;
+                    
+                    const remaining = Math.max(0, item.required - item.current);
+                    const remainingEl = row.querySelector('.alice-progress-remaining');
+                    if (remainingEl) remainingEl.textContent = remaining > 0 ? `Осталось ${remaining}` : '✓ Выполнено';
+                    
+                    row.classList.toggle('completed', remaining === 0);
+                });
+            }
+            
+            const headerP = document.querySelector('.page-header p');
+            if (headerP) headerP.textContent = `Ваши награды (${completed ? 1 : 0} из 1)`;
+            
+            const claimBtn = document.getElementById('aliceClaimButton');
+            if (claimBtn) {
+                claimBtn.disabled = !completed;
+                claimBtn.textContent = completed ? 'Получить доступ к разбору «Алиса»' : 'Выполните все условия';
             }
         } catch (error) {
             console.error('❌ Failed to refresh Alice progress:', error);
@@ -636,26 +655,10 @@ ${achievement.hint ? `💡 Подсказка: ${achievement.hint}` : ''}
     
     /**
      * 🔄 Start short-lived polling for Alice progress
-     * Polls every 3 seconds for 15 seconds after page show
+     * Disabled to prevent flicker; rely on event-driven updates
      */
     startPolling() {
-        // Clear any existing polling
-        this.stopPolling();
-        
-        let pollCount = 0;
-        const maxPolls = 5; // 5 polls * 3 seconds = 15 seconds
-        
-        this.pollingInterval = setInterval(async () => {
-            pollCount++;
-            console.log(`🔄 Polling Alice progress (${pollCount}/${maxPolls})...`);
-            
-            await this.refreshAliceProgress();
-            
-            if (pollCount >= maxPolls) {
-                console.log('✅ Polling complete');
-                this.stopPolling();
-            }
-        }, 3000); // Poll every 3 seconds
+        // Disabled - rely on event-driven refresh only
     }
     
     /**

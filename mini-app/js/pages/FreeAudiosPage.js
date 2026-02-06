@@ -58,20 +58,16 @@ class FreeAudiosPage {
     if (!unlockStatus) {
       // Locked state - standard book-card structure with lock overlay on cover
       return `
-        <div class="book-card" data-id="alice_wonderland">
+        <div class="book-card alice-card locked" data-id="alice_wonderland">
           <div class="book-main">
             <div class="book-cover cover-1">
-              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <div class="cover-fallback-text" style="display: none;">Алиса в стране чудес</div>
-              <div class="lock-overlay">
-                <div class="lock-icon">🔒</div>
-              </div>
+              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <div class="lock-overlay"><span class="lock-icon">🔒</span></div>
             </div>
             <div class="book-info">
               <div class="book-header">
                 <div>
                   <div class="book-title">Разбор: &lt;&lt;Алиса в стране чудес&gt;&gt;</div>
-                  <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
               <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
@@ -79,9 +75,9 @@ class FreeAudiosPage {
           </div>
           <div class="book-footer">
             <div class="book-pricing">
-              <div class="book-price" style="display: flex; align-items: center; gap: 8px;">
-                <span>Требуется бейдж</span>
-                <img src="/assets/badges/alice.png" alt="Alice Badge" class="audio-badge-icon audio-badge-icon--large" loading="lazy" onerror="this.style.display='none'">
+              <div class="book-price">
+                Требуется бейдж
+                <img src="/assets/badges/alice.png" alt="Бейдж «Алиса»" class="audio-badge-icon audio-badge-icon--large" onerror="this.style.display='none'">
               </div>
             </div>
             <button class="buy-button" data-action="go-achievements">Получить доступ</button>
@@ -91,26 +87,23 @@ class FreeAudiosPage {
     } else {
       // Unlocked state - standard book-card structure with remaining days
       return `
-        <div class="book-card" data-id="alice_wonderland">
+        <div class="book-card alice-card" data-id="alice_wonderland">
           <div class="book-main">
             <div class="book-cover cover-1">
-              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <div class="cover-fallback-text" style="display: none;">Алиса в стране чудес</div>
+              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
             </div>
             <div class="book-info">
               <div class="book-header">
                 <div>
                   <div class="book-title">Разбор: &lt;&lt;Алиса в стране чудес&gt;&gt;</div>
-                  <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
               <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing">
-              <div class="book-price">Осталось ${remainingDays} дн.</div>
-            </div>
+            <div class="book-pricing"><div class="book-price">Осталось ${remainingDays} дн.</div></div>
             <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
           </div>
         </div>
@@ -201,18 +194,23 @@ class FreeAudiosPage {
         e.preventDefault();
         e.stopPropagation();
         const action = btn.getAttribute('data-action');
-        const id = btn.getAttribute('data-id');
+        const parentCard = btn.closest('.book-card');
+        const id = btn.getAttribute('data-id') || parentCard?.getAttribute('data-id');
         
         if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
           this.telegram.hapticFeedback('light');
         }
         
-        // Handle Alice card "Получить доступ" button
-        if (action === 'go-achievements') {
-          this.app.router.navigate('/achievements');
-        } 
-        // Handle regular audio items and Alice card "Прослушать" button
-        else if (id) {
+        // Handle Alice card special logic
+        if (parentCard && parentCard.classList.contains('alice-card')) {
+          if (action === 'go-achievements') {
+            return this.app.router.navigate('/achievements');
+          }
+          return this.app.router.navigate(`/free-audios/${encodeURIComponent('alice_wonderland')}`, { state: { id: 'alice_wonderland' } });
+        }
+        
+        // Handle regular audio items
+        if (id) {
           this.app.router.navigate(`/free-audios/${encodeURIComponent(id)}`, { state: { id } });
         }
       });
