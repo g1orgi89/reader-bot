@@ -110,7 +110,7 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">«Алиса в стране чудес»</div>
+                  <div class="book-title">Разбор :«Алиса в стране чудес»</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
@@ -147,7 +147,7 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">«Алиса в стране чудес»</div>
+                  <div class="book-title">Разбор: «Алиса в стране чудес»</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
