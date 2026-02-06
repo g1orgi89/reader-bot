@@ -102,6 +102,16 @@ function parseUserIdFromInitData(initData) {
 }
 
 function telegramAuth(req, res, next) {
+  // DEV AUTH BYPASS: Allow requests with userId query param in development
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const queryUserId = req.query.userId;
+  
+  if (isDevelopment && queryUserId) {
+    console.log('[TELEGRAM AUTH] DEV BYPASS: Using userId from query param:', queryUserId);
+    req.userId = String(queryUserId);
+    return next();
+  }
+
   const initData = req.headers['authorization']?.startsWith('tma ')
     ? req.headers['authorization'].slice(4)
     : req.headers['x-telegram-init-data'];
