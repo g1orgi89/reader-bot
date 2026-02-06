@@ -88,6 +88,7 @@ async function countFollows(userId) {
 
 /**
  * Count likes given to quotes authored by other users
+ * Uses normalizedText/normalizedAuthor matching to ensure likes on own quotes don't count
  * @param {string} userId - Telegram user ID
  * @returns {Promise<number>} Count of likes to others' quotes
  */
@@ -100,28 +101,32 @@ async function countLikesGivenToOthers(userId) {
       return 0;
     }
 
-    // Extract normalized keys from favorites
-    const favoriteKeysSet = new Set(favorites.map(f => f.normalizedKey));
+    // Split normalizedKey into normalizedText and normalizedAuthor for each favorite
+    const favoriteKeys = favorites.map(f => {
+      const parts = (f.normalizedKey || '').split('|||');
+      return {
+        normalizedText: parts[0] || '',
+        normalizedAuthor: parts[1] || ''
+      };
+    });
 
-    // Find all quotes NOT authored by this user
-    const othersQuotes = await Quote.find({
-      userId: { $ne: userId }
-    }).select('normalizedText normalizedAuthor').lean();
-
-    if (othersQuotes.length === 0) {
-      return 0;
-    }
-
-    // Count matches: for each quote from others, check if user has favorited it
-    // by reconstructing the normalizedKey and checking against user's favorites
+    // Find all quotes NOT authored by this user, matching any of the favorited normalized pairs
     let likesCount = 0;
-    for (const quote of othersQuotes) {
-      const quoteKey = `${quote.normalizedText}|||${quote.normalizedAuthor}`;
-      if (favoriteKeysSet.has(quoteKey)) {
+    
+    for (const fav of favoriteKeys) {
+      // Count quotes that match this favorite's normalized text+author AND are NOT by this user
+      const matchCount = await Quote.countDocuments({
+        userId: { $ne: userId },
+        normalizedText: fav.normalizedText,
+        normalizedAuthor: fav.normalizedAuthor
+      });
+      
+      if (matchCount > 0) {
         likesCount++;
       }
     }
     
+    logger.info(`✅ User ${userId} has given ${likesCount} likes to others' quotes`);
     return likesCount;
   } catch (error) {
     logger.error(`Error counting likes to others for user ${userId}:`, error);

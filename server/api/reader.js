@@ -6188,7 +6188,8 @@ const badgesService = require('../services/gamification/badgesService');
  */
 router.get('/gamification/progress/alice', telegramAuth, async (req, res) => {
   try {
-    const userId = req.userId;
+    // Use userId from query param if provided, otherwise fall back to authenticated userId
+    const userId = req.query.userId || req.userId;
     
     console.log(`📊 Fetching Alice badge progress for user ${userId}...`);
     

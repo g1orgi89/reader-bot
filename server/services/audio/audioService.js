@@ -102,9 +102,9 @@ const FREE_AUDIO_METADATA = {
  */
 async function listFreeAudios() {
   try {
-    // Filter to only include content where isFree === true
+    // Filter to only include content where isFree === true (exclude premium content)
     const freeAudios = Object.values(FREE_AUDIO_METADATA)
-      .filter(audio => audio.isFree === true)
+      .filter(audio => audio.isFree === true && !audio.requiresEntitlement)
       .map(audio => {
         const result = {
           id: audio.id,
