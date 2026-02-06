@@ -10,8 +10,8 @@ const mongoose = require('mongoose');
 // Services
 const audioService = require('../services/audio/audioService');
 const AudioProgress = require('../models/AudioProgress');
-const UserProfile = require('../models/userProfile');
 const logger = require('../utils/logger');
+const { resolveUserObjectId } = require('../services/access/resolveUserId');
 
 /**
  * Helper to validate MongoDB ObjectId
@@ -19,40 +19,6 @@ const logger = require('../utils/logger');
  * @returns {boolean} True if valid ObjectId
  */
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
-
-/**
- * Resolve Telegram userId to MongoDB ObjectId
- * Handles both ObjectId and numeric Telegram IDs
- * @param {string|number} rawUserId - Raw user ID (can be ObjectId string or Telegram numeric ID)
- * @returns {Promise<mongoose.Types.ObjectId|null>} MongoDB ObjectId or null if not found/invalid
- */
-async function resolveUserObjectId(rawUserId) {
-  if (!rawUserId) {
-    return null;
-  }
-
-  const userIdStr = String(rawUserId);
-
-  // If already a valid ObjectId, return it
-  if (isValidObjectId(userIdStr)) {
-    return new mongoose.Types.ObjectId(userIdStr);
-  }
-
-  // Otherwise, try to find user by Telegram userId in UserProfile
-  try {
-    const userProfile = await UserProfile.findOne({ userId: userIdStr });
-    if (userProfile) {
-      logger.debug(`Resolved Telegram ID to ObjectId: ${userProfile._id}`);
-      return userProfile._id;
-    }
-    
-    logger.warn(`User not found for provided userId`);
-    return null;
-  } catch (error) {
-    logger.error(`Error resolving user ID:`, error);
-    return null;
-  }
-}
 
 /**
  * GET /api/audio/free
@@ -373,6 +339,85 @@ router.get('/:containerId/last-track', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to get last track',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/audio/access
+ * Get audio access status for a specific audio ID
+ * Query params: audioId (required), userId (optional in dev mode)
+ * @returns {Object} { unlocked: boolean, expiresAt: Date|null, remainingDays: number|null }
+ */
+router.get('/access', async (req, res) => {
+  try {
+    const { audioId, userId: rawUserId } = req.query;
+    
+    if (!audioId) {
+      return res.status(400).json({
+        success: false,
+        error: 'audioId query parameter is required'
+      });
+    }
+    
+    logger.info(`🔓 Checking access for audio ${audioId}, user ${rawUserId}...`);
+    
+    // Resolve userId to ObjectId
+    const userId = await resolveUserObjectId(rawUserId);
+    
+    if (!userId) {
+      // No valid userId = not unlocked
+      return res.json({
+        success: true,
+        unlocked: false,
+        expiresAt: null,
+        remainingDays: null
+      });
+    }
+    
+    // Check if audio is unlocked for this user
+    const unlocked = await audioService.isUnlocked(userId, audioId);
+    
+    let expiresAt = null;
+    let remainingDays = null;
+    
+    if (unlocked) {
+      // Get entitlement details if unlocked
+      const entitlementService = require('../services/access/entitlementService');
+      
+      try {
+        remainingDays = await entitlementService.getRemainingDays(userId, audioId);
+        
+        // Get expiresAt date
+        const UserEntitlement = require('../models/UserEntitlement');
+        const entitlement = await UserEntitlement.findOne({
+          userId,
+          kind: 'audio',
+          resourceId: audioId,
+          expiresAt: { $gte: new Date() }
+        }).select('expiresAt');
+        
+        if (entitlement) {
+          expiresAt = entitlement.expiresAt;
+        }
+      } catch (error) {
+        logger.warn(`Could not get entitlement details for ${audioId}:`, error);
+        // Continue with unlocked=true but no expiry info
+      }
+    }
+    
+    res.json({
+      success: true,
+      unlocked,
+      expiresAt,
+      remainingDays
+    });
+  } catch (error) {
+    logger.error('❌ Error checking audio access:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check audio access',
       details: error.message
     });
   }
