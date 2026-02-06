@@ -280,12 +280,17 @@ class FreeAudiosPage {
 
   async onShow() {
     try {
-      // Fetch Alice metadata
+      // Fetch Alice metadata using the new /api/audio/access endpoint
       try {
         const userId = this.api.resolveUserId();
-        const aliceRes = await fetch(`/api/audio/alice_wonderland?userId=${userId}`, { credentials: 'include' });
+        const aliceRes = await fetch(`/api/audio/access?audioId=alice_wonderland&userId=${userId}`, { credentials: 'include' });
         if (aliceRes.ok) {
-          this.aliceMeta = await aliceRes.json();
+          const data = await aliceRes.json();
+          // Map response to expected format
+          this.aliceMeta = {
+            unlockStatus: data.unlocked || false,
+            remainingDays: data.remainingDays || 0
+          };
         } else {
           // Fallback to locked state
           this.aliceMeta = { unlockStatus: false, remainingDays: 0 };
