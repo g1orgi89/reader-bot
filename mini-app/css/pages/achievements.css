@@ -220,6 +220,32 @@
     opacity: 0.6;
 }
 
+.alice-claimed-message {
+    width: 100%;
+    min-height: 48px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.alice-claimed-icon {
+    font-size: var(--font-size-lg);
+}
+
+.alice-claimed-text {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+}
+
 /* ============================================================================
    📊 ПРОГРЕСС ПОЛЬЗОВАТЕЛЯ
    ============================================================================ */

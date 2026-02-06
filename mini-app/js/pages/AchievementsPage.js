@@ -162,7 +162,8 @@ class AchievementsPage {
             following = { current: 0, required: 5 },
             likesGivenToOthers = { current: 0, required: 10 },
             streak = { current: 0, required: 30 },
-            completed = false
+            completed = false,
+            claimed = false
         } = this.aliceProgress;
         
         const progressItems = [
@@ -224,13 +225,20 @@ class AchievementsPage {
                     }).join('')}
                 </div>
                 
-                <button 
-                    class="alice-claim-button" 
-                    id="aliceClaimButton"
-                    ${!completed ? 'disabled' : ''}
-                >
-                    ${completed ? 'Получить доступ к разбору' : 'Выполните все условия'}
-                </button>
+                ${claimed ? `
+                    <div class="alice-claimed-message">
+                        <div class="alice-claimed-icon">✅</div>
+                        <div class="alice-claimed-text">Бейдж получен</div>
+                    </div>
+                ` : `
+                    <button 
+                        class="alice-claim-button" 
+                        id="aliceClaimButton"
+                        ${!completed ? 'disabled' : ''}
+                    >
+                        ${completed ? 'Получить доступ к разбору' : 'Выполните все условия'}
+                    </button>
+                `}
             </div>
         `;
     }
@@ -349,7 +357,7 @@ class AchievementsPage {
             await this.loadAliceProgress();
             
             // Update counters in-place to prevent badge image flicker
-            const { photos, following, likesGivenToOthers, streak, completed } = this.aliceProgress || {};
+            const { photos, following, likesGivenToOthers, streak, completed, claimed } = this.aliceProgress || {};
             const items = [
                 { current: photos?.current || 0, required: photos?.required || 10 },
                 { current: following?.current || 0, required: following?.required || 5 },
@@ -382,10 +390,29 @@ class AchievementsPage {
             const headerP = document.querySelector('.page-header p');
             if (headerP) headerP.textContent = `Ваши награды (${completed ? 1 : 0} из 1)`;
             
-            const claimBtn = document.getElementById('aliceClaimButton');
-            if (claimBtn) {
-                claimBtn.disabled = !completed;
-                claimBtn.textContent = completed ? 'Получить доступ к разбору' : 'Выполните все условия';
+            // Hide claim button and show claimed message if already claimed
+            if (claimed) {
+                const claimBtn = document.getElementById('aliceClaimButton');
+                if (claimBtn) {
+                    claimBtn.style.display = 'none';
+                }
+                // Show claimed message if not already visible
+                const badgeSection = document.querySelector('.alice-badge-section');
+                if (badgeSection && !badgeSection.querySelector('.alice-claimed-message')) {
+                    const claimedMessage = document.createElement('div');
+                    claimedMessage.className = 'alice-claimed-message';
+                    claimedMessage.innerHTML = `
+                        <div class="alice-claimed-icon">✅</div>
+                        <div class="alice-claimed-text">Бейдж получен</div>
+                    `;
+                    badgeSection.appendChild(claimedMessage);
+                }
+            } else {
+                const claimBtn = document.getElementById('aliceClaimButton');
+                if (claimBtn) {
+                    claimBtn.disabled = !completed;
+                    claimBtn.textContent = completed ? 'Получить доступ к разбору' : 'Выполните все условия';
+                }
             }
         } catch (error) {
             console.error('❌ Failed to refresh Alice progress:', error);

@@ -110,26 +110,15 @@ router.get('/:id', async (req, res) => {
     let remainingDays = null;
     
     if (userId) {
-      unlocked = await audioService.isUnlocked(userId, id);
+      // Resolve userId to ObjectId before calling audioService (prevents "me" CastError)
+      const userObjectId = await resolveUserObjectId(userId);
       
-      // For gated content (alice_wonderland), include remainingDays if unlocked
-      if (unlocked && audio.requiresEntitlement) {
-        const entitlementService = require('../services/access/entitlementService');
+      if (userObjectId) {
+        unlocked = await audioService.isUnlocked(userObjectId, id);
         
-        // Resolve userId to ObjectId
-        const UserProfile = require('../models/userProfile');
-        let userObjectId = null;
-        
-        if (mongoose.Types.ObjectId.isValid(userId)) {
-          userObjectId = new mongoose.Types.ObjectId(userId);
-        } else {
-          const profile = await UserProfile.findOne({ userId });
-          if (profile) {
-            userObjectId = profile._id;
-          }
-        }
-        
-        if (userObjectId) {
+        // For gated content (alice_wonderland), include remainingDays if unlocked
+        if (unlocked && audio.requiresEntitlement) {
+          const entitlementService = require('../services/access/entitlementService');
           remainingDays = await entitlementService.getRemainingDays(userObjectId, id);
         }
       }
@@ -181,16 +170,26 @@ router.get('/:id/stream-url', async (req, res) => {
     const { id } = req.params;
     // TODO: SECURITY - Replace with JWT authentication
     // Current implementation uses query param for development only
-    const userId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
+    const rawUserId = req.query.userId; // DEVELOPMENT ONLY - NOT SECURE
     
-    if (!userId) {
+    if (!rawUserId) {
       return res.status(401).json({
         success: false,
         error: 'User ID required'
       });
     }
 
-    logger.info(`🎵 Getting stream URL for audio ${id}, user ${userId}...`);
+    logger.info(`🎵 Getting stream URL for audio ${id}, user ${rawUserId}...`);
+    
+    // Resolve userId to ObjectId (prevents "me" CastError)
+    const userId = await resolveUserObjectId(rawUserId);
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid user ID'
+      });
+    }
     
     const streamUrl = await audioService.getStreamUrl(userId, id);
     
