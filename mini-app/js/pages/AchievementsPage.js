@@ -89,37 +89,11 @@ class AchievementsPage {
         try {
             this.loading = true;
             
-            // Get userId with fallback methods
-            let userId = null;
-            if (this.state && typeof this.state.getCurrentUserId === 'function') {
-                userId = this.state.getCurrentUserId();
-            } else if (this.state && this.state.get) {
-                userId = this.state.get('user.profile.id') || this.state.get('user.telegramData.id');
-            }
-            
-            if (!userId || userId === 'demo-user') {
-                // Use fallback data
-                this.achievements = this.getFallbackAchievements();
-                this.progress = this.getFallbackProgress();
-                return;
-            }
-            
-            // Load from API (if available)
-            try {
-                const achievementsData = await this.api.getAchievements(userId);
-                if (achievementsData) {
-                    this.achievements = achievementsData.items || [];
-                    this.progress = achievementsData.progress || {};
-                    this.state.set('achievements', {
-                        items: this.achievements,
-                        progress: this.progress
-                    });
-                }
-            } catch (apiError) {
-                console.warn('⚠️ API недоступен, используем fallback данные');
-                this.achievements = this.getFallbackAchievements();
-                this.progress = this.getFallbackProgress();
-            }
+            // Note: /achievements endpoint doesn't exist yet.
+            // For now, using static fallback data which provides the intended UI.
+            // The Alice badge progress is tracked separately via /gamification/progress/alice endpoint.
+            this.achievements = this.getFallbackAchievements();
+            this.progress = this.getFallbackProgress();
             
         } catch (error) {
             console.error('❌ Ошибка загрузки достижений:', error);

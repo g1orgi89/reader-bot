@@ -95,13 +95,9 @@ class AchievementsModal {
      * 🏅 Загрузка достижений пользователя
      */
     async loadUserAchievements() {
-        try {
-            const achievements = await this.api.getAchievements();
-            return achievements || [];
-        } catch (error) {
-            console.error('❌ Ошибка загрузки достижений:', error);
-            return [];
-        }
+        // Note: /achievements endpoint doesn't exist yet
+        // Return empty array for now, achievements are shown on AchievementsPage
+        return [];
     }
     
     /**
