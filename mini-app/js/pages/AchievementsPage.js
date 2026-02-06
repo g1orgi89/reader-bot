@@ -155,7 +155,7 @@ class AchievementsPage {
         
         return `
             <div class="page-header">
-                <h1>🏆 Достижения</h1>
+                <h1>Достижения</h1>
                 <p>Ваши награды (${completed} из ${total})</p>
             </div>
         `;
@@ -169,7 +169,10 @@ class AchievementsPage {
             return `
                 <div class="alice-badge-section">
                     <div class="alice-badge-header">
-                        <h3>📖 Бейдж «Алиса в стране чудес»</h3>
+                        <div class="alice-badge-title-wrapper">
+                            <img src="/assets/badges/alice.png" alt="Alice Badge" class="alice-badge-image" loading="lazy" onerror="this.style.display='none'">
+                            <h3>Бейдж «Алиса в стране чудес»</h3>
+                        </div>
                         <button class="alice-refresh-button" id="aliceRefreshButton" disabled>
                             🔄
                         </button>
@@ -673,6 +676,43 @@ ${achievement.hint ? `💡 Подсказка: ${achievement.hint}` : ''}
             container.innerHTML = this.render();
             this.attachEventListeners();
         }
+        
+        // Start short-lived polling fallback (3s interval for 15s)
+        this.startPolling();
+    }
+    
+    /**
+     * 🔄 Start short-lived polling for Alice progress
+     * Polls every 3 seconds for 15 seconds after page show
+     */
+    startPolling() {
+        // Clear any existing polling
+        this.stopPolling();
+        
+        let pollCount = 0;
+        const maxPolls = 5; // 5 polls * 3 seconds = 15 seconds
+        
+        this.pollingInterval = setInterval(async () => {
+            pollCount++;
+            console.log(`🔄 Polling Alice progress (${pollCount}/${maxPolls})...`);
+            
+            await this.refreshAliceProgress();
+            
+            if (pollCount >= maxPolls) {
+                console.log('✅ Polling complete');
+                this.stopPolling();
+            }
+        }, 3000); // Poll every 3 seconds
+    }
+    
+    /**
+     * 🛑 Stop polling
+     */
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
     }
     
     /**
@@ -680,6 +720,8 @@ ${achievement.hint ? `💡 Подсказка: ${achievement.hint}` : ''}
      */
     onHide() {
         console.log('🏆 AchievementsPage: onHide');
+        // Stop polling when leaving the page
+        this.stopPolling();
     }
 }
 

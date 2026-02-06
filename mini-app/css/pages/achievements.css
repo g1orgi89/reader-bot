@@ -126,8 +126,13 @@
 }
 
 .alice-progress-item.completed {
-    border-left: 4px solid var(--primary-color);
+    border-left: 4px solid var(--success-color);
     background: var(--bg-card);
+}
+
+.alice-progress-item.completed .alice-progress-label {
+    color: var(--success-color);
+    font-weight: var(--font-weight-semibold);
 }
 
 .alice-progress-item.completed .alice-progress-remaining {
@@ -163,12 +168,16 @@
     border-radius: var(--radius-sm);
     overflow: hidden;
     margin-bottom: var(--spacing-sm);
+    /* Ensure bar background is always visible */
+    border: 1px solid rgba(var(--primary-color-rgb, 205, 92, 92), 0.2);
 }
 
 .alice-progress-fill {
     height: 100%;
     background: var(--primary-color);
     transition: width 0.3s ease;
+    /* Minimum width so bar is visible even at 0% */
+    min-width: 2px;
 }
 
 .alice-progress-remaining {
