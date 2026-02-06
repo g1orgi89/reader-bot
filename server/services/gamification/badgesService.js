@@ -88,46 +88,52 @@ async function countFollows(userId) {
 
 /**
  * Count likes given to quotes authored by other users
- * Uses normalizedText/normalizedAuthor matching to ensure likes on own quotes don't count
+ * Uses normalizedKey matching to ensure likes on own quotes don't count
  * @param {string} userId - Telegram user ID
- * @returns {Promise<number>} Count of likes to others' quotes
+ * @returns {Promise<number>} Count of distinct likes to others' quotes
  */
 async function countLikesGivenToOthers(userId) {
   try {
     // Get all favorites by this user
     const favorites = await Favorite.find({ userId }).lean();
     
-    if (favorites.length === 0) {
+    if (!favorites || favorites.length === 0) {
       return 0;
     }
 
-    // Split normalizedKey into normalizedText and normalizedAuthor for each favorite
-    const favoriteKeys = favorites.map(f => {
-      const parts = (f.normalizedKey || '').split('|||');
-      return {
-        normalizedText: parts[0] || '',
-        normalizedAuthor: parts[1] || ''
-      };
+    // Extract normalized pairs from favorites
+    const pairs = favorites.map(f => {
+      const [t, a] = String(f.normalizedKey || '').split('|||');
+      return { normalizedText: t || '', normalizedAuthor: a || '' };
     });
-
-    // Find all quotes NOT authored by this user, matching any of the favorited normalized pairs
-    let likesCount = 0;
     
-    for (const fav of favoriteKeys) {
-      // Count quotes that match this favorite's normalized text+author AND are NOT by this user
-      const matchCount = await Quote.countDocuments({
-        userId: { $ne: userId },
-        normalizedText: fav.normalizedText,
-        normalizedAuthor: fav.normalizedAuthor
-      });
-      
-      if (matchCount > 0) {
-        likesCount++;
-      }
+    if (pairs.length === 0) {
+      return 0;
     }
+
+    // Query quotes from other users that match those normalized pairs
+    const orClauses = pairs.map(p => ({ 
+      normalizedText: p.normalizedText, 
+      normalizedAuthor: p.normalizedAuthor, 
+      userId: { $ne: userId } 
+    }));
     
-    logger.info(`✅ User ${userId} has given ${likesCount} likes to others' quotes`);
-    return likesCount;
+    const quotesFromOthers = await Quote.find({ $or: orClauses })
+      .select('normalizedText normalizedAuthor')
+      .lean();
+    
+    const keySet = new Set(quotesFromOthers.map(q => `${q.normalizedText}|||${q.normalizedAuthor}`));
+    
+    // Count distinct normalizedKeys in favorites that correspond to other users' quotes
+    const distinctLikedKeys = new Set();
+    favorites.forEach(f => { 
+      if (keySet.has(f.normalizedKey)) {
+        distinctLikedKeys.add(f.normalizedKey); 
+      }
+    });
+    
+    logger.info(`✅ User ${userId} has given ${distinctLikedKeys.size} likes to others' quotes`);
+    return distinctLikedKeys.size;
   } catch (error) {
     logger.error(`Error counting likes to others for user ${userId}:`, error);
     return 0;
