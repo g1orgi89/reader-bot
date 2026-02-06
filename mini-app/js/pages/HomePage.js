@@ -623,7 +623,10 @@ class HomePage {
                 </button>
                 <div class="home-header-info">
                     <div class="home-header-name">${name || 'Пользователь'}${badgeHtml}</div>
+<<<<<<< copilot/fix-alisa-audio-card
                     ${username ? `<div class="home-header-caption">к ${username}</div>` : '<div class="home-header-caption">к имени</div>'}
+=======
+>>>>>>> main
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
                 </div>
                 <div class="home-header-spacer"></div>
