@@ -56,6 +56,98 @@
 
 ## 📝 ЗАПИСИ
 
+## 2026-02-06 - Alice Badge Flow and Activity Streak Implementation
+
+**Задача:** Implement complete Alice badge flow with UI fixes and activity-based streak for main page  
+**Фактически затрачено:** 2 часа  
+**Ссылка на план:** Месяц 2 - Геймификация (12ч)
+
+### Проблема
+Main page streak was only counting quotes, not reflecting all user activity (photos, likes, follows, daily_login). Alice badge flow needed several improvements:
+1. Badge claim wasn't persisting the achievement to user profile
+2. UI copy included redundant "алиса" text
+3. Badge icon wasn't shown next to user nicknames
+4. Alice audio card didn't show proper unlock state and timer
+
+### Решение
+
+#### Backend Changes (server/)
+1. **server/api/reader.js** - Main stats endpoint
+   - Import `badgesService.calculateStreak`
+   - Calculate `activityStreak` alongside quote-only `dynamicStreak`
+   - Include `activityStreak` in `safeStats` response
+   - Fallback to quote-only streak on error
+
+2. **server/services/gamification/badgesService.js** - Badge claiming
+   - Update `claimAlice` to persist achievement using `$addToSet` on user profile
+   - Return `expiresAt` in success response for both new and idempotent claims
+   - Get existing entitlement to return `expiresAt` for already-claimed badges
+   - Ensure achievement is persisted even in idempotent case (if missing)
+
+#### Frontend Changes (mini-app/js/)
+1. **services/StatisticsService.js** - Prefer activity streak
+   - Check `main.activityStreak` after computing quote-only streak
+   - Use higher value to display on main page
+   - Include `activityStreak` in return object
+
+2. **pages/AchievementsPage.js** - Copy and claim flow
+   - Remove "«Алиса»" from claim button text (now: "Получить доступ к разбору")
+   - Update success message to "Бейдж выдан! Доступ открыт"
+   - Refresh Alice progress after claim
+   - Emit `badge:alice:claimed` event with `expiresAt`
+
+3. **pages/FreeAudiosPage.js** - Alice card states
+   - Add `pluralizeDays` helper for Russian pluralization (день/дня/дней)
+   - Update timer logic: "Доступен: 1 месяц" for ≥30 days, "Осталось N дней" for <30
+   - Listen for `badge:alice:claimed` event to update state
+   - Re-render on claim to show unlocked state
+
+4. **Badge Icon Globally** - Add to user nicknames
+   - **pages/HomePage.js**: `renderUserHeader` - add badge after name
+   - **pages/CommunityPage.js**: `_getDisplayNameRow` - add badge after username
+   - **components/CoverCommentsModal.js**: `getDisplayName` - add badge after username
+   - Badge shows when `user.achievements` contains `{achievementId: 'alice'}`
+
+### Изменённые файлы
+**Backend (2 files):**
+- `server/api/reader.js`
+- `server/services/gamification/badgesService.js`
+
+**Frontend (6 files):**
+- `mini-app/js/services/StatisticsService.js`
+- `mini-app/js/pages/AchievementsPage.js`
+- `mini-app/js/pages/FreeAudiosPage.js`
+- `mini-app/js/pages/HomePage.js`
+- `mini-app/js/pages/CommunityPage.js`
+- `mini-app/js/components/CoverCommentsModal.js`
+
+### Acceptance Criteria
+✅ GET /api/reader/stats returns `activityStreak` based on all activity types
+✅ Main page displays activity streak (higher of quote-only or activity-based)
+✅ Alice badge claim persists achievement to user profile
+✅ Claim returns `expiresAt` for both new and idempotent claims
+✅ Achievements page shows "Получить доступ к разбору" (no "алиса" in copy)
+✅ Alice audio card shows "Доступен: 1 месяц" initially, then countdown with pluralization
+✅ Badge icon appears next to nickname on HomePage, CommunityPage, and comments
+✅ Claiming badge emits event to update FreeAudiosPage state
+
+### QA Plan (dev.unibotz.com:3003)
+1. Verify 30 daily_login entries in useractions for test user
+2. Check GET /api/reader/stats?userId=1798451247 returns activityStreak=30
+3. Verify main page shows streak=30
+4. Open Achievements, verify progress.completed=true, claim badge
+5. Verify badge icon shows next to nickname on main page, feeds, comments
+6. Open Alice audio section, verify unlocked state and timer
+7. Next day, verify countdown shows correct pluralization
+
+### Rollback Plan
+- Remove `activityStreak` calculation and field from `/api/reader/stats`
+- Remove achievement persistence in `claimAlice`
+- Revert frontend to use quote-only streak
+- Remove badge icon rendering from name display functions
+
+---
+
 ## 2026-02-06 - Alice Badge Streak: Add daily_login Useractions Support
 
 **Задача:** Fix Alice badge streak calculation to include daily_login entries from useractions collection  

@@ -610,13 +610,19 @@ class HomePage {
         const initials = name ? this.getInitials(name) : '';
         const username = user.username ? `@${user.username}` : '';
         
+        // Check for alice achievement and add badge icon
+        const hasAlice = user.achievements?.some(a => a.achievementId === 'alice' || a === 'alice');
+        const badgeHtml = hasAlice 
+            ? ' <img src="/assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline" />' 
+            : '';
+        
         return `
             <div class="home-header">
                 <button class="home-header-avatar-large" id="homeHeaderAvatar" aria-label="Профиль">
                     ${this.renderUserAvatar(user.avatarUrl, initials)}
                 </button>
                 <div class="home-header-info">
-                    <div class="home-header-name">${name || 'Пользователь'}</div>
+                    <div class="home-header-name">${name || 'Пользователь'}${badgeHtml}</div>
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
                 </div>
                 <div class="home-header-spacer"></div>
