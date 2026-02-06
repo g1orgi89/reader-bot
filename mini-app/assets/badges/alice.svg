@@ -1,0 +1,6 @@
+<svg width="44" height="44" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44">
+  <rect width="44" height="44" rx="8" fill="#F5F2EC"/>
+  <text x="22" y="18" font-family="Arial, sans-serif" font-size="10" fill="#2C1810" text-anchor="middle" font-weight="bold">Алиса</text>
+  <circle cx="22" cy="30" r="6" fill="#D2452C" opacity="0.3"/>
+  <path d="M22 26 L22 34 M18 30 L26 30" stroke="#D2452C" stroke-width="1.5" fill="none"/>
+</svg>

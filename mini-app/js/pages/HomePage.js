@@ -345,15 +345,9 @@ class HomePage {
                         ? `<span class="progress-author-name" title="${stats.favoriteAuthor}">${stats.favoriteAuthor}</span>`
                         : '—';
                     
-                    // Calculate streak with Alice badge fallback
-                    const user = this.state.get('user.profile') || {};
-                    const hasAlice = user.achievements?.some(a => 
-                        a.achievementId === 'alice' || a.achievementId === 'alice_badge' || 
-                        a === 'alice' || a === 'alice_badge'
-                    );
+                    // Calculate streak from stats.currentStreak (no minimum)
                     const currentStreak = stats.currentStreak ?? stats.streak ?? 0;
-                    // If Alice badge exists (requires 30-day streak), ensure we show at least 30
-                    const displayStreak = hasAlice ? Math.max(currentStreak, 30) : currentStreak;
+                    const displayStreak = (typeof currentStreak === 'number') ? currentStreak : 0;
                     
                     const row2Content = `
                         <div class="stat-card fade-in">
@@ -621,12 +615,15 @@ class HomePage {
         const username = user.username ? `@${user.username}` : '';
         
         // Check for alice achievement and add badge icon (support both 'alice' and 'alice_badge')
-        const hasAlice = user.achievements?.some(a => 
-            a.achievementId === 'alice' || a.achievementId === 'alice_badge' || 
-            a === 'alice' || a === 'alice_badge'
-        );
+        // Merge badges and achievements to support both sources
+        const ids = []
+            .concat(Array.isArray(user.badges) ? user.badges : [])
+            .concat(Array.isArray(user.achievements) ? user.achievements : [])
+            .map(a => typeof a === 'string' ? a : a?.achievementId)
+            .filter(Boolean);
+        const hasAlice = ids.includes('alice') || ids.includes('alice_badge');
         const badgeHtml = hasAlice 
-            ? ' <img src="/assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline" />' 
+            ? ' <img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline" onerror="this.src=\'/assets/badges/alice.png\'" />' 
             : '';
         
         return `
@@ -1358,15 +1355,9 @@ class HomePage {
         }
         
         if (streakCard) {
-            // Calculate streak with Alice badge fallback
-            const user = this.state.get('user.profile') || {};
-            const hasAlice = user.achievements?.some(a => 
-                a.achievementId === 'alice' || a.achievementId === 'alice_badge' || 
-                a === 'alice' || a === 'alice_badge'
-            );
+            // Calculate streak from stats.currentStreak (no minimum)
             const currentStreak = stats.currentStreak ?? stats.streak ?? 0;
-            // If Alice badge exists (requires 30-day streak), ensure we show at least 30
-            const displayStreak = hasAlice ? Math.max(currentStreak, 30) : currentStreak;
+            const displayStreak = (typeof currentStreak === 'number') ? currentStreak : 0;
             
             streakCard.textContent = stats.loading ? '⏳' : (displayStreak || '—');
         }

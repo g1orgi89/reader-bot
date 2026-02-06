@@ -254,6 +254,26 @@
     justify-content: center;
 }
 
+/* Badge icon sizing */
+.profile-badges-row .badge-chip {
+    width: 44px;
+    height: 44px;
+}
+
+.profile-page .badge-inline {
+    width: 28px;
+    height: 28px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.profile-modal .badge-inline {
+    width: 28px;
+    height: 28px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
 .profile-avatar-container {
     width: 120px;
     height: 120px;
