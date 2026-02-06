@@ -152,7 +152,7 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">${this.escape(timerLabel)}</div></div>
+            <div class="book-pricing"><div class="book-price">${timerLabel}</div></div>
             <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
           </div>
         </div>
