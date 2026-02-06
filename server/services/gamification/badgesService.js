@@ -9,6 +9,7 @@ const Follow = require('../../models/Follow');
 const Favorite = require('../../models/Favorite');
 const Quote = require('../../models/quote');
 const UserProfile = require('../../models/userProfile');
+const UserEntitlement = require('../../models/UserEntitlement');
 const entitlementService = require('../access/entitlementService');
 const { resolveUserObjectId } = require('../access/resolveUserId');
 const logger = require('../../utils/logger');
@@ -262,7 +263,6 @@ async function getAliceProgress(userId) {
         
         // If user has access, get expiration date
         if (hasAccess) {
-          const UserEntitlement = require('../../models/UserEntitlement');
           const entitlement = await UserEntitlement.findOne({
             userId: userObjectId,
             kind: 'audio',
@@ -331,7 +331,6 @@ async function claimAlice(userId) {
       logger.info(`✅ User ${userId} already has Alice entitlement (idempotent)`);
       
       // Get the existing entitlement to return expiresAt
-      const UserEntitlement = require('../../models/UserEntitlement');
       const existingEntitlement = await UserEntitlement.findOne({
         userId: userObjectId,
         kind: 'audio',
