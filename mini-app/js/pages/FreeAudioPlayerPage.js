@@ -744,7 +744,14 @@ class FreeAudioPlayerPage {
       const streamUrlResponse = await this.api.getAudioStreamUrl(audioIdToPlay);
       
       if (!streamUrlResponse.success || !streamUrlResponse.url) {
-        throw new Error('Failed to get stream URL');
+        // Instead of throwing error, show friendly message that content is coming soon
+        console.warn('⚠️ FreeAudioPlayerPage: Stream URL not available yet');
+        if (this.telegram?.showAlert) {
+          this.telegram.showAlert('Контент скоро появится. Попробуйте позже.');
+        } else {
+          alert('Контент скоро появится. Попробуйте позже.');
+        }
+        return;
       }
 
       // Play the audio using AudioService

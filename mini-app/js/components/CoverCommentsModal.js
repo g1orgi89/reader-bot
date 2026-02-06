@@ -1344,7 +1344,7 @@ class CoverCommentsModal {
             : '';
         
         if (username) {
-            return `${name} · @${username}${badgeHtml}`;
+            return `${name}${badgeHtml} · @${username}`;
         }
         return `${name}${badgeHtml}`;
     }

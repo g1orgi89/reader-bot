@@ -681,13 +681,12 @@ class ProfilePage {
                         ` : ''}
                         <div class="profile-avatar-fallback">${initials}</div>
                     </div>
-                    ${this.renderBadgeIcons(badges)}
                 </div>
                 
                 <div class="profile-right">
                     <div class="user-heading-row">
-                        <div class="user-name">${name}</div>
-                        ${formattedUsername ? `<div class="user-username">${formattedUsername}${this.renderInlineBadges(badges)}</div>` : ''}
+                        <div class="user-name">${name}${this.renderInlineBadges(badges)}</div>
+                        ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
                     </div>
                     
                     ${status ? `
@@ -1200,8 +1199,8 @@ class ProfilePage {
                     <div class="user-avatar-fallback">${initials}</div>
                 </div>
                 <div class="user-info">
-                    <div class="user-name">${name}</div>
-                    ${formattedUsername ? `<div class="user-username">${formattedUsername}${this.renderInlineBadges(badges)}</div>` : ''}
+                    <div class="user-name">${name}${this.renderInlineBadges(badges)}</div>
+                    ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
                     ${bio ? `<div class="user-bio">${bio}</div>` : ''}
                 </div>
             </div>

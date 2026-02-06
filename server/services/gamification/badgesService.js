@@ -9,6 +9,7 @@ const Follow = require('../../models/Follow');
 const Favorite = require('../../models/Favorite');
 const Quote = require('../../models/quote');
 const UserProfile = require('../../models/userProfile');
+const UserEntitlement = require('../../models/UserEntitlement');
 const entitlementService = require('../access/entitlementService');
 const { resolveUserObjectId } = require('../access/resolveUserId');
 const logger = require('../../utils/logger');
@@ -249,14 +250,26 @@ async function getAliceProgress(userId) {
 
     // Check if badge has been claimed (either through achievement or entitlement)
     let claimed = false;
+    let hasAccess = false;
+    let expiresAt = null;
     try {
       const userObjectId = await resolveUserObjectId(userId);
       if (userObjectId) {
         // Check if user has the achievement or entitlement
         const userProfile = await UserProfile.findOne({ userId });
         const hasAchievement = userProfile?.achievements?.some(a => a.achievementId === 'alice');
-        const hasAccess = await entitlementService.hasAudioAccess(userObjectId, 'alice_wonderland');
+        hasAccess = await entitlementService.hasAudioAccess(userObjectId, 'alice_wonderland');
         claimed = hasAchievement || hasAccess;
+        
+        // If user has access, get expiration date
+        if (hasAccess) {
+          const entitlement = await UserEntitlement.findOne({
+            userId: userObjectId,
+            kind: 'audio',
+            resourceId: 'alice_wonderland'
+          });
+          expiresAt = entitlement?.expiresAt || null;
+        }
       }
     } catch (error) {
       logger.warn(`⚠️ Could not check claim status for user ${userId}:`, error);
@@ -267,7 +280,9 @@ async function getAliceProgress(userId) {
       ...requirements,
       completed,
       percent,
-      claimed
+      claimed,
+      hasAccess,
+      expiresAt
     };
 
     logger.info(`✅ Alice progress computed:`, progress);
@@ -316,7 +331,6 @@ async function claimAlice(userId) {
       logger.info(`✅ User ${userId} already has Alice entitlement (idempotent)`);
       
       // Get the existing entitlement to return expiresAt
-      const UserEntitlement = require('../../models/UserEntitlement');
       const existingEntitlement = await UserEntitlement.findOne({
         userId: userObjectId,
         kind: 'audio',
