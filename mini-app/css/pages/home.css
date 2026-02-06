@@ -1019,6 +1019,15 @@ body.dark-theme {
     text-overflow: ellipsis;
 }
 
+.home-header-caption {
+    font-size: var(--font-size-xs, 12px);
+    color: var(--text-muted);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .home-header-username {
     font-size: var(--font-size-sm, 14px);
     color: var(--text-secondary);

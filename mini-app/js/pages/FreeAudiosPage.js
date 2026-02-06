@@ -113,7 +113,8 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">Разбор: &lt;&lt;Алиса в стране чудес&gt;&gt;</div>
+                  <div class="book-title">&lt;&lt;Алиса в стране чудес&gt;&gt;</div>
+                  <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
               <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
@@ -129,16 +130,14 @@ class FreeAudiosPage {
           </div>
         </div>
       `;
-    } else {
-      // Unlocked state - standard book-card structure with remaining days
+    } else if (remainingDays > 0) {
+      // Active access - show timer and listen button
       // Calculate timer label: "Доступен: 1 месяц" initially (30 days), then "Осталось N дней"
       let timerLabel;
       if (remainingDays >= 30) {
         timerLabel = 'Доступен: 1 месяц';
-      } else if (remainingDays > 0) {
-        timerLabel = `Осталось ${remainingDays} ${this.pluralizeDays(remainingDays)}`;
       } else {
-        timerLabel = 'Доступ истёк';
+        timerLabel = `Осталось ${remainingDays} ${this.pluralizeDays(remainingDays)}`;
       }
       
       return `
@@ -151,7 +150,8 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">Разбор: &lt;&lt;Алиса в стране чудес&gt;&gt;</div>
+                  <div class="book-title">&lt;&lt;Алиса в стране чудес&gt;&gt;</div>
+                  <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
               <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
@@ -160,6 +160,30 @@ class FreeAudiosPage {
           <div class="book-footer">
             <div class="book-pricing"><div class="book-price">${timerLabel}</div></div>
             <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
+          </div>
+        </div>
+      `;
+    } else {
+      // Expired access - show "Доступ окончен" without buttons, styled like free audios
+      return `
+        <div class="book-card alice-card expired" data-id="alice_wonderland">
+          <div class="book-main">
+            <div class="book-cover cover-1">
+              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
+            </div>
+            <div class="book-info">
+              <div class="book-header">
+                <div>
+                  <div class="book-title">&lt;&lt;Алиса в стране чудес&gt;&gt;</div>
+                  <div class="book-author">Льюис Кэрролл</div>
+                </div>
+              </div>
+              <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
+            </div>
+          </div>
+          <div class="book-footer">
+            <div class="book-pricing"><div class="book-price">Доступ окончен</div></div>
           </div>
         </div>
       `;
