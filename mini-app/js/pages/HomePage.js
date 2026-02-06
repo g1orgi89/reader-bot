@@ -623,7 +623,6 @@ class HomePage {
                 </button>
                 <div class="home-header-info">
                     <div class="home-header-name">${name || 'Пользователь'}${badgeHtml}</div>
-                    <div class="home-header-caption">к имени</div>
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
                 </div>
                 <div class="home-header-spacer"></div>
