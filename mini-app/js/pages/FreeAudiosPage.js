@@ -94,10 +94,7 @@ class FreeAudiosPage {
   }
 
   renderAliceCard() {
-    if (!this.aliceLoaded) {
-      return '';
-    }
-    
+    // Always render Alice card, default to locked state if metadata not loaded
     const unlockStatus = this.aliceMeta?.unlockStatus || false;
     const remainingDays = this.aliceMeta?.remainingDays || 0;
     
@@ -113,7 +110,7 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">&lt;&lt;Алиса в стране чудес&gt;&gt;</div>
+                  <div class="book-title">«Алиса в стране чудес»</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
@@ -150,7 +147,7 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">&lt;&lt;Алиса в стране чудес&gt;&gt;</div>
+                  <div class="book-title">«Алиса в стране чудес»</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
@@ -164,7 +161,7 @@ class FreeAudiosPage {
         </div>
       `;
     } else {
-      // Expired access - show "Доступ окончен" without buttons, styled like free audios
+      // Expired access - show "Доступ окончен" without buttons
       return `
         <div class="book-card alice-card expired" data-id="alice_wonderland">
           <div class="book-main">
@@ -175,7 +172,7 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">&lt;&lt;Алиса в стране чудес&gt;&gt;</div>
+                  <div class="book-title">«Алиса в стране чудес»</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
