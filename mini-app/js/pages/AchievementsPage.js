@@ -173,9 +173,6 @@ class AchievementsPage {
                             <img src="/assets/badges/alice.png" alt="Alice Badge" class="alice-badge-image" loading="lazy" onerror="this.style.display='none'">
                             <h3>Бейдж «Алиса в стране чудес»</h3>
                         </div>
-                        <button class="alice-refresh-button" id="aliceRefreshButton" disabled>
-                            🔄
-                        </button>
                     </div>
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
@@ -231,9 +228,6 @@ class AchievementsPage {
                         <img src="/assets/badges/alice.png" alt="Alice Badge" class="alice-badge-image" loading="lazy" onerror="this.style.display='none'">
                         <h3>Бейдж «Алиса в стране чудес»</h3>
                     </div>
-                    <button class="alice-refresh-button" id="aliceRefreshButton" title="Обновить прогресс">
-                        🔄
-                    </button>
                 </div>
                 <p class="alice-badge-description">Выполните все условия для получения доступа к аудиоразбору</p>
                 
@@ -393,18 +387,11 @@ class AchievementsPage {
                 if (newAliceSection) {
                     aliceSection.replaceWith(newAliceSection);
                     
-                    // Re-attach event listeners for the Alice section
+                    // Re-attach event listener for the Alice claim button
                     const aliceClaimButton = document.getElementById('aliceClaimButton');
                     if (aliceClaimButton) {
                         aliceClaimButton.addEventListener('click', () => {
                             this.handleAliceClaimClick();
-                        });
-                    }
-                    
-                    const aliceRefreshButton = document.getElementById('aliceRefreshButton');
-                    if (aliceRefreshButton) {
-                        aliceRefreshButton.addEventListener('click', () => {
-                            this.handleRefreshClick();
                         });
                     }
                 }
@@ -493,26 +480,6 @@ class AchievementsPage {
                 this.handleAliceClaimClick();
             });
         }
-        
-        // Alice refresh button handler
-        const aliceRefreshButton = document.getElementById('aliceRefreshButton');
-        if (aliceRefreshButton) {
-            aliceRefreshButton.addEventListener('click', () => {
-                this.handleRefreshClick();
-            });
-        }
-    }
-    
-    /**
-     * 🔄 Handle manual refresh button click
-     */
-    async handleRefreshClick() {
-        // Haptic feedback
-        if (this.telegram?.hapticFeedback) {
-            this.telegram.hapticFeedback('light');
-        }
-        
-        await this.refreshAliceProgress();
     }
     
     /**

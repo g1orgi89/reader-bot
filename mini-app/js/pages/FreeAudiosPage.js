@@ -56,46 +56,59 @@ class FreeAudiosPage {
     const remainingDays = this.aliceMeta?.remainingDays || 0;
     
     if (!unlockStatus) {
-      // Locked state - show CTA to achievements with larger badge icon in subtitle
+      // Locked state - standard book-card structure with lock icon and badge requirement
       return `
-        <div class="alice-audio-card locked">
-          <div class="audio-card-content">
-            <div class="audio-cover-wrapper">
-              <img class="audio-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="this.style.display='none'">
-              <div class="audio-locked-overlay">
-                <div class="lock-icon">🔒</div>
+        <div class="book-card" data-id="alice_wonderland">
+          <div class="book-main">
+            <div class="book-cover cover-1">
+              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <div class="cover-fallback-text" style="display: none;">Алиса в стране чудес</div>
+            </div>
+            <div class="book-info">
+              <div class="book-header">
+                <div>
+                  <div class="book-title">Алиса в стране чудес</div>
+                  <div class="book-author">Льюис Кэрролл</div>
+                </div>
+              </div>
+              <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
+            </div>
+          </div>
+          <div class="book-footer">
+            <div class="book-pricing">
+              <div class="book-price" style="display: flex; align-items: center; gap: 8px;">
+                <span>🔒 Требуется бейдж</span>
+                <img src="/assets/badges/alice.png" alt="Alice Badge" style="width: 48px; height: 48px; object-fit: contain;" loading="lazy" onerror="this.style.display='none'">
               </div>
             </div>
-            <div class="audio-card-info">
-              <h3 class="audio-card-title">Алиса в стране чудес</h3>
-              <div class="audio-card-subtitle-with-badge">
-                <span>Требуется бейдж</span>
-                <img src="/assets/badges/alice.png" alt="Alice Badge" class="audio-badge-icon audio-badge-icon--large" loading="lazy" onerror="this.style.display='none'">
-              </div>
-              <p class="audio-card-description">Выполните условия для получения доступа к эксклюзивному аудиоразбору</p>
-              <button class="audio-cta-button" data-action="navigate-achievements">
-                Получить доступ
-              </button>
-            </div>
+            <button class="buy-button" data-action="navigate-achievements">Получить доступ</button>
           </div>
         </div>
       `;
     } else {
-      // Unlocked state - show play button and remaining days
+      // Unlocked state - standard book-card structure with remaining days
       return `
-        <div class="alice-audio-card unlocked">
-          <div class="audio-card-content">
-            <div class="audio-cover-wrapper">
-              <img class="audio-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="this.style.display='none'">
+        <div class="book-card" data-id="alice_wonderland">
+          <div class="book-main">
+            <div class="book-cover cover-1">
+              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" loading="lazy" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <div class="cover-fallback-text" style="display: none;">Алиса в стране чудес</div>
             </div>
-            <div class="audio-card-info">
-              <h3 class="audio-card-title">Алиса в стране чудес</h3>
-              <p class="audio-card-subtitle">Осталось ${remainingDays} дн.</p>
-              <p class="audio-card-description">Эксклюзивный аудиоразбор классического произведения</p>
-              <button class="audio-play-button" data-audio-id="alice_wonderland">
-                ▶ Прослушать
-              </button>
+            <div class="book-info">
+              <div class="book-header">
+                <div>
+                  <div class="book-title">Алиса в стране чудес</div>
+                  <div class="book-author">Льюис Кэрролл</div>
+                </div>
+              </div>
+              <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
             </div>
+          </div>
+          <div class="book-footer">
+            <div class="book-pricing">
+              <div class="book-price">Осталось ${remainingDays} дн.</div>
+            </div>
+            <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
           </div>
         </div>
       `;
@@ -184,38 +197,23 @@ class FreeAudiosPage {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        const action = btn.getAttribute('data-action');
         const id = btn.getAttribute('data-id');
+        
         if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
           this.telegram.hapticFeedback('light');
         }
-        this.app.router.navigate(`/free-audios/${encodeURIComponent(id)}`, { state: { id } });
+        
+        // Handle Alice card "Получить доступ" button
+        if (action === 'navigate-achievements') {
+          this.app.router.navigate('/achievements');
+        } 
+        // Handle regular audio items and Alice card "Прослушать" button
+        else if (id) {
+          this.app.router.navigate(`/free-audios/${encodeURIComponent(id)}`, { state: { id } });
+        }
       });
     });
-    
-    // Alice card CTA button (navigate to achievements)
-    const ctaButton = document.querySelector('.audio-cta-button[data-action="navigate-achievements"]');
-    if (ctaButton) {
-      ctaButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
-          this.telegram.hapticFeedback('medium');
-        }
-        this.app.router.navigate('/achievements');
-      });
-    }
-    
-    // Alice card play button (navigate to player)
-    const playButton = document.querySelector('.audio-play-button[data-audio-id]');
-    if (playButton) {
-      playButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        const audioId = playButton.getAttribute('data-audio-id');
-        if (this.telegram && typeof this.telegram.hapticFeedback === 'function') {
-          this.telegram.hapticFeedback('light');
-        }
-        this.app.router.navigate(`/free-audios/${encodeURIComponent(audioId)}`, { state: { id: audioId } });
-      });
-    }
   }
 
   parseListResponse(json) {
