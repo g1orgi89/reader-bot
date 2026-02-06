@@ -1839,6 +1839,16 @@ router.get('/stats', telegramAuth, async (req, res) => {
     const daysSinceRegistration = user.daysSinceRegistration || 0;
     const weeksSinceRegistration = user.weeksSinceRegistration || 0;
 
+    // ---- Activity-based streak (includes all activity types) ----
+    let activityStreak = 0;
+    try {
+      activityStreak = await badgesService.calculateStreak(userId);
+    } catch (error) {
+      console.error('Error calculating activity streak:', error);
+      // Fall back to quote-only streak if activity streak fails
+      activityStreak = dynamicStreak;
+    }
+
     // ---- Build response stats ----
     const safeStats = {
       totalQuotes,
@@ -1851,7 +1861,8 @@ router.get('/stats', telegramAuth, async (req, res) => {
       weeksSinceRegistration,
       // New scoped fields
       scope,
-      quotes: scopedQuotes // Quotes for the requested scope (week/month/global)
+      quotes: scopedQuotes, // Quotes for the requested scope (week/month/global)
+      activityStreak // Activity-based streak including photos, quotes, likes, follows, daily_login
     };
 
     // Add scope-specific aliases for backward compatibility and clarity

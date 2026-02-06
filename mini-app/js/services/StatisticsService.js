@@ -187,6 +187,11 @@ class StatisticsService {
             const computedStreak = this._computeStreak(quotes);
             if (computedStreak > streak) streak = computedStreak;
             
+            // Prefer activityStreak if available (includes all activity types)
+            if (typeof main.activityStreak === 'number' && main.activityStreak > streak) {
+                streak = main.activityStreak;
+            }
+            
             // Enhanced streak calculation with yesterday fallback
             const { streakToYesterday, isAwaitingToday } = this._computeStreakToYesterday(quotes, computedStreak);
             
@@ -197,6 +202,7 @@ class StatisticsService {
                 currentStreak: streak,
                 computedStreak,
                 backendStreak: main.currentStreak,
+                activityStreak: main.activityStreak,
                 streakToYesterday,
                 isAwaitingToday
             };

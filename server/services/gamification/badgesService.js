@@ -327,10 +327,39 @@ async function claimAlice(userId) {
     
     if (hasAccess) {
       logger.info(`✅ User ${userId} already has Alice entitlement (idempotent)`);
+      
+      // Get the existing entitlement to return expiresAt
+      const UserEntitlement = require('../../models/UserEntitlement');
+      const existingEntitlement = await UserEntitlement.findOne({
+        userId: userObjectId,
+        kind: 'audio',
+        resourceId: 'alice_wonderland'
+      });
+      
+      // Ensure achievement is persisted (idempotent)
+      const userProfile = await UserProfile.findOne({ userId });
+      const hasAchievement = userProfile?.achievements?.some(a => a.achievementId === 'alice');
+      
+      if (!hasAchievement) {
+        await UserProfile.findOneAndUpdate(
+          { userId },
+          {
+            $addToSet: {
+              achievements: {
+                achievementId: 'alice',
+                unlockedAt: new Date()
+              }
+            }
+          }
+        );
+        logger.info(`✅ Added alice achievement to user ${userId} profile (was missing)`);
+      }
+      
       return {
         success: true,
         message: 'Badge already claimed',
-        alreadyClaimed: true
+        alreadyClaimed: true,
+        expiresAt: existingEntitlement?.expiresAt || null
       };
     }
 
@@ -352,6 +381,19 @@ async function claimAlice(userId) {
         }
       }
     });
+
+    // Persist achievement to user profile
+    await UserProfile.findOneAndUpdate(
+      { userId },
+      {
+        $addToSet: {
+          achievements: {
+            achievementId: 'alice',
+            unlockedAt: new Date()
+          }
+        }
+      }
+    );
 
     logger.info(`✅ Alice badge claimed successfully for user ${userId}`);
 

@@ -229,7 +229,7 @@ class AchievementsPage {
                     id="aliceClaimButton"
                     ${!completed ? 'disabled' : ''}
                 >
-                    ${completed ? 'Получить доступ к разбору «Алиса»' : 'Выполните все условия'}
+                    ${completed ? 'Получить доступ к разбору' : 'Выполните все условия'}
                 </button>
             </div>
         `;
@@ -385,7 +385,7 @@ class AchievementsPage {
             const claimBtn = document.getElementById('aliceClaimButton');
             if (claimBtn) {
                 claimBtn.disabled = !completed;
-                claimBtn.textContent = completed ? 'Получить доступ к разбору «Алиса»' : 'Выполните все условия';
+                claimBtn.textContent = completed ? 'Получить доступ к разбору' : 'Выполните все условия';
             }
         } catch (error) {
             console.error('❌ Failed to refresh Alice progress:', error);
@@ -422,12 +422,22 @@ class AchievementsPage {
             const result = await response.json();
             
             if (result.success) {
-                // Show success alert
-                const message = 'Бейдж «Алиса» получен! Доступ открыт на 30 дней.';
+                // Refresh Alice progress to show obtained badge
+                await this.refreshAliceProgress();
+                
+                // Show success toast
+                const message = 'Бейдж выдан! Доступ открыт';
                 if (this.telegram?.showAlert) {
                     this.telegram.showAlert(message);
                 } else {
                     alert(message);
+                }
+                
+                // Emit app event with expiresAt for FreeAudiosPage to update
+                if (result.expiresAt) {
+                    window.dispatchEvent(new CustomEvent('badge:alice:claimed', {
+                        detail: { expiresAt: result.expiresAt }
+                    }));
                 }
                 
                 // Navigate to free audios page

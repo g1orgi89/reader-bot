@@ -11,6 +11,34 @@ class FreeAudiosPage {
     this.loaded = false;
     this.aliceMeta = null;
     this.aliceLoaded = false;
+    
+    // Listen for Alice badge claim event
+    this._handleAliceClaimed = this._handleAliceClaimed.bind(this);
+    window.addEventListener('badge:alice:claimed', this._handleAliceClaimed);
+  }
+
+  _handleAliceClaimed(event) {
+    console.log('🎉 Alice badge claimed event received:', event.detail);
+    // Update aliceMeta to reflect unlocked state
+    if (event.detail?.expiresAt) {
+      const expiresAt = new Date(event.detail.expiresAt);
+      const now = new Date();
+      const msRemaining = expiresAt - now;
+      const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+      
+      this.aliceMeta = {
+        unlockStatus: true,
+        remainingDays: Math.max(0, daysRemaining)
+      };
+      this.aliceLoaded = true;
+      
+      // Re-render if we're on the page
+      const container = document.getElementById('page-content');
+      if (container && this.loaded) {
+        container.innerHTML = this.render();
+        this.attachEventListeners();
+      }
+    }
   }
 
   init() {
@@ -35,6 +63,17 @@ class FreeAudiosPage {
     const d = document.createElement('div'); 
     d.textContent = String(t||''); 
     return d.innerHTML; 
+  }
+
+  /**
+   * Pluralize Russian "день" based on count
+   * @param {number} n - Number of days
+   * @returns {string} Correctly pluralized word
+   */
+  pluralizeDays(n) {
+    if (n % 10 === 1 && n % 100 !== 11) return 'день';
+    if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'дня';
+    return 'дней';
   }
 
   renderEmptyStateBlock() {
@@ -86,6 +125,16 @@ class FreeAudiosPage {
       `;
     } else {
       // Unlocked state - standard book-card structure with remaining days
+      // Calculate timer label: "Доступен: 1 месяц" initially (30 days), then "Осталось N дней"
+      let timerLabel;
+      if (remainingDays >= 30) {
+        timerLabel = 'Доступен: 1 месяц';
+      } else if (remainingDays > 0) {
+        timerLabel = `Осталось ${remainingDays} ${this.pluralizeDays(remainingDays)}`;
+      } else {
+        timerLabel = 'Доступ истёк';
+      }
+      
       return `
         <div class="book-card alice-card" data-id="alice_wonderland">
           <div class="book-main">
@@ -103,7 +152,7 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">Осталось ${remainingDays} дн.</div></div>
+            <div class="book-pricing"><div class="book-price">${this.escape(timerLabel)}</div></div>
             <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
           </div>
         </div>

@@ -2599,10 +2599,17 @@ async refreshSpotlight() {
         if (!user) return 'Пользователь';
         const name = user.name || 'Пользователь';
         const username = user.telegramUsername;
+        
+        // Check for alice achievement and add badge icon
+        const hasAlice = user.achievements?.some(a => a.achievementId === 'alice' || a === 'alice');
+        const badgeHtml = hasAlice 
+            ? '<img src="/assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline" />' 
+            : '';
+        
         if (username) {
-            return `${this.escapeHtml(name)} · @${this.escapeHtml(username)}`;
+            return `${this.escapeHtml(name)} · @${this.escapeHtml(username)}${badgeHtml}`;
         }
-        return this.escapeHtml(name);
+        return `${this.escapeHtml(name)}${badgeHtml}`;
     }
     
     /**
