@@ -120,14 +120,14 @@ class AchievementsPage {
      * 📋 Рендер заголовка страницы
      */
     renderHeader() {
-        // Alice-based header: show "0 из 1" when not completed, "1 из 1" when completed
-        const completed = this.aliceProgress?.completed ? 1 : 0;
+        // Alice-based header: show "0 из 1" when not claimed, "1 из 1" when claimed
+        const claimed = this.aliceProgress?.claimed ? 1 : 0;
         const total = 1;
         
         return `
             <div class="page-header">
                 <h1>Достижения</h1>
-                <p>Ваши награды (${completed} из ${total})</p>
+                <p>Ваши награды (${claimed} из ${total})</p>
             </div>
         `;
     }
@@ -163,21 +163,26 @@ class AchievementsPage {
             likesGivenToOthers = { current: 0, required: 10 },
             streak = { current: 0, required: 30 },
             completed = false,
-            claimed = false
+            claimed = false,
+            hasAccess = false
         } = this.aliceProgress;
         
-        // If claimed, show distinct "Бейдж получен" section
+        // If claimed, show distinct badge section with title "Бейдж «Алиса в стране чудес»"
+        // Show "Открыть аудио" button only while entitlement is active (hasAccess === true)
+        // After expiry, show only badge + title (no button, no "доступ открыт" label)
         if (claimed) {
             return `
                 <div class="alice-badge-section alice-badge-claimed">
                     <div class="alice-badge-header">
                         <div class="alice-badge-title-wrapper">
-                            <img src="/assets/badges/alice.png" alt="Бейдж «Алиса»" class="alice-badge-image large">
-                            <h3>Бейдж получен</h3>
+                            <img src="/assets/badges/alice.png" alt="Бейдж «Алиса в стране чудес»" class="alice-badge-image large">
+                            <h3>Бейдж «Алиса в стране чудес»</h3>
                         </div>
                     </div>
-                    <p class="alice-badge-description">Доступ к аудиоразбору открыт</p>
-                    <button class="alice-claim-button" onclick="window.location.hash = '#/free-audios'">Открыть аудио</button>
+                    ${hasAccess ? `
+                        <p class="alice-badge-description">Доступ к аудиоразбору открыт</p>
+                        <button class="alice-claim-button" onclick="window.location.hash = '#/free-audios'">Открыть аудио</button>
+                    ` : ''}
                 </div>
             `;
         }
@@ -407,7 +412,7 @@ class AchievementsPage {
             }
             
             const headerP = document.querySelector('.page-header p');
-            if (headerP) headerP.textContent = `Ваши награды (${completed ? 1 : 0} из 1)`;
+            if (headerP) headerP.textContent = `Ваши награды (${this.aliceProgress?.claimed ? 1 : 0} из 1)`;
             
             const claimBtn = document.getElementById('aliceClaimButton');
             if (claimBtn) {

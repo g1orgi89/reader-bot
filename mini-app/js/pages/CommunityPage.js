@@ -2607,7 +2607,7 @@ async refreshSpotlight() {
             : '';
         
         if (username) {
-            return `${this.escapeHtml(name)} · @${this.escapeHtml(username)}${badgeHtml}`;
+            return `${this.escapeHtml(name)}${badgeHtml} · @${this.escapeHtml(username)}`;
         }
         return `${this.escapeHtml(name)}${badgeHtml}`;
     }

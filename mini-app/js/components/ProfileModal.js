@@ -465,8 +465,8 @@ class ProfileModal {
                     
                     <div class="profile-modal-right">
                         <div class="profile-modal-heading-row">
-                            <h2 id="profileModalTitle" class="profile-modal-name">${name}</h2>
-                            ${username ? `<p class="profile-modal-username">${username}${inlineBadgeMarkup}</p>` : ''}
+                            <h2 id="profileModalTitle" class="profile-modal-name">${name}${inlineBadgeMarkup}</h2>
+                            ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
                         </div>
                         
                         ${status ? `

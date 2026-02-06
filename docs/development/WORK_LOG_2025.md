@@ -4124,3 +4124,103 @@ If issues arise:
 Часы: 3.5
 
 ---
+
+## 2025-02-06 - Alice Badge UX Finalization, Audio Unlock Behavior, Unified Badge Icons, Activity-Based Home Streak
+
+**Plan ref:** Gamification improvements (Alice badge enhancements)  
+**Time:** 4h
+
+### Summary
+
+Finalized Alice badge UX improvements, audio unlock behavior, unified badge icon rendering across all pages, and activity-based Home streak implementation per user requirements:
+
+1. **Backend - Activity Streak & Badge Progress Enhancements**:
+   - Verified activityStreak calculation in `/api/reader` endpoint (already implemented, includes photos, quotes, likes, follows, daily_login)
+   - Verified daily_login check in badgesService.checkActivityOnDay (already implemented)
+   - Enhanced getAliceProgress to return `hasAccess` and `expiresAt` for entitlement status
+   - Verified claimAlice function properly uses resolveUserObjectId and returns expiresAt (already implemented)
+
+2. **Frontend - Achievements Page**:
+   - Updated claimed badge section title to "Бейдж «Алиса в стране чудес»" (canonical title, not "Бейдж получен")
+   - Show "Доступ к аудиоразбору открыт" + "Открыть аудио" button ONLY while hasAccess === true
+   - After entitlement expiry (hasAccess === false), show only badge icon + title (no button, no "доступ открыт" label)
+   - Fixed awards counter: now displays 1/1 when badge is claimed (uses `claimed` flag instead of `completed`)
+   - Claim button text already correct: "Получить доступ к разбору"
+
+3. **Frontend - Audio Player Behavior**:
+   - Updated FreeAudioPlayerPage to show friendly message "Контент скоро появится. Попробуйте позже." instead of error when stream URL not available
+   - Player now opens immediately (as before) and handles missing stream gracefully
+   - FreeAudiosPage already has event listener for badge:alice:claimed and timer display logic
+
+4. **Frontend - Unified Badge Icon Rendering**:
+   - Implemented consistent badge placement: **to the right of displayName, before @username**
+   - Removed duplicate badge icon under avatar in ProfilePage (removed renderBadgeIcons call)
+   - Updated ProfilePage: badge now after name in both profile card and user cards
+   - Updated HomePage: badge already correctly positioned after name
+   - Updated CommunityPage: moved badge from after @username to after name
+   - Updated ProfileModal: moved badge from after @username to after name
+   - Updated CoverCommentsModal: moved badge from after @username to after name
+   - Consistent placement across: main page header, profile page, profile modal, feeds, comments
+
+5. **Frontend - Statistics Service**:
+   - Verified StatisticsService prefers activityStreak from backend over quotes-only streak (already implemented)
+   - Home page now displays general activity-based streak (not quotes-only)
+
+### Files Modified
+
+**Backend:**
+- `server/services/gamification/badgesService.js` - Added hasAccess and expiresAt to getAliceProgress response
+
+**Frontend:**
+- `mini-app/js/pages/AchievementsPage.js` - Updated claimed section with canonical title, conditional button/status based on hasAccess, fixed awards counter to use claimed flag
+- `mini-app/js/pages/FreeAudioPlayerPage.js` - Updated stream URL error handling to show friendly message
+- `mini-app/js/pages/ProfilePage.js` - Moved badge to after name (before @username), removed duplicate badge under avatar
+- `mini-app/js/pages/HomePage.js` - Badge already correctly positioned (no changes needed)
+- `mini-app/js/pages/CommunityPage.js` - Moved badge from after @username to after name
+- `mini-app/js/components/ProfileModal.js` - Moved badge from after @username to after name
+- `mini-app/js/components/CoverCommentsModal.js` - Moved badge from after @username to after name
+
+**Docs:**
+- `docs/development/WORK_LOG_2025.md` - This entry
+
+### Technical Details
+
+**Badge Progression States:**
+1. **Not completed**: Show progress bars and "Выполните все условия" disabled button
+2. **Completed but not claimed**: Show "Получить доступ к разбору" active button
+3. **Claimed with active access (hasAccess=true)**: Show "Бейдж «Алиса в стране чудес»" title + "Доступ к аудиоразбору открыт" + "Открыть аудио" button
+4. **Claimed but expired (hasAccess=false)**: Show only "Бейдж «Алиса в стране чудес»" title with large badge icon (no button, no status text)
+
+**Badge Icon Placement:**
+Old: `Name · @username🏅`  
+New: `Name🏅 · @username`
+
+This ensures the badge is visually associated with the user's display name across all contexts (profile, feeds, comments, modals).
+
+**Activity-Based Streak:**
+Backend already computes activity streak including all activity types (photos, quotes, likes, follows, daily_login).
+Frontend StatisticsService prefers `activityStreak` over quotes-only `currentStreak` when available.
+
+### QA Notes
+
+To test on dev.unibotz.com:3003:
+1. Verify GET /api/reader returns activityStreak field
+2. Check Achievements page shows correct counter (1/1 when claimed)
+3. Claim Alice badge → verify distinct section with canonical title
+4. Verify "Открыть аудио" button shown only while access active
+5. Manually expire entitlement → verify button and status removed, only badge + title remain
+6. Check badge icon appears to right of name (before @username) on: main page, profile page, profile modal, community feed, comments
+7. Verify no duplicate badge icon under avatar
+
+### Rollback Plan
+
+If issues arise:
+1. Revert `hasAccess` and `expiresAt` addition in badgesService.getAliceProgress
+2. Revert AchievementsPage changes to claimed section rendering
+3. Revert FreeAudioPlayerPage stream URL error handling
+4. Revert badge position changes in all pages/components
+
+Часы: 4
+
+---
+
