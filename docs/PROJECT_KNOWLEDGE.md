@@ -119,6 +119,9 @@ pm2 stop reader-bot
   - Requirement: 5 follows (subscriptions)
   - Requirement: 10 likes given to others' quotes
   - Requirement: 30-day continuous activity streak
+    - **Activity Streak Sources:** PhotoPost, Quote, Favorite, Follow, and daily_login from useractions collection
+    - **Implementation:** `checkActivityOnDay()` in `badgesService.js` checks all activity types
+    - **UTC Boundaries:** All checks use consistent UTC day boundaries
   - Reward: 30-day access to "Alice in Wonderland" audio analysis
   - Badge appears in user profiles and next to usernames
 - Progress tracking API: `GET /api/reader/gamification/progress/alice`

@@ -56,6 +56,51 @@
 
 ## 📝 ЗАПИСИ
 
+## 2026-02-06 - Alice Badge Streak: Add daily_login Useractions Support
+
+**Задача:** Fix Alice badge streak calculation to include daily_login entries from useractions collection  
+**Фактически затрачено:** 1 час  
+**Ссылка на план:** Месяц 2 - Геймификация (12ч)
+
+### Проблема
+Alice badge streak показывал 19 дней вместо 30, несмотря на наличие 30 последовательных daily_login записей в MongoDB (useractions коллекция) для пользователя 1798451247 на dev. 
+
+**Root cause:** Функция `calculateStreak` в `server/services/gamification/badgesService.js` использовала `checkActivityOnDay`, которая проверяла только:
+- PhotoPost
+- Quote  
+- Favorite
+- Follow
+
+Синтетические данные daily_login в useractions не учитывались.
+
+### Решение
+Модифицирован `checkActivityOnDay` в `badgesService.js`:
+- Добавлена проверка коллекции useractions через `mongoose.connection.collection('useractions')`
+- Проверяется наличие записей с `type: 'daily_login'` в пределах UTC дня
+- Сохранена консистентность UTC границ дней с существующими проверками
+- Минимальные изменения: добавлено 9 строк кода
+
+### Изменённые файлы
+1. `server/services/gamification/badgesService.js`
+   - Функция `checkActivityOnDay`: добавлена проверка useractions.daily_login
+   
+2. `tests/integration/alice_gamification.test.js`
+   - Добавлен тест "should calculate streak with daily_login useractions" (30 дней)
+   - Добавлен тест "should calculate streak with mixed activity types including daily_login" (15 дней)
+
+### Acceptance Criteria
+✅ С 30 последовательными daily_login записями (включая сегодня):
+- GET /api/reader/gamification/progress/alice?userId=1798451247 возвращает progress.streak.current = 30
+- overall completed = true (при photos >= 10, following >= 5, likesGivenToOthers >= 10)
+
+✅ Минимальный риск: добавлен только дополнительный источник активности для streak (boolean присутствие активности в день)
+✅ Двойная активность в один день не увеличивает streak (как и прежде)
+
+### Rollback Plan
+При необходимости удалить блок проверки useractions из `checkActivityOnDay` (строки 225-232).
+
+---
+
 ## 2026-02-05 - Achievements UX Fixes: Alice Progress Integration, Menu Entry, Backend Aggregation
 
 **Задача:** Fix Achievements UX, wire Alice progress to real actions, expose Achievements entry in top menu, harmonize Alice audio card, fix backend likes counting, surface badges in profile payload  
