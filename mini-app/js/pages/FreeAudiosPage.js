@@ -282,7 +282,8 @@ class FreeAudiosPage {
     try {
       // Fetch Alice metadata
       try {
-        const aliceRes = await fetch('/api/audio/alice_wonderland?userId=me', { credentials: 'include' });
+        const userId = this.api.resolveUserId();
+        const aliceRes = await fetch(`/api/audio/alice_wonderland?userId=${userId}`, { credentials: 'include' });
         if (aliceRes.ok) {
           this.aliceMeta = await aliceRes.json();
         } else {

@@ -109,6 +109,7 @@ class StatisticsService {
             return {
                 totalQuotes: raw.totalQuotes || 0,
                 currentStreak: raw.currentStreak || 0,
+                activityStreak: raw.activityStreak, // Activity-based streak from backend
                 daysInApp: raw.daysSinceRegistration || raw.daysInApp || 0,
                 // NEW: Use weeklyQuotes from backend instead of recomputing
                 weeklyQuotes: raw.weeklyQuotes || raw.quotes || 0, // Prefer weeklyQuotes alias, fallback to quotes
