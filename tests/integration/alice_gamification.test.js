@@ -232,6 +232,81 @@ describe('Alice Gamification Badge', () => {
       expect(progress.streak.current).toBeGreaterThanOrEqual(1);
     });
 
+    it('should calculate streak with daily_login useractions', async () => {
+      const userId = 'test_user_123';
+      
+      await UserProfile.create({ userId, name: 'Test User' });
+      
+      const today = new Date();
+      const userActionsColl = mongoose.connection.collection('useractions');
+      
+      // Create daily_login entries for the last 30 days
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        // Set to 12:00:00 UTC for consistency
+        date.setUTCHours(12, 0, 0, 0);
+        
+        await userActionsColl.insertOne({
+          userId,
+          type: 'daily_login',
+          createdAt: date
+        });
+      }
+      
+      const progress = await badgesService.getAliceProgress(userId);
+      
+      expect(progress.streak.current).toBe(30);
+    });
+
+    it('should calculate streak with mixed activity types including daily_login', async () => {
+      const userId = 'test_user_123';
+      
+      await UserProfile.create({ userId, name: 'Test User' });
+      
+      const today = new Date();
+      const userActionsColl = mongoose.connection.collection('useractions');
+      
+      // Create 15 consecutive days with different activity types
+      for (let i = 0; i < 15; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        
+        // Mix of activity types
+        if (i % 3 === 0) {
+          // Use daily_login from useractions
+          date.setUTCHours(12, 0, 0, 0);
+          await userActionsColl.insertOne({
+            userId,
+            type: 'daily_login',
+            createdAt: date
+          });
+        } else if (i % 3 === 1) {
+          // Use Quote
+          await Quote.create({
+            userId,
+            text: `Streak quote ${i}`,
+            author: 'Author',
+            normalizedText: `streak quote ${i}`,
+            normalizedAuthor: 'author',
+            normalizedKey: `streak quote ${i}|||author`,
+            createdAt: date
+          });
+        } else {
+          // Use Follow
+          await Follow.create({
+            followerId: userId,
+            followingId: `user_${i}`,
+            createdAt: date
+          });
+        }
+      }
+      
+      const progress = await badgesService.getAliceProgress(userId);
+      
+      expect(progress.streak.current).toBe(15);
+    });
+
     it('should detect completed requirements', async () => {
       const userId = 'test_user_123';
       const otherUserId = 'other_user';

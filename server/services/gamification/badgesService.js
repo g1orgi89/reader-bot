@@ -222,6 +222,15 @@ async function checkActivityOnDay(userId, dayStart, dayEnd) {
     });
     if (followCount > 0) return true;
 
+    // Check for daily login in useractions
+    const userActionsColl = mongoose.connection.collection('useractions');
+    const uaCount = await userActionsColl.countDocuments({
+      userId,
+      type: 'daily_login',
+      createdAt: { $gte: dayStart, $lte: dayEnd }
+    });
+    if (uaCount > 0) return true;
+
     return false;
   } catch (error) {
     logger.error(`Error checking activity for day:`, error);
