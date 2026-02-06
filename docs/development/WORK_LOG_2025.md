@@ -56,6 +56,63 @@
 
 ## 📝 ЗАПИСИ
 
+## 2026-02-06 - Alice Badge UX Enhancements and Unified Components
+
+**Задача:** Complete Alice badge flow improvements with dedicated endpoints and unified UI components
+**Фактически затрачено:** 1.5 часа  
+**Ссылка на план:** Месяц 2 - Геймификация (12ч)
+
+### Проблема
+After initial Alice badge implementation, several enhancements were needed:
+1. Audio access checking required a dedicated endpoint for cleaner frontend integration
+2. UserId resolution logic was duplicated across multiple files
+3. Badge icon rendering needed a unified helper to avoid inconsistencies across UI
+
+### Решение
+
+#### Backend Enhancements (server/)
+1. **server/services/access/resolveUserId.js** - Centralized userId resolver
+   - Created shared utility for resolving Telegram ID → MongoDB ObjectId
+   - Handles "me", numeric Telegram IDs, and valid ObjectId strings
+   - Single source of truth for userId resolution logic
+
+2. **server/api/audio.js** - New access endpoint
+   - Added GET /api/audio/access?audioId=X&userId=Y
+   - Returns clean response: { success, unlocked, expiresAt, remainingDays }
+   - Uses shared resolveUserId utility
+   - Simplified frontend access checking
+
+3. **server/services/gamification/badgesService.js** - Use shared resolver
+   - Replaced local resolveUserObjectId with shared import
+   - Maintains consistent userId resolution across gamification logic
+
+#### Frontend Enhancements (mini-app/js/)
+1. **mini-app/js/utils/userUi.js** - Unified badge rendering
+   - Created renderUserNameWithBadge(user) helper
+   - Format: displayName [badge-icon] @username
+   - Provides renderBadgeIcon(badges) for standalone usage
+   - Single BADGE_ICON_MAP for all badge icons
+   - Exports for both module and global script usage
+
+2. **mini-app/js/pages/FreeAudiosPage.js** - Use new access endpoint
+   - Updated Alice metadata fetch to use /api/audio/access
+   - Maps response to expected { unlockStatus, remainingDays } format
+   - Cleaner separation of concerns
+
+### Технические детали
+- All code passes syntax checks (node -c)
+- Existing functionality preserved (backward compatible)
+- Ready for integration tests when dev environment is available
+- Copy changes already verified: "Получить доступ к разбору" without "алиса" ✅
+
+### Следующие шаги
+1. Integration testing in dev environment
+2. Manual verification of Alice claim flow
+3. UI testing across profile, modal, feeds, comments with badge icons
+4. Performance testing with 30+ day streak data
+
+---
+
 ## 2026-02-06 - Alice Badge Flow and Activity Streak Implementation
 
 **Задача:** Implement complete Alice badge flow with UI fixes and activity-based streak for main page  
