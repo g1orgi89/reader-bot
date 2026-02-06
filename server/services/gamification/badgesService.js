@@ -155,7 +155,7 @@ async function calculateStreak(userId) {
     
     // We'll check day by day going backwards from today
     let streak = 0;
-    let currentDate = new Date(todayUTC);
+    const currentDate = new Date(todayUTC);
     
     // Check up to MAX_STREAK_CHECK_DAYS (reasonable limit to avoid infinite loop)
     for (let i = 0; i < MAX_STREAK_CHECK_DAYS; i++) {
