@@ -20,8 +20,8 @@
  * @type {Object<string, string>}
  */
 const BADGE_ICON_MAP_MODAL = {
-    alice: '/assets/badges/alice.png',
-    alice_badge: '/assets/badges/alice.png'
+    alice: '/assets/badges/alice.svg',
+    alice_badge: '/assets/badges/alice.svg'
 };
 
 class ProfileModal {
@@ -414,7 +414,7 @@ class ProfileModal {
             ? 'Бейдж «Алиса в стране чудес»'
             : `Бейдж ${primaryBadge}`;
         
-        return `<img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline" />`;
+        return `<img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline" onerror="this.src='/assets/badges/alice.png'" />`;
     }
     
     /**

@@ -110,7 +110,7 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">Разбор :«Алиса в стране чудес»</div>
+                  <div class="book-title">Разбор: «Алиса в стране чудес»</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
@@ -120,10 +120,10 @@ class FreeAudiosPage {
           <div class="book-footer">
             <div class="book-pricing">
               <div class="book-price">
-                Получить доступ к разбору
+                Получить доступ
               </div>
             </div>
-            <button class="buy-button" data-action="go-achievements">Условия</button>
+            <button class="buy-button" data-action="go-achievements">Получить доступ</button>
           </div>
         </div>
       `;
@@ -172,7 +172,7 @@ class FreeAudiosPage {
             <div class="book-info">
               <div class="book-header">
                 <div>
-                  <div class="book-title">«Алиса в стране чудес»</div>
+                  <div class="book-title">Разбор: «Алиса в стране чудес»</div>
                   <div class="book-author">Льюис Кэрролл</div>
                 </div>
               </div>
@@ -180,7 +180,7 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">Доступ окончен</div></div>
+            <div class="book-pricing"><div class="book-price">Доступ закрыт</div></div>
           </div>
         </div>
       `;
