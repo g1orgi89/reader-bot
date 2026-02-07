@@ -159,7 +159,12 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">Получить доступ</div></div>
+            <div class="book-pricing">
+              <div class="book-price">
+                Требуется бейдж
+                <img src="/mini-app/assets/badges/alice.png" alt="Бейдж Алиса" class="footer-badge-icon" onerror="this.src='/assets/badges/alice.svg'" />
+              </div>
+            </div>
             <button class="buy-button" data-action="go-achievements">Получить доступ</button>
           </div>
         </div>

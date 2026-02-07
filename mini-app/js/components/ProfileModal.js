@@ -409,6 +409,52 @@ class ProfileModal {
     }
     
     /**
+     * 🏅 Render badge icons for profile display (44px chips)
+     * @param {Array<string>} badges - Array of badge IDs
+     * @returns {string} HTML for badge icon row
+     */
+    renderBadgeIcons(badges) {
+        // Ensure Alice badge is included if user has it
+        const user = this.profileData || {};
+        const badgeList = Array.isArray(badges) ? [...badges] : [];
+        
+        // Add alice_badge if user has Alice and it's not already in the list
+        if (this.hasAliceBadge(user)) {
+            const hasAliceInList = badgeList.some(b => 
+                b === 'alice' || b === 'alice_badge' || 
+                (typeof b === 'object' && (b?.id === 'alice' || b?.achievementId === 'alice'))
+            );
+            if (!hasAliceInList) {
+                badgeList.push('alice_badge');
+            }
+        }
+        
+        if (!badgeList || badgeList.length === 0) return '';
+        
+        const badgeHTML = badgeList
+            .filter(badgeId => {
+                // Extract ID if it's an object
+                const id = typeof badgeId === 'string' ? badgeId : (badgeId?.id || badgeId?.achievementId);
+                return BADGE_ICON_MAP_MODAL[id];
+            })
+            .map(badgeId => {
+                // Extract ID if it's an object
+                const id = typeof badgeId === 'string' ? badgeId : (badgeId?.id || badgeId?.achievementId);
+                const iconPath = BADGE_ICON_MAP_MODAL[id];
+                const altText = id === 'alice_badge' || id === 'alice'
+                    ? 'Бейдж «Алиса в стране чудес»'
+                    : `Бейдж ${id}`;
+                
+                return `<img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-chip" onerror="this.src='/assets/badges/alice.png'" />`;
+            })
+            .join('');
+        
+        if (!badgeHTML) return '';
+        
+        return `<div class="profile-badges-row">${badgeHTML}</div>`;
+    }
+    
+    /**
      * ⭐ Render inline badge icon (44px for username display)
      * UPDATED: Now uses hasAliceBadge helper and renders Alice badge inline
      * @param {Array<string>} badges - Array of badge IDs
@@ -465,6 +511,7 @@ class ProfileModal {
                             ` : ''}
                             <div class="profile-modal-avatar-fallback">${initials}</div>
                         </div>
+                        ${this.renderBadgeIcons(userBadges)}
                     </div>
                     
                     <div class="profile-modal-right">

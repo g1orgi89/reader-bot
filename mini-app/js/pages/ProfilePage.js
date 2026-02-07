@@ -599,15 +599,36 @@ class ProfilePage {
      * @returns {string} HTML for badge icon row
      */
     renderBadgeIcons(badges) {
-        if (!badges || badges.length === 0) return '';
+        // Ensure Alice badge is included if user has it
+        const user = this.profileData || {};
+        const badgeList = Array.isArray(badges) ? [...badges] : [];
         
-        const badgeHTML = badges
-            .filter(badgeId => BADGE_ICON_MAP[badgeId]) // Only render known badges
+        // Add alice_badge if user has Alice and it's not already in the list
+        if (this.hasAliceBadge(user)) {
+            const hasAliceInList = badgeList.some(b => 
+                b === 'alice' || b === 'alice_badge' || 
+                (typeof b === 'object' && (b?.id === 'alice' || b?.achievementId === 'alice'))
+            );
+            if (!hasAliceInList) {
+                badgeList.push('alice_badge');
+            }
+        }
+        
+        if (!badgeList || badgeList.length === 0) return '';
+        
+        const badgeHTML = badgeList
+            .filter(badgeId => {
+                // Extract ID if it's an object
+                const id = typeof badgeId === 'string' ? badgeId : (badgeId?.id || badgeId?.achievementId);
+                return BADGE_ICON_MAP[id];
+            })
             .map(badgeId => {
-                const iconPath = BADGE_ICON_MAP[badgeId];
-                const altText = badgeId === 'alice_badge' 
+                // Extract ID if it's an object
+                const id = typeof badgeId === 'string' ? badgeId : (badgeId?.id || badgeId?.achievementId);
+                const iconPath = BADGE_ICON_MAP[id];
+                const altText = id === 'alice_badge' || id === 'alice'
                     ? 'Бейдж «Алиса в стране чудес»'
-                    : `Бейдж ${badgeId}`;
+                    : `Бейдж ${id}`;
                 
                 return `<img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-chip" onerror="this.src='/assets/badges/alice.png'" />`;
             })
@@ -675,6 +696,7 @@ class ProfilePage {
                         ` : ''}
                         <div class="profile-avatar-fallback">${initials}</div>
                     </div>
+                    ${this.renderBadgeIcons(badges)}
                 </div>
                 
                 <div class="profile-right">
