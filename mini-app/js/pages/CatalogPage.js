@@ -873,10 +873,10 @@ class CatalogPage {
                    src="${coverSrc}"
                    alt="${escapeHtml(book.title || '')}"
                    onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <span class="package-label">ПАКЕТ</span>
               <div class="cover-fallback-text fallback">${escapeHtml(book.title || '')}</div>
             </div>
             <div class="book-info">
+              <div class="package-badge">ПАКЕТ</div>
               <div class="book-title package-title">${escapeHtml(book.title || '')}</div>
               <div class="book-description">${escapeHtml(book.description || '')}</div>
               ${itemsHtml}
