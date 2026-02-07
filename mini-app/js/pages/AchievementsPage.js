@@ -320,29 +320,8 @@ class AchievementsPage {
         try {
             this.aliceLoading = true;
             
-            // Get current userId
-            let userId = null;
-            if (this.state && typeof this.state.getCurrentUserId === 'function') {
-                userId = this.state.getCurrentUserId();
-            } else if (this.state && this.state.get) {
-                userId = this.state.get('user.profile.id') || this.state.get('user.telegramData.id');
-            }
-            
-            // Build URL with userId query param to avoid demo-user fallback
-            const url = userId && userId !== 'demo-user'
-                ? `/api/reader/gamification/progress/alice?userId=${encodeURIComponent(userId)}`
-                : '/api/reader/gamification/progress/alice';
-            
-            // Fetch Alice progress from backend
-            const response = await fetch(url, {
-                credentials: 'include'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error ${response.status}`);
-            }
-            
-            const data = await response.json();
+            // Use ApiService.getAliceProgress() which includes proper Authorization: tma headers
+            const data = await this.api.getAliceProgress();
             this.aliceProgress = data;
             
         } catch (error) {
