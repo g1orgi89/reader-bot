@@ -15,7 +15,7 @@
     position: relative;
     overflow: hidden;
     transition: all var(--duration-normal) var(--ease-out);
-    border: 1px solid rgba(210, 69, 44, 0.1);
+    /* border removed - clean design */
 }
 
 .card:hover {
@@ -125,21 +125,21 @@
    📖 КАРТОЧКИ ЦИТАТ
    ============================================================================ */
 
-/* Основная карточка цитаты */
+/* Основная карточка цитаты - REMOVED: decorative left border */
 .quote-card {
     background: var(--bg-card);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
     position: relative;
     box-shadow: var(--shadow-sm);
-    border-left: 4px solid var(--primary-color);
+    /* border-left removed - clean design */
     transition: all var(--duration-normal) var(--ease-out);
 }
 
 .quote-card:hover {
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
-    border-left-width: 6px;
+    /* border-left-width removed */
 }
 
 /* Текст цитаты - стили наследуются из base.css */
@@ -499,10 +499,10 @@
     z-index: 1;
 }
 
-/* Карточка с уведомлением */
+/* Карточка с уведомлением - REMOVED: decorative left border */
 .notification-card {
     background: var(--bg-card);
-    border-left: 4px solid var(--info-color);
+    /* border-left removed - clean design */
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     display: flex;
@@ -511,15 +511,15 @@
 }
 
 .notification-card.warning {
-    border-left-color: var(--warning-color);
+    /* border-left-color removed */
 }
 
 .notification-card.error {
-    border-left-color: var(--error-color);
+    /* border-left-color removed */
 }
 
 .notification-card.success {
-    border-left-color: var(--success-color);
+    /* border-left-color removed */
 }
 
 .notification-icon {

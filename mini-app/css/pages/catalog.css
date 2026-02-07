@@ -189,13 +189,13 @@
     overflow: hidden;
 }
 
-/* Разные градиенты для обложек */
-.book-cover.cover-1 { background: linear-gradient(135deg, #8B5A3C, #A0522D); }
-.book-cover.cover-2 { background: linear-gradient(135deg, #4A5D23, #6B8E23); }
-.book-cover.cover-3 { background: linear-gradient(135deg, #8B008B, #9370DB); }
-.book-cover.cover-4 { background: linear-gradient(135deg, #2F4F4F, #708090); }
-.book-cover.cover-5 { background: linear-gradient(135deg, #B22222, #DC143C); }
-.book-cover.cover-6 { background: linear-gradient(135deg, #191970, #4169E1); }
+/* Разные градиенты для обложек - REMOVED: terracotta/purple decorative gradients */
+.book-cover.cover-1 { background: var(--bg-secondary); }
+.book-cover.cover-2 { background: var(--bg-secondary); }
+.book-cover.cover-3 { background: var(--bg-secondary); }
+.book-cover.cover-4 { background: var(--bg-secondary); }
+.book-cover.cover-5 { background: var(--bg-secondary); }
+.book-cover.cover-6 { background: var(--bg-secondary); }
 
 /* Book cover image styles */
 .book-cover-img {
@@ -791,19 +791,19 @@
    PACKAGE CARDS STYLING
    ========================================== */
 
-/* Package card specific styles */
+/* Package card specific styles - REMOVED: decorative border */
 .book-card.package-card {
-    border: 2px solid var(--primary-color);
-    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+    /* border removed - clean design */
+    background: var(--bg-card);
 }
 
 .book-card.package-card:hover {
-    border-color: var(--primary-light);
+    /* hover effect kept minimal */
 }
 
-/* Package cover - no overlay label, images fit properly */
+/* Package cover - no overlay label, images fit properly - REMOVED: decorative gradient */
 .book-cover.cover-package {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    background: var(--bg-secondary);
 }
 
 .book-cover.cover-package .book-cover-img {
@@ -813,11 +813,11 @@
     border-radius: var(--radius-sm);
 }
 
-/* Package badge - displayed outside the cover, not as overlay */
+/* Package badge - displayed outside the cover, not as overlay - CLEANED: subtle styling */
 .package-badge {
     display: inline-block;
-    background: var(--primary-color);
-    color: var(--text-inverse);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
     padding: 2px 8px;
     border-radius: var(--radius-sm);
     font-size: 10px;
