@@ -41,6 +41,7 @@ class ProfilePage {
         this.userQuotes = [];
         this.followStatus = false;
         this.subscriptions = [];
+        this._aliceUnlocked = false;
         
         // Tab state for Variant 1
         this.activeTab = 'quotes'; // 'quotes' | 'followers' | 'following'
@@ -1770,6 +1771,16 @@ class ProfilePage {
     async onShow() {
         console.log('👁️ ProfilePage: onShow');
         
+        // Fetch Alice progress from Achievements endpoint
+        const initData = window.Telegram?.WebApp?.initData || '';
+        const headers = initData ? { 'X-Telegram-InitData': initData, 'Content-Type': 'application/json' } : {};
+        try {
+            const res = await fetch('/api/reader/gamification/progress/alice', { credentials: 'include', headers });
+            const progress = res.ok ? await res.json() : null;
+            this._aliceUnlocked = !!(progress?.unlocked || progress?.claimed || progress?.unlockStatus);
+            if (this._aliceUnlocked) { try { localStorage.setItem('alice_ever_unlocked', '1'); } catch {} }
+        } catch {}
+        
         // Refresh username from all sources on every show to prevent disappearing
         if (this.isOwnProfile) {
             const backendUsername = this.profileData?.telegramUsername;
@@ -2017,6 +2028,9 @@ class ProfilePage {
     hasAliceBadge(user) {
         if (!user) return false;
         
+        // Check instance flag
+        if (this._aliceUnlocked) return true;
+        
         // Check localStorage flag
         const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === '1';
         if (aliceEverUnlocked) return true;
@@ -2044,7 +2058,13 @@ class ProfilePage {
     renderAliceInlineBadge(user) {
         if (!this.hasAliceBadge(user)) return '';
         
-        return `<span class="badge-inline-stack"><img src="assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--alice" onerror="this.src='/assets/badges/alice.svg'" /></span>`;
+        const src = '/mini-app/assets/badges/alice.png';
+        return `
+            <span class="badge-inline-stack">
+                <img class="badge-inline--alice" src="${src}" alt="Алиса в стране чудес"
+                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+            </span>
+        `;
     }
     
     /**

@@ -11,6 +11,7 @@ class FreeAudiosPage {
     this.loaded = false;
     this.aliceMeta = null;
     this.aliceLoaded = false;
+    this._aliceUnlocked = false;
     
     // Listen for Alice badge claim event
     this._handleAliceClaimed = this._handleAliceClaimed.bind(this);
@@ -87,6 +88,39 @@ class FreeAudiosPage {
     return 'дней';
   }
 
+  /**
+   * Fetch Alice progress from Achievements endpoint (source of truth)
+   * @returns {Promise<Object>} Alice progress data
+   */
+  async fetchAliceProgress() {
+    const initData = window.Telegram?.WebApp?.initData || '';
+    const headers = initData ? { 'X-Telegram-InitData': initData, 'Content-Type': 'application/json' } : {};
+    const res = await fetch('/api/reader/gamification/progress/alice', { credentials: 'include', headers });
+    if (!res.ok) throw new Error(`Alice progress HTTP ${res.status}`);
+    return res.json();
+  }
+
+  /**
+   * Compute Alice state based on progress metadata
+   * @param {Object} meta - Alice metadata from progress endpoint
+   * @returns {Object} State object with state and remainingDays
+   */
+  computeAliceState(meta = {}) {
+    const now = Date.now();
+    const expiresAtMs = meta?.expiresAt ? Date.parse(meta.expiresAt) : null;
+    const remainingDays = Number(meta?.remainingDays || 0);
+    const hadUnlockedLS = (() => { try { return localStorage.getItem('alice_ever_unlocked') === '1'; } catch { return false; } })();
+    const hadUnlocked = this._aliceUnlocked || hadUnlockedLS;
+
+    const isExpired =
+      (expiresAtMs && !Number.isNaN(expiresAtMs) && now >= expiresAtMs) ||
+      (hadUnlocked && remainingDays <= 0);
+
+    if (isExpired) return { state: 'expired' };
+    if (hadUnlocked && remainingDays > 0) return { state: 'active', remainingDays };
+    return { state: 'locked' };
+  }
+
   renderEmptyStateBlock() {
     return `
       <div class="empty-state">
@@ -98,69 +132,15 @@ class FreeAudiosPage {
   }
 
   renderAliceCard() {
-    // Compute expired state robustly:
-    // 1) If expiresAt exists and now >= expiresAt -> expired
-    // 2) Else if remainingDays <= 0 and user ever had Alice unlocked -> expired
-    // 3) Otherwise, check unlockStatus/unlocked for locked/active states
-    
-    let expired = false;
-    const now = new Date();
-    
-    // Check if expiresAt is available and has passed
-    if (this.aliceMeta?.expiresAt) {
-      const expiresAt = new Date(this.aliceMeta.expiresAt);
-      if (now >= expiresAt) {
-        expired = true;
-      }
-    }
-    
-    // Fallback: check remainingDays and localStorage flag
-    if (!expired) {
-      const remainingDays = this.aliceMeta?.remainingDays || 0;
-      const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === '1';
-      if (remainingDays <= 0 && aliceEverUnlocked) {
-        expired = true;
-      }
-    }
-    
-    // If expired, render the expired state
-    if (expired) {
-      return `
-        <div class="book-card alice-card expired" data-id="alice_wonderland">
-          <div class="book-main">
-            <div class="book-cover cover-1">
-              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
-            </div>
-            <div class="book-info">
-              <div class="book-header">
-                <div>
-                  <div class="book-title">Разбор: «Алиса в стране чудес»</div>
-                  <div class="book-author">Льюис Кэрролл</div>
-                </div>
-              </div>
-              <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
-            </div>
-          </div>
-          <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">Доступ окончен</div></div>
-          </div>
-        </div>
-      `;
-    }
-    
-    // Support both 'unlockStatus' (from event) and 'unlocked' (from backend)
-    // Backend may return response as { audio: { unlocked, remainingDays } } or flat { unlocked, remainingDays }
-    const unlockStatus = this.aliceMeta?.unlockStatus ?? this.aliceMeta?.audio?.unlocked ?? this.aliceMeta?.unlocked ?? false;
-    const remainingDays = this.aliceMeta?.remainingDays ?? this.aliceMeta?.audio?.remainingDays ?? 0;
-    
-    if (!unlockStatus) {
-      // Locked state - standard book-card structure with lock overlay on cover
+    const s = this.computeAliceState(this.aliceMeta || {});
+    const remainingDays = s.remainingDays || 0;
+
+    if (s.state === 'locked') {
       return `
         <div class="book-card alice-card locked" data-id="alice_wonderland">
           <div class="book-main">
             <div class="book-cover cover-1">
-              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
               <div class="lock-overlay"><span class="lock-icon">🔒</span></div>
             </div>
             <div class="book-info">
@@ -174,30 +154,20 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing">
-              <div class="book-price">
-                Получить доступ
-              </div>
-            </div>
+            <div class="book-pricing"><div class="book-price">Получить доступ</div></div>
             <button class="buy-button" data-action="go-achievements">Получить доступ</button>
           </div>
         </div>
       `;
-    } else {
-      // Active access - show timer and listen button
-      // Calculate timer label: "Доступен: 1 месяц" initially (30 days), then "Осталось N дней"
-      let timerLabel;
-      if (remainingDays >= 30) {
-        timerLabel = 'Доступен: 1 месяц';
-      } else {
-        timerLabel = `Осталось ${remainingDays} ${this.pluralizeDays(remainingDays)}`;
-      }
-      
+    }
+
+    if (s.state === 'active') {
+      const label = remainingDays >= 30 ? 'Доступен: 1 месяц' : `Осталось ${remainingDays} ${this.pluralizeDays(remainingDays)}`;
       return `
         <div class="book-card alice-card" data-id="alice_wonderland">
           <div class="book-main">
             <div class="book-cover cover-1">
-              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
               <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
             </div>
             <div class="book-info">
@@ -211,12 +181,36 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">${timerLabel}</div></div>
+            <div class="book-pricing"><div class="book-price">${label}</div></div>
             <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
           </div>
         </div>
       `;
     }
+
+    // expired — «Доступ окончен», без кнопок
+    return `
+      <div class="book-card alice-card expired" data-id="alice_wonderland">
+        <div class="book-main">
+          <div class="book-cover cover-1">
+            <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+            <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
+          </div>
+          <div class="book-info">
+            <div class="book-header">
+              <div>
+                <div class="book-title">Разбор: «Алиса в стране чудес»</div>
+                <div class="book-author">Льюис Кэрролл</div>
+              </div>
+            </div>
+            <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
+          </div>
+        </div>
+        <div class="book-footer">
+          <div class="book-pricing"><div class="book-price">Доступ окончен</div></div>
+        </div>
+      </div>
+    `;
   }
 
   renderList() {
@@ -347,27 +341,31 @@ class FreeAudiosPage {
 
   async onShow() {
     try {
-      // Fetch Alice metadata
+      // A. Fetch Alice progress from Achievements endpoint (source of truth)
       try {
-        const userId = this.api.resolveUserId();
-        const aliceRes = await fetch(`/api/audio/alice_wonderland?userId=${userId}`, { credentials: 'include' });
-        if (aliceRes.ok) {
-          this.aliceMeta = await aliceRes.json();
-          // Set localStorage flag when Alice is unlocked
-          if (this.aliceMeta?.unlockStatus === true || this.aliceMeta?.audio?.unlocked === true || this.aliceMeta?.unlocked === true) {
-            localStorage.setItem('alice_ever_unlocked', '1');
-          }
-        } else {
-          // Fallback to locked state
-          this.aliceMeta = { unlockStatus: false, remainingDays: 0 };
+        const progress = await this.fetchAliceProgress();
+        const unlocked = !!(progress?.unlocked || progress?.claimed || progress?.unlockStatus);
+        this._aliceUnlocked = unlocked;
+        if (unlocked) {
+          try { localStorage.setItem('alice_ever_unlocked', '1'); } catch {}
+        }
+        // Transfer expiry data to meta for rendering
+        if (progress?.expiresAt || progress?.remainingDays != null) {
+          this.aliceMeta = {
+            ...(this.aliceMeta || {}),
+            expiresAt: progress.expiresAt || null,
+            remainingDays: Number(progress.remainingDays || 0),
+          };
         }
       } catch (e) {
-        console.warn('⚠️ FreeAudiosPage: Failed to load Alice metadata:', e);
-        this.aliceMeta = { unlockStatus: false, remainingDays: 0 };
+        console.warn('⚠️ FreeAudiosPage: Alice progress failed', e);
+        // Without progress, treat as locked (don't break UI)
+        this._aliceUnlocked = false;
+        this.aliceMeta = { ...(this.aliceMeta || {}), remainingDays: 0 };
       }
       this.aliceLoaded = true;
       
-      // Fetch free audio list
+      // B. Fetch free audio list as before
       const res = await fetch('/api/audio/free', { credentials: 'include' });
       if (!res.ok) {
         throw new Error(`HTTP error ${res.status}`);
