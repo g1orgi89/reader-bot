@@ -145,7 +145,10 @@ class FreeAudiosPage {
           <div class="book-main">
             <div class="book-cover cover-1">
               <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <div class="lock-overlay"><span class="lock-icon">🔒</span></div>
+              <!-- Alice badge shown in lock-overlay instead of placeholder circle -->
+              <div class="lock-overlay">
+                <img src="/mini-app/assets/badges/alice.png" alt="Бейдж Алиса" class="alice-badge-image" onerror="this.src='/mini-app/assets/badges/alice.svg'" />
+              </div>
             </div>
             <div class="book-info">
               <div class="book-header">
@@ -159,10 +162,7 @@ class FreeAudiosPage {
           </div>
           <div class="book-footer">
             <div class="book-pricing">
-              <div class="book-price">
-                Требуется бейдж
-                <img src="/mini-app/assets/badges/alice.png" alt="Бейдж Алиса" class="footer-badge-icon" onerror="this.src='/assets/badges/alice.svg'" />
-              </div>
+              <div class="book-price">Требуется бейдж</div>
             </div>
             <button class="buy-button" data-action="go-achievements">Получить доступ</button>
           </div>

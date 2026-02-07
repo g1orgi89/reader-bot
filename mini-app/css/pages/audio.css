@@ -147,6 +147,17 @@
   color: #fff;
 }
 
+/* Alice badge image displayed in lock-overlay for locked state
+ * Matches size and styling from AchievementsPage.js */
+.alice-badge-image {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: var(--shadow-md);
+}
+
 .audio-card-title {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
