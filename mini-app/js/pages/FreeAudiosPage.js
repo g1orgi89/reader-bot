@@ -90,14 +90,12 @@ class FreeAudiosPage {
 
   /**
    * Fetch Alice progress from Achievements endpoint (source of truth)
+   * Uses ApiService.getAliceProgress() which includes proper Authorization: tma headers
    * @returns {Promise<Object>} Alice progress data
    */
   async fetchAliceProgress() {
-    const initData = window.Telegram?.WebApp?.initData || '';
-    const headers = initData ? { 'X-Telegram-InitData': initData, 'Content-Type': 'application/json' } : {};
-    const res = await fetch('/api/reader/gamification/progress/alice', { credentials: 'include', headers });
-    if (!res.ok) throw new Error(`Alice progress HTTP ${res.status}`);
-    return res.json();
+    // Use ApiService method which includes proper Authorization: tma headers
+    return this.api.getAliceProgress();
   }
 
   /**

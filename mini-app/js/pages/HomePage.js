@@ -558,12 +558,10 @@ class HomePage {
             }
             console.log('👤 HomePage: Загружаем профиль для userId:', userId);
             
-            // Fetch Alice progress from Achievements endpoint
-            const initData = window.Telegram?.WebApp?.initData || '';
-            const headers = initData ? { 'X-Telegram-InitData': initData, 'Content-Type': 'application/json' } : {};
+            // Fetch Alice progress from Achievements endpoint using ApiService
+            // which includes proper Authorization: tma headers
             try {
-                const res = await fetch('/api/reader/gamification/progress/alice', { credentials: 'include', headers });
-                const progress = res.ok ? await res.json() : null;
+                const progress = await this.api.getAliceProgress();
                 this._aliceUnlocked = !!(progress?.unlocked || progress?.claimed || progress?.unlockStatus);
                 if (this._aliceUnlocked) { try { localStorage.setItem('alice_ever_unlocked', '1'); } catch {} }
             } catch {}
