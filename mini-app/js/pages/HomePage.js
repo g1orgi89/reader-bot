@@ -1398,8 +1398,7 @@ class HomePage {
         const homeHeaderUsername = document.querySelector('.home-header-username');
 
         // Prepare badge HTML (support both 'alice' and 'alice_badge')
-        const ids = []
-            .concat(Array.isArray(profile.badges) ? profile.badges : [])
+        const ids = (Array.isArray(profile.badges) ? profile.badges : [])
             .concat(Array.isArray(profile.achievements) ? profile.achievements : [])
             .map(a => typeof a === 'string' ? a : a?.achievementId)
             .filter(Boolean);
@@ -1408,13 +1407,23 @@ class HomePage {
             ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--xl" onerror="this.src=\'/assets/badges/alice.png\'" /></span>' 
             : '';
 
-        // Update name with badge
+        // Update name with badge (sanitize name to prevent XSS)
         if (homeHeaderName) {
             const currentName = homeHeaderName.textContent || '';
             const nameToShow = computed || currentName;
             
             if (nameToShow.trim()) {
-                homeHeaderName.innerHTML = nameToShow + badgeHtml;
+                // Create a text node for the name to avoid XSS, then add badge HTML
+                const textNode = document.createTextNode(nameToShow);
+                homeHeaderName.textContent = ''; // Clear existing content
+                homeHeaderName.appendChild(textNode);
+                
+                // Add badge HTML if present
+                if (badgeHtml) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = badgeHtml;
+                    homeHeaderName.appendChild(tempDiv.firstChild);
+                }
             }
         }
 

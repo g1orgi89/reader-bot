@@ -150,6 +150,7 @@ class FreeAudiosPage {
     }
     
     // Support both 'unlockStatus' (from event) and 'unlocked' (from backend)
+    // Backend may return response as { audio: { unlocked, remainingDays } } or flat { unlocked, remainingDays }
     const unlockStatus = this.aliceMeta?.unlockStatus ?? this.aliceMeta?.audio?.unlocked ?? this.aliceMeta?.unlocked ?? false;
     const remainingDays = this.aliceMeta?.remainingDays ?? this.aliceMeta?.audio?.remainingDays ?? 0;
     
