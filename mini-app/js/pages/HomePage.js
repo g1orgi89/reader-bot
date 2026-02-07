@@ -1601,7 +1601,7 @@ class HomePage {
         // Create and append badge
         const img = document.createElement('img');
         img.className = 'badge-topbar--alice';
-        img.src = '/assets/badges/alice.png';
+        img.src = 'assets/badges/alice.png';
         img.alt = 'Алиса в стране чудес';
         img.onerror = () => { window.RBImageErrorHandler && window.RBImageErrorHandler(img); };
         actions.appendChild(img);
