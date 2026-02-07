@@ -891,7 +891,9 @@ class ProfileModal {
      * 🧹 Remove any badge nodes from the modal
      */
     cleanupBadgeNodes() {
-        document.querySelectorAll('.profile-modal .badge-inline--alice, .profile-modal .badge-inline-stack').forEach(el => el.remove());
+        if (this.modal) {
+            this.modal.querySelectorAll('.badge-inline--alice, .badge-inline-stack').forEach(el => el.remove());
+        }
     }
     
     /**

@@ -2086,7 +2086,10 @@ class ProfilePage {
      * 🧹 Remove any badge nodes from the DOM
      */
     cleanupBadgeNodes() {
-        document.querySelectorAll('.badge-inline--alice, .badge-inline-stack').forEach(el => el.remove());
+        const root = document.getElementById('profilePageRoot');
+        if (root) {
+            root.querySelectorAll('.badge-inline--alice, .badge-inline-stack').forEach(el => el.remove());
+        }
     }
     
     /**
