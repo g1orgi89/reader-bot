@@ -619,7 +619,7 @@ class ProfilePage {
     
     /**
      * ⭐ Render inline badge icon (18px for username display)
-     * UPDATED: Now renders 56px XL badge stack for profile header
+     * UPDATED: Now renders 44px Alice badge stack for profile header
      * @param {Array<string>} badges - Array of badge IDs
      * @returns {string} HTML for inline badge icon (first badge only)
      */
@@ -635,7 +635,7 @@ class ProfilePage {
             ? 'Бейдж «Алиса в стране чудес»'
             : `Бейдж ${primaryBadge}`;
         
-        return `<span class="badge-inline-stack"><img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline badge-inline--xl" onerror="this.src='/assets/badges/alice.png'" /></span>`;
+        return `<span class="badge-inline-stack"><img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline badge-inline--alice" onerror="this.src='/assets/badges/alice.png'" /></span>`;
     }
     
     /**

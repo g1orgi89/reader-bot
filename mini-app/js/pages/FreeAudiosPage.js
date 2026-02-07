@@ -20,7 +20,7 @@ class FreeAudiosPage {
   _handleAliceClaimed(event) {
     console.log('🎉 Alice badge claimed event received:', event.detail);
     // Set localStorage flag to track that Alice was ever unlocked
-    localStorage.setItem('alice_ever_unlocked', 'true');
+    localStorage.setItem('alice_ever_unlocked', '1');
     
     // Update aliceMeta to reflect unlocked state
     if (event.detail?.expiresAt) {
@@ -117,7 +117,7 @@ class FreeAudiosPage {
     // Fallback: check remainingDays and localStorage flag
     if (!expired) {
       const remainingDays = this.aliceMeta?.remainingDays || 0;
-      const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === 'true';
+      const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === '1';
       if (remainingDays <= 0 && aliceEverUnlocked) {
         expired = true;
       }
@@ -353,6 +353,11 @@ class FreeAudiosPage {
         const aliceRes = await fetch(`/api/audio/alice_wonderland?userId=${userId}`, { credentials: 'include' });
         if (aliceRes.ok) {
           this.aliceMeta = await aliceRes.json();
+          // Set localStorage flag if Alice is unlocked
+          const unlockStatus = this.aliceMeta?.unlockStatus ?? this.aliceMeta?.audio?.unlocked ?? this.aliceMeta?.unlocked ?? false;
+          if (unlockStatus) {
+            localStorage.setItem('alice_ever_unlocked', '1');
+          }
         } else {
           // Fallback to locked state
           this.aliceMeta = { unlockStatus: false, remainingDays: 0 };

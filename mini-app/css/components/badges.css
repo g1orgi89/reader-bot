@@ -96,6 +96,17 @@
     box-shadow: var(--shadow-sm);
 }
 
+/* === Alice badge inline (44px to match Achievements size) === */
+.badge-inline--alice {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    object-fit: contain;
+    margin-left: var(--spacing-sm);
+    vertical-align: middle;
+    box-shadow: var(--shadow-sm);
+}
+
 /* Container to place badge to the right of username */
 .badge-inline-stack {
     display: inline-flex;
