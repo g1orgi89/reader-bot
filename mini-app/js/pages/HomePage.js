@@ -1381,6 +1381,7 @@ class HomePage {
     /**
      * 👤 Обновление UI информации о пользователе во встроенном блоке
      * 🔧 PATCH: Updated to support new home header with name and username
+     * UPDATED: Now renders badge stack next to username
      */
     updateUserInfoUI(profile) {
         if (!profile) return;
@@ -1396,13 +1397,33 @@ class HomePage {
         const homeHeaderName = document.querySelector('.home-header-name');
         const homeHeaderUsername = document.querySelector('.home-header-username');
 
-        // Update name
+        // Prepare badge HTML (support both 'alice' and 'alice_badge')
+        const ids = (Array.isArray(profile.badges) ? profile.badges : [])
+            .concat(Array.isArray(profile.achievements) ? profile.achievements : [])
+            .map(a => typeof a === 'string' ? a : a?.achievementId)
+            .filter(Boolean);
+        const hasAlice = ids.includes('alice') || ids.includes('alice_badge');
+        const badgeHtml = hasAlice 
+            ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--xl" onerror="this.src=\'/assets/badges/alice.png\'" /></span>' 
+            : '';
+
+        // Update name with badge (sanitize name to prevent XSS)
         if (homeHeaderName) {
             const currentName = homeHeaderName.textContent || '';
             const nameToShow = computed || currentName;
             
             if (nameToShow.trim()) {
-                homeHeaderName.textContent = nameToShow;
+                // Create a text node for the name to avoid XSS, then add badge HTML
+                const textNode = document.createTextNode(nameToShow);
+                homeHeaderName.textContent = ''; // Clear existing content
+                homeHeaderName.appendChild(textNode);
+                
+                // Add badge HTML if present
+                if (badgeHtml) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = badgeHtml;
+                    homeHeaderName.appendChild(tempDiv.firstChild);
+                }
             }
         }
 
