@@ -15,15 +15,6 @@
  * @version 1.0.0
  */
 
-/**
- * 🏅 Badge icon map - maps badge IDs to asset paths
- * @type {Object<string, string>}
- */
-const BADGE_ICON_MAP = {
-    alice: '/assets/badges/alice.svg',
-    alice_badge: '/assets/badges/alice.svg'
-};
-
 class ProfilePage {
     constructor(app) {
         this.app = app;
@@ -1133,9 +1124,6 @@ class ProfilePage {
         // Get follow status for this user (we'll need to track this)
         const isFollowing = this.followStatusCache?.[userId] || false;
         
-        // Get badges from user data
-        const badges = user.badges || [];
-        
         return `
             <div class="user-card" 
                  data-user-id="${userId || ''}" 
@@ -1151,7 +1139,7 @@ class ProfilePage {
                     <div class="user-avatar-fallback">${initials}</div>
                 </div>
                 <div class="user-info">
-                    <div class="user-name">${name}${this.renderInlineBadges(badges)}</div>
+                    <div class="user-name">${name}</div>
                     ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
                     ${bio ? `<div class="user-bio">${bio}</div>` : ''}
                 </div>

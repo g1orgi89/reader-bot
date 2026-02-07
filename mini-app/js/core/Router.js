@@ -220,6 +220,15 @@ class AppRouter {
             showBottomNav: false
         });
         
+        // Achievements page
+        this.routes.set('/achievements', {
+            path: '/achievements',
+            component: AchievementsPage,
+            title: 'Достижения',
+            requiresAuth: true,
+            showBottomNav: false
+        });
+        
         // ✨ NEW ROUTES: Free Audio Pages
         
         // Free audios list
