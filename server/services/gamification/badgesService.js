@@ -252,6 +252,7 @@ async function getAliceProgress(userId) {
     let claimed = false;
     let hasAccess = false;
     let expiresAt = null;
+    let remainingDays = 0;
     try {
       const userObjectId = await resolveUserObjectId(userId);
       if (userObjectId) {
@@ -261,7 +262,7 @@ async function getAliceProgress(userId) {
         hasAccess = await entitlementService.hasAudioAccess(userObjectId, 'alice_wonderland');
         claimed = hasAchievement || hasAccess;
         
-        // If user has access, get expiration date
+        // If user has access, get expiration date and calculate remaining days
         if (hasAccess) {
           const entitlement = await UserEntitlement.findOne({
             userId: userObjectId,
@@ -269,6 +270,14 @@ async function getAliceProgress(userId) {
             resourceId: 'alice_wonderland'
           });
           expiresAt = entitlement?.expiresAt || null;
+          
+          // Calculate remaining days from expiresAt
+          if (expiresAt) {
+            const now = new Date();
+            const expiryDate = new Date(expiresAt);
+            const diffMs = expiryDate - now;
+            remainingDays = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          }
         }
       }
     } catch (error) {
@@ -282,7 +291,8 @@ async function getAliceProgress(userId) {
       percent,
       claimed,
       hasAccess,
-      expiresAt
+      expiresAt,
+      remainingDays
     };
 
     logger.info(`✅ Alice progress computed:`, progress);
