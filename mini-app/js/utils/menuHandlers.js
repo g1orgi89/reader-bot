@@ -100,9 +100,6 @@ class MenuHandler {
             case 'profile':
                 this.openProfileModal();
                 break;
-            case 'achievements':
-                this.openAchievementsModal();
-                break;
             case 'settings':
                 this.openSettingsModal();
                 break;
@@ -124,14 +121,6 @@ class MenuHandler {
      */
     openProfileModal() {
         const modal = this.createModal('profile', 'Мой профиль', this.getProfileModalContent());
-        this.showModal(modal);
-    }
-
-    /**
-     * Открывает модальное окно достижений
-     */
-    openAchievementsModal() {
-        const modal = this.createModal('achievements', 'Мои достижения', this.getAchievementsModalContent());
         this.showModal(modal);
     }
 
@@ -314,49 +303,6 @@ class MenuHandler {
     }
 
     /**
-     * Генерирует контент для модального окна достижений
-     * @returns {string} - HTML контент
-     */
-    getAchievementsModalContent() {
-        return `
-            <div style="text-align: center; margin-bottom: 20px; padding: 16px; background: var(--surface); border-radius: var(--border-radius); border: 1px solid var(--border);">
-                <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">2 из 8 достижений</div>
-                <div style="font-size: 12px; color: var(--text-secondary);">Продолжайте собирать цитаты для новых наград!</div>
-            </div>
-            
-            <div class="achievement-item unlocked">
-                <div class="achievement-icon unlocked">🌟</div>
-                <div class="achievement-info">
-                    <div class="achievement-title">Первые шаги</div>
-                    <div class="achievement-description">Добавили первую цитату в дневник</div>
-                    <div class="achievement-progress">Выполнено!</div>
-                </div>
-            </div>
-            
-            <div class="achievement-item unlocked">
-                <div class="achievement-icon unlocked">📚</div>
-                <div class="achievement-info">
-                    <div class="achievement-title">Коллекционер мудрости</div>
-                    <div class="achievement-description">Собрали 25 цитат</div>
-                    <div class="achievement-progress">47/25 - Выполнено!</div>
-                </div>
-            </div>
-            
-            <div class="achievement-item">
-                <div class="achievement-icon locked">🔥</div>
-                <div class="achievement-info">
-                    <div class="achievement-title">Философ недели</div>
-                    <div class="achievement-description">7 дней подряд добавляйте цитаты</div>
-                    <div class="achievement-progress">6/7 дней</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 85%;"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
      * Генерирует контент для модального окна настроек
      * @returns {string} - HTML контент
      */
@@ -367,7 +313,6 @@ class MenuHandler {
         
         // Derive checked state from actual settings
         const dailyRemindersChecked = settings.reminders?.enabled !== false;
-        const achievementsChecked = settings.achievements?.enabled !== false;
         
         return `
             <div class="settings-group">
@@ -379,16 +324,6 @@ class MenuHandler {
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" ${dailyRemindersChecked ? 'checked' : ''} onchange="menuHandler.toggleNotifications('daily', this.checked)">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                
-                <div class="settings-item">
-                    <div class="settings-item-info">
-                        <span class="settings-text">Достижения</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" ${achievementsChecked ? 'checked' : ''} onchange="menuHandler.toggleNotifications('achievements', this.checked)">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -562,9 +497,6 @@ class MenuHandler {
                 if (!settingsUpdate.reminders.frequency) {
                     settingsUpdate.reminders.frequency = currentSettings.reminders?.frequency || 'standard';
                 }
-                break;
-            case 'achievements':
-                settingsUpdate.achievements = { enabled };
                 break;
             default:
                 console.warn(`⚠️ Unknown notification type: ${type}`);

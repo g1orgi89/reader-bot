@@ -184,15 +184,6 @@ class AppRouter {
         
         // ✨ NEW ROUTES: Menu navigation pages
         
-        // Achievements page  
-        this.routes.set('/achievements', {
-            path: '/achievements',
-            component: AchievementsPage,
-            title: 'Достижения',
-            requiresAuth: true,
-            showBottomNav: false
-        });
-        
         // Settings page
         this.routes.set('/settings', {
             path: '/settings',
