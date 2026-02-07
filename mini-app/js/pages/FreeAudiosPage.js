@@ -19,6 +19,9 @@ class FreeAudiosPage {
 
   _handleAliceClaimed(event) {
     console.log('🎉 Alice badge claimed event received:', event.detail);
+    // Set localStorage flag to track that Alice was ever unlocked
+    localStorage.setItem('alice_ever_unlocked', 'true');
+    
     // Update aliceMeta to reflect unlocked state
     if (event.detail?.expiresAt) {
       const expiresAt = new Date(event.detail.expiresAt);
@@ -28,7 +31,8 @@ class FreeAudiosPage {
       
       this.aliceMeta = {
         unlockStatus: true,
-        remainingDays: Math.max(0, daysRemaining)
+        remainingDays: Math.max(0, daysRemaining),
+        expiresAt: event.detail.expiresAt
       };
       this.aliceLoaded = true;
       
@@ -94,7 +98,57 @@ class FreeAudiosPage {
   }
 
   renderAliceCard() {
-    // Always render Alice card, default to locked state if metadata not loaded
+    // Compute expired state robustly:
+    // 1) If expiresAt exists and now >= expiresAt -> expired
+    // 2) Else if remainingDays <= 0 and user ever had Alice unlocked -> expired
+    // 3) Otherwise, check unlockStatus for locked/active states
+    
+    let expired = false;
+    const now = new Date();
+    
+    // Check if expiresAt is available and has passed
+    if (this.aliceMeta?.expiresAt) {
+      const expiresAt = new Date(this.aliceMeta.expiresAt);
+      if (now >= expiresAt) {
+        expired = true;
+      }
+    }
+    
+    // Fallback: check remainingDays and localStorage flag
+    if (!expired) {
+      const remainingDays = this.aliceMeta?.remainingDays || 0;
+      const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === 'true';
+      if (remainingDays <= 0 && aliceEverUnlocked) {
+        expired = true;
+      }
+    }
+    
+    // If expired, render the expired state
+    if (expired) {
+      return `
+        <div class="book-card alice-card expired" data-id="alice_wonderland">
+          <div class="book-main">
+            <div class="book-cover cover-1">
+              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
+            </div>
+            <div class="book-info">
+              <div class="book-header">
+                <div>
+                  <div class="book-title">Разбор: «Алиса в стране чудес»</div>
+                  <div class="book-author">Льюис Кэрролл</div>
+                </div>
+              </div>
+              <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
+            </div>
+          </div>
+          <div class="book-footer">
+            <div class="book-pricing"><div class="book-price">Доступ окончен</div></div>
+          </div>
+        </div>
+      `;
+    }
+    
     const unlockStatus = this.aliceMeta?.unlockStatus || false;
     const remainingDays = this.aliceMeta?.remainingDays || 0;
     
@@ -127,7 +181,7 @@ class FreeAudiosPage {
           </div>
         </div>
       `;
-    } else if (remainingDays > 0) {
+    } else {
       // Active access - show timer and listen button
       // Calculate timer label: "Доступен: 1 месяц" initially (30 days), then "Осталось N дней"
       let timerLabel;
@@ -157,30 +211,6 @@ class FreeAudiosPage {
           <div class="book-footer">
             <div class="book-pricing"><div class="book-price">${timerLabel}</div></div>
             <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
-          </div>
-        </div>
-      `;
-    } else {
-      // Expired access - show "Доступ окончен" without buttons
-      return `
-        <div class="book-card alice-card expired" data-id="alice_wonderland">
-          <div class="book-main">
-            <div class="book-cover cover-1">
-              <img class="book-cover-img" src="/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
-            </div>
-            <div class="book-info">
-              <div class="book-header">
-                <div>
-                  <div class="book-title">Разбор: «Алиса в стране чудес»</div>
-                  <div class="book-author">Льюис Кэрролл</div>
-                </div>
-              </div>
-              <div class="book-description">Эксклюзивный аудиоразбор классического произведения</div>
-            </div>
-          </div>
-          <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">Доступ окончен</div></div>
           </div>
         </div>
       `;
