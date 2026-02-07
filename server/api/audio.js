@@ -122,6 +122,7 @@ router.get('/:id', async (req, res) => {
     // Check if audio is unlocked for this user
     let unlocked = false;
     let remainingDays = null;
+    let expiresAt = null;
     
     if (userId) {
       // Resolve userId to ObjectId before calling audioService (prevents "me" CastError)
@@ -130,10 +131,25 @@ router.get('/:id', async (req, res) => {
       if (userObjectId) {
         unlocked = await audioService.isUnlocked(userObjectId, id);
         
-        // For gated content (alice_wonderland), include remainingDays if unlocked
-        if (unlocked && audio.requiresEntitlement) {
+        // For gated content (alice_wonderland), include remainingDays and expiresAt if unlocked
+        if (audio.requiresEntitlement) {
           const entitlementService = require('../services/access/entitlementService');
-          remainingDays = await entitlementService.getRemainingDays(userObjectId, id);
+          const UserEntitlement = require('../models/UserEntitlement');
+          
+          // Get entitlement to extract expiresAt
+          const entitlement = await UserEntitlement.findOne({ 
+            userId: userObjectId, 
+            kind: 'audio', 
+            resourceId: id 
+          });
+          
+          if (entitlement) {
+            expiresAt = entitlement.expiresAt;
+            // Only include remainingDays if still valid
+            if (unlocked) {
+              remainingDays = await entitlementService.getRemainingDays(userObjectId, id);
+            }
+          }
         }
       }
     }
@@ -147,6 +163,11 @@ router.get('/:id', async (req, res) => {
     // Add remainingDays only if available (for gated content)
     if (remainingDays !== null) {
       audioResponse.remainingDays = remainingDays;
+    }
+    
+    // Add expiresAt if available (for expired detection)
+    if (expiresAt !== null) {
+      audioResponse.expiresAt = expiresAt;
     }
 
     // Return container with tracks if applicable

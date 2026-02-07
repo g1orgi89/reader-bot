@@ -101,7 +101,7 @@ class FreeAudiosPage {
     // Compute expired state robustly:
     // 1) If expiresAt exists and now >= expiresAt -> expired
     // 2) Else if remainingDays <= 0 and user ever had Alice unlocked -> expired
-    // 3) Otherwise, check unlockStatus for locked/active states
+    // 3) Otherwise, check unlockStatus/unlocked for locked/active states
     
     let expired = false;
     const now = new Date();
@@ -149,8 +149,9 @@ class FreeAudiosPage {
       `;
     }
     
-    const unlockStatus = this.aliceMeta?.unlockStatus || false;
-    const remainingDays = this.aliceMeta?.remainingDays || 0;
+    // Support both 'unlockStatus' (from event) and 'unlocked' (from backend)
+    const unlockStatus = this.aliceMeta?.unlockStatus ?? this.aliceMeta?.audio?.unlocked ?? this.aliceMeta?.unlocked ?? false;
+    const remainingDays = this.aliceMeta?.remainingDays ?? this.aliceMeta?.audio?.remainingDays ?? 0;
     
     if (!unlockStatus) {
       // Locked state - standard book-card structure with lock overlay on cover
