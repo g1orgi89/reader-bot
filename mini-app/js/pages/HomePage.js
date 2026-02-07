@@ -627,18 +627,14 @@ class HomePage {
         const initials = name ? this.getInitials(name) : '';
         const username = user.username ? `@${user.username}` : '';
         
-        // Use helper to check for Alice badge
-        const badgeHtml = this.hasAliceBadge(user)
-            ? '<span class="badge-inline-stack"><img src="assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--alice" onerror="this.src=\'/assets/badges/alice.svg\'" /></span>' 
-            : '';
-        
+        // Badge is now rendered in topbar, not inline with name
         return `
             <div class="home-header">
                 <button class="home-header-avatar-large" id="homeHeaderAvatar" aria-label="Профиль">
                     ${this.renderUserAvatar(user.avatarUrl, initials)}
                 </button>
                 <div class="home-header-info">
-                    <div class="home-header-name">${name || 'Пользователь'}${badgeHtml}</div>
+                    <div class="home-header-name">${name || 'Пользователь'}</div>
                     ${username ? `<div class="home-header-username">${username}</div>` : ''}
                 </div>
                 <div class="home-header-spacer"></div>
@@ -1386,7 +1382,7 @@ class HomePage {
     /**
      * 👤 Обновление UI информации о пользователе во встроенном блоке
      * 🔧 PATCH: Updated to support new home header with name and username
-     * UPDATED: Now renders badge stack next to username
+     * UPDATED: Now renders badge in topbar, not inline with name
      */
     updateUserInfoUI(profile) {
         if (!profile) return;
@@ -1402,20 +1398,14 @@ class HomePage {
         const homeHeaderName = document.querySelector('.home-header-name');
         const homeHeaderUsername = document.querySelector('.home-header-username');
 
-        // Update name with badge (sanitize name to prevent XSS)
+        // Update name without badge (badge goes to topbar)
         if (homeHeaderName) {
             const currentName = homeHeaderName.textContent || '';
             const nameToShow = computed || currentName;
             
             if (nameToShow.trim()) {
-                // Use textContent to avoid XSS
+                // Use textContent to avoid XSS, no badge inline
                 homeHeaderName.textContent = nameToShow;
-                
-                // Add badge element if user has Alice badge
-                const badgeNode = this.renderAliceInlineBadgeNode(profile);
-                if (badgeNode) {
-                    homeHeaderName.appendChild(badgeNode);
-                }
             }
         }
 
@@ -1439,6 +1429,9 @@ class HomePage {
             const initials = this.getInitials(computed);
             homeHeaderAvatar.innerHTML = this.renderUserAvatar(profile.avatarUrl, initials);
         }
+
+        // Render badge in topbar
+        this.renderTopbarAliceBadge(profile);
     }
 
     /**
@@ -1584,6 +1577,34 @@ class HomePage {
         img.onerror = () => { window.RBImageErrorHandler && window.RBImageErrorHandler(img); };
         span.appendChild(img);
         return span;
+    }
+    
+    /**
+     * 🎨 Render Alice badge in topbar (next to menu button)
+     * @param {Object} profile - User profile object
+     */
+    renderTopbarAliceBadge(profile) {
+        if (!this.hasAliceBadge(profile)) return;
+        
+        // Find topbar actions area
+        const actions =
+            document.querySelector('.home-header-actions') ||
+            document.querySelector('.topbar-actions') ||
+            document.querySelector('.home-header-menu-btn')?.parentElement ||
+            document.querySelector('.home-header');
+        
+        if (!actions) return;
+        
+        // Remove existing topbar badges
+        actions.querySelectorAll('.badge-topbar--alice').forEach(el => el.remove());
+        
+        // Create and append badge
+        const img = document.createElement('img');
+        img.className = 'badge-topbar--alice';
+        img.src = '/assets/badges/alice.png';
+        img.alt = 'Алиса в стране чудес';
+        img.onerror = () => { window.RBImageErrorHandler && window.RBImageErrorHandler(img); };
+        actions.appendChild(img);
     }
     
     /**

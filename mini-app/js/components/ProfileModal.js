@@ -489,7 +489,6 @@ class ProfileModal {
         
         // Extract badge data for display
         const userBadges = profile.badges || [];
-        const inlineBadgeMarkup = this.renderInlineBadge(userBadges);
         
         this.modal.innerHTML = `
             <div class="modal-content profile-modal-content">
@@ -513,9 +512,10 @@ class ProfileModal {
                     </div>
                     
                     <div class="profile-modal-right">
-                        <div class="profile-modal-heading-row">
-                            <h2 id="profileModalTitle" class="profile-modal-name">${name}${inlineBadgeMarkup}</h2>
-                            ${username ? `<p class="profile-modal-username">${username}</p>` : ''}
+                        <div class="user-heading-row" style="display:flex;align-items:center;gap:8px;">
+                            <h2 id="profileModalTitle" class="user-name" style="margin:0;">${name}</h2>
+                            ${this.renderAliceInlineBadge(profile)}
+                            ${username ? `<div class="user-username" style="color:var(--text-secondary);">${username}</div>` : ''}
                         </div>
                         
                         ${status ? `

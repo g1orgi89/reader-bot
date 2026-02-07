@@ -3752,18 +3752,17 @@ renderAchievementsSection() {
             }
             
             const userId = clickedElement.dataset.userId;
-            const isFollowing = this.getFollowStatusFromElement(clickedElement);
             
             if (!userId) {
                 console.warn('⚠️ Element clicked with data-user-id but no userId value');
                 return;
             }
             
-            // Open profile modal with preset follow status
-            console.log('👤 Opening profile modal for user:', userId, 'isFollowing:', isFollowing);
-            if (this.profileModal) {
-                this.profileModal.open(userId, isFollowing);
-            }
+            // Navigate to profile page with selected user's ID
+            console.log('👤 Navigating to profile for user:', userId);
+            window.location.hash = `#/profile?userId=${encodeURIComponent(userId)}`;
+            event.preventDefault();
+            event.stopPropagation();
             
             // Haptic feedback
             if (this.telegram?.hapticFeedback) {
