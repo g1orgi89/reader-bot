@@ -1462,6 +1462,7 @@ class ProfilePage {
         // Re-render with new data
         if (root) {
             root.innerHTML = this.render();
+            this.cleanupBadgeNodes();
             this.attachEventListeners();
         }
     }
@@ -2077,15 +2078,18 @@ class ProfilePage {
      * @returns {string} Badge HTML or empty string
      */
     renderAliceInlineBadge(user) {
-        if (!this.hasAliceBadge(user)) return '';
-        
-        const src = '/mini-app/assets/badges/alice.png';
-        return `
-            <span class="badge-inline-stack">
-                <img class="badge-inline--alice" src="${src}" alt="Алиса в стране чудес"
-                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-            </span>
-        `;
+        // Badge rendering disabled to prevent layout regressions
+        return '';
+    }
+    
+    /**
+     * 🧹 Remove any badge nodes from the DOM
+     */
+    cleanupBadgeNodes() {
+        const root = document.getElementById('profilePageRoot');
+        if (root) {
+            root.querySelectorAll('.badge-inline--alice, .badge-inline-stack').forEach(el => el.remove());
+        }
     }
     
     /**

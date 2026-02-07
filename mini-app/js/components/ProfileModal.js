@@ -558,6 +558,9 @@ class ProfileModal {
             </div>
         `;
         
+        // Remove any badge nodes that might have been rendered
+        this.cleanupBadgeNodes();
+        
         // Attach event listeners
         this.attachEventListeners();
     }
@@ -880,15 +883,17 @@ class ProfileModal {
      * @returns {string} Badge HTML or empty string
      */
     renderAliceInlineBadge(user) {
-        if (!this.hasAliceBadge(user)) return '';
-        
-        const src = '/mini-app/assets/badges/alice.png';
-        return `
-            <span class="badge-inline-stack">
-                <img class="badge-inline--alice" src="${src}" alt="Алиса в стране чудес"
-                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-            </span>
-        `;
+        // Badge rendering disabled to prevent layout regressions
+        return '';
+    }
+    
+    /**
+     * 🧹 Remove any badge nodes from the modal
+     */
+    cleanupBadgeNodes() {
+        if (this.modal) {
+            this.modal.querySelectorAll('.badge-inline--alice, .badge-inline-stack').forEach(el => el.remove());
+        }
     }
     
     /**
