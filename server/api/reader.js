@@ -1852,7 +1852,7 @@ router.get('/stats', telegramAuth, async (req, res) => {
     // ---- Build response stats ----
     const safeStats = {
       totalQuotes,
-      currentStreak: dynamicStreak,
+      currentStreak: activityStreak, // Use unified activity-based streak (any activity)
       longestStreak,
       favoriteAuthors: favoriteAuthors.map(a => a.author), // Backward compatibility: array of strings
       monthlyQuotes: currentMonthQuotes, // expose numeric current month count (legacy field name)
@@ -1862,7 +1862,8 @@ router.get('/stats', telegramAuth, async (req, res) => {
       // New scoped fields
       scope,
       quotes: scopedQuotes, // Quotes for the requested scope (week/month/global)
-      activityStreak // Activity-based streak including photos, quotes, likes, follows, daily_login
+      activityStreak, // Activity-based streak including photos, quotes, likes, follows, daily_login
+      quoteStreak: dynamicStreak // Keep quote-only streak for reference
     };
 
     // Add scope-specific aliases for backward compatibility and clarity
@@ -1886,7 +1887,7 @@ router.get('/stats', telegramAuth, async (req, res) => {
         const year = businessNow.getFullYear();
         const statsUpdate = user.statistics || {};
         statsUpdate.totalQuotes = totalQuotes;
-        statsUpdate.currentStreak = dynamicStreak;
+        statsUpdate.currentStreak = activityStreak; // Use unified activity-based streak
         if (longestStreak > storedLongest) statsUpdate.longestStreak = longestStreak;
         statsUpdate.favoriteAuthors = favoriteAuthors.map(a => a.author);
 

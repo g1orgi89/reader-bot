@@ -399,6 +399,7 @@ class ProfileModal {
     
     /**
      * ⭐ Render inline badge icon (18px for username display)
+     * UPDATED: Now renders 56px XL badge stack for profile modal header
      * @param {Array<string>} badges - Array of badge IDs
      * @returns {string} HTML for inline badge icon (first badge only)
      */
@@ -410,11 +411,11 @@ class ProfileModal {
         if (!primaryBadge) return '';
         
         const iconPath = BADGE_ICON_MAP_MODAL[primaryBadge];
-        const altText = primaryBadge === 'alice_badge' 
+        const altText = primaryBadge === 'alice_badge' || primaryBadge === 'alice'
             ? 'Бейдж «Алиса в стране чудес»'
             : `Бейдж ${primaryBadge}`;
         
-        return `<img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline" onerror="this.src='/assets/badges/alice.png'" />`;
+        return `<span class="badge-inline-stack"><img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline badge-inline--xl" onerror="this.src='/assets/badges/alice.png'" /></span>`;
     }
     
     /**

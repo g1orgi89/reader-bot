@@ -604,6 +604,7 @@ class HomePage {
     /**
      * 👤 Рендер встроенного блока с аватаром и меню (ТОЛЬКО на главной!)
      * 🔧 PATCH: Redesigned header with larger avatar, name, username, and status
+     * UPDATED: Now renders 56px XL badge stack next to username
      */
     renderUserHeader(user) {
         const name =
@@ -623,7 +624,7 @@ class HomePage {
             .filter(Boolean);
         const hasAlice = ids.includes('alice') || ids.includes('alice_badge');
         const badgeHtml = hasAlice 
-            ? ' <img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline" onerror="this.src=\'/assets/badges/alice.png\'" />' 
+            ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--xl" onerror="this.src=\'/assets/badges/alice.png\'" /></span>' 
             : '';
         
         return `

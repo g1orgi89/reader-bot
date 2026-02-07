@@ -143,10 +143,20 @@
 /* User heading row: name + username in one line */
 .user-heading-row {
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
     margin-bottom: 4px;
     flex-wrap: wrap; /* allow wrap for line break */
+}
+
+/* Placement of badges to the right of username in profile header */
+.user-heading-row .badge-inline-stack { 
+    margin-left: 8px; 
+}
+
+.profile-modal .badge-inline--xl { 
+    width: 56px; 
+    height: 56px; 
 }
 
 /* Scope explicit left alignment where centering might occur */
