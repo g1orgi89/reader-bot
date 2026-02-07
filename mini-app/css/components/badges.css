@@ -10,6 +10,10 @@
  * - .badge-inline: 18px inline badge icon next to username
  */
 
+:root {
+    --topbar-icon-size: 28px;
+}
+
 /* ============================================================================
    🏆 PROFILE BADGES ROW (under avatar)
    ============================================================================ */
@@ -96,36 +100,30 @@
     box-shadow: var(--shadow-sm);
 }
 
-/* === Alice badge inline (44px as per Achievements size) === */
+/* === Alice badge inline (44px for Profile/Modal) === */
 .badge-inline--alice {
     width: 44px;
     height: 44px;
-    border-radius: 8px;
+    border-radius: 12px;
     object-fit: contain;
-    margin-left: var(--spacing-sm);
     vertical-align: middle;
     box-shadow: var(--shadow-sm);
 }
 
-/* === Alice badge for HomePage - larger size (~3x: 132px → 120px for better fit) === */
-.home-header-name .badge-inline--alice {
-    width: 120px;
-    height: 120px;
-    border-radius: 16px;
-    margin-left: var(--spacing-md);
-    /* Position slightly lower - aligns with baseline */
-    vertical-align: baseline;
-    transform: translateY(10px);
+/* === Alice badge for topbar (28px aligned with menu icons) === */
+.badge-topbar--alice {
+    width: var(--topbar-icon-size);
+    height: var(--topbar-icon-size);
+    object-fit: contain;
+    margin-left: 8px;
+    display: inline-block;
+    vertical-align: middle;
 }
 
-/* Responsive: smaller on narrow devices */
-@media (max-width: 480px) {
-    .home-header-name .badge-inline--alice {
-        width: 90px;
-        height: 90px;
-        border-radius: 12px;
-        transform: translateY(8px);
-    }
+/* Remove old Home-specific large badge classes */
+.badge-home-large,
+.badge-home-slot {
+    display: none !important;
 }
 
 /* Container to place badge to the right of username */
@@ -133,8 +131,6 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: calc(1.2em + 1.2em + 4px); /* name + telegram nick lines */
-    margin-left: var(--spacing-sm);
 }
 
 /* ============================================================================

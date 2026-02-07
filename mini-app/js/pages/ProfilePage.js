@@ -120,7 +120,7 @@ class ProfilePage {
         try {
             // Get query parameters
             const query = this.app.initialState?.query || {};
-            const userParam = query.user || 'me';
+            const userParam = query.user || query.userId || 'me';
             const tabParam = query.tab || 'quotes';
             
             // Determine user ID
@@ -653,7 +653,7 @@ class ProfilePage {
     
     /**
      * 👤 Render profile card
-     * UPDATED: Added badge icons under avatar and next to username
+     * UPDATED: Added badge icons under avatar and next to username with single-line flex header
      */
     renderProfileCard() {
         const profile = this.profileData || {};
@@ -700,9 +700,10 @@ class ProfilePage {
                 </div>
                 
                 <div class="profile-right">
-                    <div class="user-heading-row">
-                        <div class="user-name">${name}${this.renderInlineBadges(badges)}</div>
-                        ${formattedUsername ? `<div class="user-username">${formattedUsername}</div>` : ''}
+                    <div class="user-heading-row" style="display:flex;align-items:center;gap:8px;">
+                        <h2 class="user-name" style="margin:0;">${name}</h2>
+                        ${this.renderAliceInlineBadge(profile)}
+                        ${formattedUsername ? `<div class="user-username" style="color:var(--text-secondary);">${formattedUsername}</div>` : ''}
                     </div>
                     
                     ${status ? `
