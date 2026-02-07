@@ -624,7 +624,7 @@ class HomePage {
             .filter(Boolean);
         const hasAlice = ids.includes('alice') || ids.includes('alice_badge');
         const badgeHtml = hasAlice 
-            ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--xl" onerror="this.src=\'/assets/badges/alice.png\'" /></span>' 
+            ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--alice" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" /></span>' 
             : '';
         
         return `
@@ -1404,7 +1404,7 @@ class HomePage {
             .filter(Boolean);
         const hasAlice = ids.includes('alice') || ids.includes('alice_badge');
         const badgeHtml = hasAlice 
-            ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--xl" onerror="this.src=\'/assets/badges/alice.png\'" /></span>' 
+            ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--alice" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)" /></span>' 
             : '';
 
         // Update name with badge (sanitize name to prevent XSS)
