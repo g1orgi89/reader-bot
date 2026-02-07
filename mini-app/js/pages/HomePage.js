@@ -1398,7 +1398,7 @@ class HomePage {
         const homeHeaderName = document.querySelector('.home-header-name');
         const homeHeaderUsername = document.querySelector('.home-header-username');
 
-        // Update name without badge (badge goes to topbar)
+        // Update name without badge
         if (homeHeaderName) {
             const currentName = homeHeaderName.textContent || '';
             const nameToShow = computed || currentName;
@@ -1430,8 +1430,16 @@ class HomePage {
             homeHeaderAvatar.innerHTML = this.renderUserAvatar(profile.avatarUrl, initials);
         }
 
-        // Render badge in topbar
-        this.renderTopbarAliceBadge(profile);
+        // Remove any previously inserted badge nodes in the topbar/actions
+        const actions =
+            document.querySelector('.home-header-actions') ||
+            document.querySelector('.topbar-actions') ||
+            document.querySelector('.menu-button')?.parentElement ||
+            document.querySelector('.topbar');
+        if (actions) {
+            actions.querySelectorAll('.badge-topbar--alice, .badge-inline--alice, .badge-home-large, .badge-home-slot, .badge-inline-stack')
+                .forEach(el => el.remove());
+        }
     }
 
     /**
@@ -1584,27 +1592,8 @@ class HomePage {
      * @param {Object} profile - User profile object
      */
     renderTopbarAliceBadge(profile) {
-        if (!this.hasAliceBadge(profile)) return;
-        
-        // Find topbar actions area
-        const actions =
-            document.querySelector('.home-header-actions') ||
-            document.querySelector('.topbar-actions') ||
-            document.querySelector('.home-header-menu-btn')?.parentElement ||
-            document.querySelector('.home-header');
-        
-        if (!actions) return;
-        
-        // Remove existing topbar badges
-        actions.querySelectorAll('.badge-topbar--alice').forEach(el => el.remove());
-        
-        // Create and append badge
-        const img = document.createElement('img');
-        img.className = 'badge-topbar--alice';
-        img.src = 'assets/badges/alice.png';
-        img.alt = 'Алиса в стране чудес';
-        img.onerror = () => { window.RBImageErrorHandler && window.RBImageErrorHandler(img); };
-        actions.appendChild(img);
+        // Badge rendering disabled to prevent layout regressions
+        return;
     }
     
     /**
