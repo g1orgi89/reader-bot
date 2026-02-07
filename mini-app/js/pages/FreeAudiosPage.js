@@ -180,7 +180,7 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">Доступ закрыт</div></div>
+            <div class="book-pricing"><div class="book-price">Доступ окончен</div></div>
           </div>
         </div>
       `;
@@ -290,6 +290,14 @@ class FreeAudiosPage {
           this.app.router.navigate(`/free-audios/${encodeURIComponent(id)}`, { state: { id } });
         }
       });
+    });
+
+    // Safety: prevent navigation when clicking expired Alice card
+    document.querySelectorAll('.book-card.alice-card.expired').forEach(card => {
+      card.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, { capture: true });
     });
   }
 

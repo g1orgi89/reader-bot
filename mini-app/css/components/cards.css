@@ -642,3 +642,22 @@
 .card-flip-back {
     transform: rotateY(180deg);
 }
+
+/* ============================================================================
+   🎵 ALICE AUDIO CARD - EXPIRED STATE
+   ============================================================================ */
+
+/* === Alice expired state (semi-transparent, non-interactive) === */
+.book-card.alice-card.expired {
+    opacity: 0.55;
+    filter: grayscale(20%);
+    pointer-events: none; /* completely disable clicks */
+}
+
+.book-card.alice-card.expired .buy-button {
+    display: none !important; /* ensure no CTA buttons */
+}
+
+.book-card.alice-card.expired .book-cover::after {
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
