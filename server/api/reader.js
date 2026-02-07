@@ -395,13 +395,14 @@ async function getUserBadges(userId) {
     }
     
     // Check for Alice badge (entitlement to alice_wonderland audio)
+    // Badge should be shown if user ever earned it, regardless of expiration
     const aliceEntitlement = await UserEntitlement.findOne({
       userId: userObjectId,
       kind: 'audio',
       resourceId: 'alice_wonderland'
     });
     
-    if (aliceEntitlement && aliceEntitlement.isValid()) {
+    if (aliceEntitlement) {
       badges.push('alice_badge');
     }
     
@@ -1473,7 +1474,8 @@ router.get('/profile',telegramAuth, async (req, res) => {
         source: user.source,
         preferences: user.preferences,
         settings: user.settings,
-        badges
+        badges,
+        achievements: user.achievements || []
       }
     });
   } catch (error) {
@@ -1586,6 +1588,7 @@ router.get('/users/:id', telegramAuth, async (req, res) => {
         status: user.status,
         registeredAt: user.registeredAt,
         badges,
+        achievements: user.achievements || [],
         stats: {
           totalQuotes,
           followers: followCounts.followers || 0,

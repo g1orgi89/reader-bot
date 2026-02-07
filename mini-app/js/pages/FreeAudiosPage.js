@@ -102,22 +102,27 @@ class FreeAudiosPage {
 
   /**
    * Compute Alice state based on progress metadata
+   * Uses authoritative data from server: hasAccess, claimed, expiresAt, remainingDays
    * @param {Object} meta - Alice metadata from progress endpoint
    * @returns {Object} State object with state and remainingDays
    */
   computeAliceState(meta = {}) {
-    const now = Date.now();
-    const expiresAtMs = meta?.expiresAt ? Date.parse(meta.expiresAt) : null;
+    // Use authoritative hasAccess field from server
+    const hasAccess = meta?.hasAccess === true;
+    const claimed = meta?.claimed === true;
     const remainingDays = Number(meta?.remainingDays || 0);
-    const hadUnlockedLS = (() => { try { return localStorage.getItem('alice_ever_unlocked') === '1'; } catch { return false; } })();
-    const hadUnlocked = this._aliceUnlocked || hadUnlockedLS;
 
-    const isExpired =
-      (expiresAtMs && !Number.isNaN(expiresAtMs) && now >= expiresAtMs) ||
-      (hadUnlocked && remainingDays <= 0);
+    // Active state: user has current valid access
+    if (hasAccess && remainingDays > 0) {
+      return { state: 'active', remainingDays };
+    }
 
-    if (isExpired) return { state: 'expired' };
-    if (hadUnlocked && remainingDays > 0) return { state: 'active', remainingDays };
+    // Expired state: badge was claimed but access expired
+    if (claimed && !hasAccess) {
+      return { state: 'expired' };
+    }
+
+    // Locked state: badge not claimed yet
     return { state: 'locked' };
   }
 
