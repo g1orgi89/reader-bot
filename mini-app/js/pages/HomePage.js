@@ -1429,9 +1429,6 @@ class HomePage {
             const initials = this.getInitials(computed);
             homeHeaderAvatar.innerHTML = this.renderUserAvatar(profile.avatarUrl, initials);
         }
-
-        // Render badge in topbar
-        this.renderTopbarAliceBadge(profile);
     }
 
     /**
@@ -1527,84 +1524,6 @@ class HomePage {
             .join('')
             .toUpperCase()
             .slice(0, 2);
-    }
-    
-    /**
-     * 🏅 Check if user has Alice badge
-     * @param {Object} user - User object
-     * @returns {boolean} True if user has Alice badge
-     */
-    hasAliceBadge(user) {
-        if (!user) return false;
-        
-        // Check instance flag
-        if (this._aliceUnlocked) return true;
-        
-        // Check localStorage flag
-        const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === '1';
-        if (aliceEverUnlocked) return true;
-        
-        // Check badges and achievements arrays
-        const ids = []
-            .concat(Array.isArray(user.badges) ? user.badges : [])
-            .concat(Array.isArray(user.achievements) ? user.achievements : [])
-            .map(a => {
-                if (typeof a === 'string') return a;
-                if (a?.id === 'alice' || a?.achievementId === 'alice') return 'alice';
-                if (a?.title && a.title.includes('Алиса')) return 'alice';
-                return a?.achievementId || a?.id;
-            })
-            .filter(Boolean);
-        
-        return ids.includes('alice') || ids.includes('alice_badge');
-    }
-    
-    /**
-     * 🎨 Render Alice inline badge as DOM node (safe DOM API)
-     * @param {Object} profile - User profile object
-     * @returns {HTMLElement|null} Badge stack element or null
-     */
-    renderAliceInlineBadgeNode(profile) {
-        if (!this.hasAliceBadge(profile)) return null;
-        
-        const src = '/mini-app/assets/badges/alice.png';
-        const span = document.createElement('span');
-        span.className = 'badge-inline-stack';
-        const img = document.createElement('img');
-        img.className = 'badge-inline--alice';
-        img.src = src;
-        img.alt = 'Алиса в стране чудес';
-        img.onerror = () => { window.RBImageErrorHandler && window.RBImageErrorHandler(img); };
-        span.appendChild(img);
-        return span;
-    }
-    
-    /**
-     * 🎨 Render Alice badge in topbar (next to menu button)
-     * @param {Object} profile - User profile object
-     */
-    renderTopbarAliceBadge(profile) {
-        if (!this.hasAliceBadge(profile)) return;
-        
-        // Find topbar actions area
-        const actions =
-            document.querySelector('.home-header-actions') ||
-            document.querySelector('.topbar-actions') ||
-            document.querySelector('.home-header-menu-btn')?.parentElement ||
-            document.querySelector('.home-header');
-        
-        if (!actions) return;
-        
-        // Remove existing topbar badges
-        actions.querySelectorAll('.badge-topbar--alice').forEach(el => el.remove());
-        
-        // Create and append badge
-        const img = document.createElement('img');
-        img.className = 'badge-topbar--alice';
-        img.src = 'assets/badges/alice.png';
-        img.alt = 'Алиса в стране чудес';
-        img.onerror = () => { window.RBImageErrorHandler && window.RBImageErrorHandler(img); };
-        actions.appendChild(img);
     }
     
     /**

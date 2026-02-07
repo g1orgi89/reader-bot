@@ -145,10 +145,6 @@ class FreeAudiosPage {
           <div class="book-main">
             <div class="book-cover cover-1">
               <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <!-- Alice badge shown in lock-overlay instead of placeholder circle -->
-              <div class="lock-overlay">
-                <img src="/mini-app/assets/badges/alice.png" alt="Бейдж Алиса" class="alice-badge-image" onerror="this.src='/mini-app/assets/badges/alice.svg'" />
-              </div>
             </div>
             <div class="book-info">
               <div class="book-header">
@@ -177,7 +173,6 @@ class FreeAudiosPage {
           <div class="book-main">
             <div class="book-cover cover-1">
               <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
             </div>
             <div class="book-info">
               <div class="book-header">
@@ -203,7 +198,6 @@ class FreeAudiosPage {
         <div class="book-main">
           <div class="book-cover cover-1">
             <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice.svg" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-            <div class="cover-fallback-text" style="display:none;">Алиса в стране чудес</div>
           </div>
           <div class="book-info">
             <div class="book-header">
@@ -255,7 +249,6 @@ class FreeAudiosPage {
             <div class="book-main">
               <div class="book-cover cover-1">
                 <img class="book-cover-img" src="${this.escape(x.coverUrl||'')}" alt="${this.escape(x.title)}" loading="lazy" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-                <div class="cover-fallback-text" style="display: none;">${this.escape(x.title)}</div>
               </div>
               <div class="book-info">
                 <div class="book-header">

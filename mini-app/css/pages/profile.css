@@ -149,16 +149,6 @@
     flex-wrap: wrap; /* allow wrap for line break */
 }
 
-/* Placement of badges to the right of username in profile header */
-.user-heading-row .badge-inline-stack { 
-    margin-left: 8px; 
-}
-
-.profile-modal .badge-inline--xl { 
-    width: 56px; 
-    height: 56px; 
-}
-
 /* Scope explicit left alignment where centering might occur */
 .profile-header .user-heading-row {
     width: 100%;
@@ -198,8 +188,6 @@
     gap: var(--spacing-sm);
     align-items: flex-start;
 }
-
-/* Remove badges placeholder from markup per requirements */
 
 .profile-right {
     display: flex;
@@ -249,39 +237,6 @@
     align-items: flex-start;
     gap: 6px; /* Reduced from default for compact layout */
     padding-top: var(--spacing-md);
-}
-
-.profile-badges-placeholder {
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    text-align: center;
-    padding: var(--spacing-md);
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-md);
-    min-height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Badge icon sizing */
-.profile-badges-row .badge-chip {
-    width: 44px;
-    height: 44px;
-}
-
-.profile-page .badge-inline {
-    width: 28px;
-    height: 28px;
-    margin-left: 6px;
-    vertical-align: middle;
-}
-
-.profile-modal .badge-inline {
-    width: 28px;
-    height: 28px;
-    margin-left: 6px;
-    vertical-align: middle;
 }
 
 .profile-avatar-container {

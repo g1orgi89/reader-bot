@@ -29,7 +29,6 @@ class TopMenu {
 
         this.menuItems = [
             { id: 'profile',       label: 'Мой профиль', icon: this.getProfileIcon(),      action: 'profile' },
-            { id: 'achievements',  label: 'Мои достижения',   icon: this.getAchievementsIcon(),  action: 'achievements' },
             { id: 'settings',      label: 'Настройки',    icon: this.getSettingsIcon(),      action: 'settings' },
             { id: 'divider1',      isDivider: true },
             { id: 'help',          label: 'Помощь',       icon: this.getHelpIcon(),          action: 'help' },
