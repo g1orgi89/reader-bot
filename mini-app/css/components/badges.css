@@ -140,13 +140,6 @@
     visibility: hidden !important;
 }
 
-/* Container to place badge to the right of username */
-.badge-inline-stack {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
 /* ============================================================================
    🎫 FOOTER BADGE ICON (for locked state cards)
    ============================================================================ */

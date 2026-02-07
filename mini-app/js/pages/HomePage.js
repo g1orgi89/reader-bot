@@ -1431,11 +1431,17 @@ class HomePage {
         }
 
         // Remove any previously inserted badge nodes in the topbar/actions
-        const actions =
-            document.querySelector('.home-header-actions') ||
-            document.querySelector('.topbar-actions') ||
-            document.querySelector('.menu-button')?.parentElement ||
-            document.querySelector('.topbar');
+        const selectors = ['.home-header-actions', '.topbar-actions', '.topbar'];
+        let actions = null;
+        for (const selector of selectors) {
+            actions = document.querySelector(selector);
+            if (actions) break;
+        }
+        // Also check menu button parent
+        if (!actions) {
+            const menuBtn = document.querySelector('.menu-button');
+            if (menuBtn) actions = menuBtn.parentElement;
+        }
         if (actions) {
             actions.querySelectorAll('.badge-topbar--alice, .badge-inline--alice, .badge-home-large, .badge-home-slot, .badge-inline-stack')
                 .forEach(el => el.remove());
@@ -1573,18 +1579,8 @@ class HomePage {
      * @returns {HTMLElement|null} Badge stack element or null
      */
     renderAliceInlineBadgeNode(profile) {
-        if (!this.hasAliceBadge(profile)) return null;
-        
-        const src = '/mini-app/assets/badges/alice.png';
-        const span = document.createElement('span');
-        span.className = 'badge-inline-stack';
-        const img = document.createElement('img');
-        img.className = 'badge-inline--alice';
-        img.src = src;
-        img.alt = 'Алиса в стране чудес';
-        img.onerror = () => { window.RBImageErrorHandler && window.RBImageErrorHandler(img); };
-        span.appendChild(img);
-        return span;
+        // Badge rendering disabled to prevent layout regressions
+        return null;
     }
     
     /**
