@@ -15,15 +15,6 @@
  * @version 1.0.0
  */
 
-/**
- * 🏅 Badge icon map - maps badge IDs to asset paths
- * @type {Object<string, string>}
- */
-const BADGE_ICON_MAP_MODAL = {
-    alice: '/assets/badges/alice.svg',
-    alice_badge: '/assets/badges/alice.svg'
-};
-
 class ProfileModal {
     constructor(app) {
         this.app = app;
@@ -427,9 +418,6 @@ class ProfileModal {
         
         const currentUserId = this.state.getCurrentUserId();
         const isOwnProfile = String(currentUserId) === String(this.userId);
-        
-        // Extract badge data for display
-        const userBadges = profile.badges || [];
         
         this.modal.innerHTML = `
             <div class="modal-content profile-modal-content">
