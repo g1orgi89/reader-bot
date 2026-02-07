@@ -873,7 +873,6 @@ class CatalogPage {
                    src="${coverSrc}"
                    alt="${escapeHtml(book.title || '')}"
                    onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-              <div class="cover-fallback-text fallback">${escapeHtml(book.title || '')}</div>
             </div>
             <div class="book-info">
               <div class="package-badge">ПАКЕТ</div>
@@ -921,7 +920,6 @@ class CatalogPage {
                          src="/mini-app/assets/book-covers/${book.bookSlug}.png" 
                          alt="${safeTitle}"
                          onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
-                    <div class="cover-fallback-text fallback">${safeTitle}</div>
                 </div>
                 <div class="book-info">
                     <div class="book-header">
