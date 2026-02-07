@@ -444,7 +444,7 @@
 }
 
 .book-card.discount-card {
-    border: 2px solid var(--warning-color);
+    /* border removed - clean design */
     position: relative;
 }
 
@@ -700,17 +700,17 @@
 }
 
 .book-card.highlighted {
-    border: 2px solid #ff9800 !important;
-    box-shadow: 0 0 16px #ff9800;
-    background: #fff8e1;
+    /* Subtle highlight for functional navigation - border removed */
+    box-shadow: 0 0 12px rgba(255, 152, 0, 0.3);
+    background: rgba(255, 152, 0, 0.05);
     transition: box-shadow 0.3s, background 0.3s;
 }
 
 /* ✅ НОВОЕ: Highlight class для совместимости */
 .catalog-item--highlight {
-    border: 2px solid #ff9800 !important;
-    box-shadow: 0 0 16px #ff9800;
-    background: #fff8e1;
+    /* Subtle highlight for functional navigation - border removed */
+    box-shadow: 0 0 12px rgba(255, 152, 0, 0.3);
+    background: rgba(255, 152, 0, 0.05);
     transition: box-shadow 0.3s, background 0.3s;
     animation: highlightPulse 0.5s ease-in-out;
 }
