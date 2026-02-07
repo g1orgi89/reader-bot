@@ -209,26 +209,6 @@
     z-index: 2;
 }
 
-/* Fallback text for when image is not available */
-.cover-fallback-text {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1;
-    padding: var(--spacing-xs);
-}
-
-/* Show fallback when book cover has fallback class or image is hidden */
-.book-cover.fallback .book-cover-img,
-.book-cover .book-cover-img[style*="display: none"] {
-    display: none !important;
-}
-
 .book-info {
     flex: 1;
 }
@@ -730,24 +710,6 @@
 .book-card.alice-card.expired:hover {
     transform: none;
     cursor: default;
-}
-
-/* Lock overlay for locked Alice card */
-.lock-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-}
-
-.lock-overlay .lock-icon {
-    font-size: 24px;
 }
 
 /* ==========================================

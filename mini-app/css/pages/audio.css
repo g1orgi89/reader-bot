@@ -68,21 +68,6 @@
   object-fit: cover;
 }
 
-.audio-locked-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.lock-icon {
-  font-size: 48px;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
 .audio-card-info {
   display: flex;
   flex-direction: column;
@@ -96,32 +81,6 @@
   gap: var(--spacing-sm);
 }
 
-.audio-card-subtitle-with-badge {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  font-weight: var(--font-weight-medium);
-}
-
-.audio-badge-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.audio-badge-icon--large {
-  width: 48px;
-  height: 48px;
-  border-radius: 0;
-  object-fit: contain;
-  background: var(--bg-card);
-  padding: 2px;
-}
-
 .book-cover {
   position: relative;
 }
@@ -129,33 +88,6 @@
 .book-cover .book-cover-img {
   position: relative;
   z-index: 0;
-}
-
-.lock-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: var(--radius-md);
-  z-index: 1;
-}
-
-.lock-icon {
-  font-size: 20px;
-  color: #fff;
-}
-
-/* Alice badge image displayed in lock-overlay for locked state
- * Matches size and styling from AchievementsPage.js */
-.alice-badge-image {
-  width: 72px;
-  height: 72px;
-  object-fit: contain;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: var(--shadow-md);
 }
 
 .audio-card-title {
