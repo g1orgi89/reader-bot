@@ -350,8 +350,10 @@ class FreeAudiosPage {
 
   async onShow() {
     try {
-      // A. Fetch Alice progress from Achievements endpoint (source of truth)
+      // A. Force-fetch Alice progress from Achievements endpoint (source of truth)
+      // Always fetch fresh data to ensure up-to-date access status
       try {
+        console.log('🔄 FreeAudiosPage: Force-fetching Alice progress...');
         const progress = await this.fetchAliceProgress();
         const unlocked = !!(progress?.unlocked || progress?.claimed || progress?.unlockStatus);
         this._aliceUnlocked = unlocked;
@@ -365,6 +367,7 @@ class FreeAudiosPage {
           expiresAt: progress?.expiresAt || null,
           remainingDays: Number(progress?.remainingDays || 0),
         };
+        console.log('✅ FreeAudiosPage: Alice progress updated:', this.aliceMeta);
       } catch (e) {
         console.warn('⚠️ FreeAudiosPage: Alice progress failed', e);
         // Without progress, treat as locked (don't break UI)

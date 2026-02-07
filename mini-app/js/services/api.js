@@ -2025,11 +2025,13 @@ class ApiService {
     
     /**
      * Get Alice badge progress
+     * @param {Object} options - Request options
+     * @param {boolean} options.noCache - Force bypass cache (default: true for fresh data)
      * @returns {Promise<Object>} Progress data for Alice badge
      */
-    async getAliceProgress() {
-        console.log('🎖️ ApiService: Getting Alice badge progress...');
-        return this.request('GET', '/gamification/progress/alice');
+    async getAliceProgress(options = { noCache: true }) {
+        console.log('🎖️ ApiService: Getting Alice badge progress (noCache:', options.noCache, ')...');
+        return this.request('GET', '/gamification/progress/alice', null, options);
     }
     
     /**
