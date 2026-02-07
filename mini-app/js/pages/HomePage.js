@@ -615,16 +615,9 @@ class HomePage {
         const initials = name ? this.getInitials(name) : '';
         const username = user.username ? `@${user.username}` : '';
         
-        // Check for alice achievement and add badge icon (support both 'alice' and 'alice_badge')
-        // Merge badges and achievements to support both sources
-        const ids = []
-            .concat(Array.isArray(user.badges) ? user.badges : [])
-            .concat(Array.isArray(user.achievements) ? user.achievements : [])
-            .map(a => typeof a === 'string' ? a : a?.achievementId)
-            .filter(Boolean);
-        const hasAlice = ids.includes('alice') || ids.includes('alice_badge');
-        const badgeHtml = hasAlice 
-            ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--xl" onerror="this.src=\'/assets/badges/alice.png\'" /></span>' 
+        // Use helper to check for Alice badge
+        const badgeHtml = this.hasAliceBadge(user)
+            ? '<span class="badge-inline-stack"><img src="assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--alice" onerror="this.src=\'/assets/badges/alice.svg\'" /></span>' 
             : '';
         
         return `
@@ -1397,32 +1390,21 @@ class HomePage {
         const homeHeaderName = document.querySelector('.home-header-name');
         const homeHeaderUsername = document.querySelector('.home-header-username');
 
-        // Prepare badge HTML (support both 'alice' and 'alice_badge')
-        const ids = (Array.isArray(profile.badges) ? profile.badges : [])
-            .concat(Array.isArray(profile.achievements) ? profile.achievements : [])
-            .map(a => typeof a === 'string' ? a : a?.achievementId)
-            .filter(Boolean);
-        const hasAlice = ids.includes('alice') || ids.includes('alice_badge');
-        const badgeHtml = hasAlice 
-            ? '<span class="badge-inline-stack"><img src="/assets/badges/alice.svg" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--xl" onerror="this.src=\'/assets/badges/alice.png\'" /></span>' 
-            : '';
-
         // Update name with badge (sanitize name to prevent XSS)
         if (homeHeaderName) {
             const currentName = homeHeaderName.textContent || '';
             const nameToShow = computed || currentName;
             
             if (nameToShow.trim()) {
-                // Create a text node for the name to avoid XSS, then add badge HTML
+                // Create a text node for the name to avoid XSS
                 const textNode = document.createTextNode(nameToShow);
                 homeHeaderName.textContent = ''; // Clear existing content
                 homeHeaderName.appendChild(textNode);
                 
-                // Add badge HTML if present
-                if (badgeHtml) {
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = badgeHtml;
-                    homeHeaderName.appendChild(tempDiv.firstChild);
+                // Add badge element if user has Alice badge
+                const badgeElement = this.renderAliceInlineBadge(profile);
+                if (badgeElement) {
+                    homeHeaderName.appendChild(badgeElement);
                 }
             }
         }
@@ -1542,6 +1524,59 @@ class HomePage {
             .join('')
             .toUpperCase()
             .slice(0, 2);
+    }
+    
+    /**
+     * 🏅 Check if user has Alice badge
+     * @param {Object} user - User object
+     * @returns {boolean} True if user has Alice badge
+     */
+    hasAliceBadge(user) {
+        if (!user) return false;
+        
+        // Check localStorage flag
+        const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === '1';
+        if (aliceEverUnlocked) return true;
+        
+        // Check badges and achievements arrays
+        const ids = []
+            .concat(Array.isArray(user.badges) ? user.badges : [])
+            .concat(Array.isArray(user.achievements) ? user.achievements : [])
+            .map(a => {
+                if (typeof a === 'string') return a;
+                if (a?.id === 'alice' || a?.achievementId === 'alice') return 'alice';
+                if (a?.title && a.title.includes('Алиса')) return 'alice';
+                return a?.achievementId || a?.id;
+            })
+            .filter(Boolean);
+        
+        return ids.includes('alice') || ids.includes('alice_badge');
+    }
+    
+    /**
+     * 🎨 Render Alice inline badge as DOM element
+     * @param {Object} user - User object
+     * @returns {HTMLElement|null} Badge stack element or null
+     */
+    renderAliceInlineBadge(user) {
+        if (!this.hasAliceBadge(user)) return null;
+        
+        const stack = document.createElement('span');
+        stack.className = 'badge-inline-stack';
+        
+        const img = document.createElement('img');
+        img.src = 'assets/badges/alice.png';
+        img.alt = 'Бейдж «Алиса»';
+        img.title = 'Бейдж «Алиса в стране чудес»';
+        img.className = 'badge-inline badge-inline--alice';
+        
+        // Fallback to SVG if PNG fails
+        img.onerror = function() {
+            this.src = '/assets/badges/alice.svg';
+        };
+        
+        stack.appendChild(img);
+        return stack;
     }
     
     /**
