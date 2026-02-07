@@ -398,24 +398,15 @@ class ProfileModal {
     }
     
     /**
-     * ⭐ Render inline badge icon (18px for username display)
-     * UPDATED: Now renders 56px XL badge stack for profile modal header
+     * ⭐ Render inline badge icon (44px for username display)
+     * UPDATED: Now uses hasAliceBadge helper and renders Alice badge inline
      * @param {Array<string>} badges - Array of badge IDs
      * @returns {string} HTML for inline badge icon (first badge only)
      */
     renderInlineBadge(badges) {
-        if (!badges || badges.length === 0) return '';
-        
-        // Show only the first badge inline (primary badge)
-        const primaryBadge = badges.find(badgeId => BADGE_ICON_MAP_MODAL[badgeId]);
-        if (!primaryBadge) return '';
-        
-        const iconPath = BADGE_ICON_MAP_MODAL[primaryBadge];
-        const altText = primaryBadge === 'alice_badge' || primaryBadge === 'alice'
-            ? 'Бейдж «Алиса в стране чудес»'
-            : `Бейдж ${primaryBadge}`;
-        
-        return `<span class="badge-inline-stack"><img src="${iconPath}" alt="${altText}" title="${altText}" class="badge-inline badge-inline--xl" onerror="this.src='/assets/badges/alice.png'" /></span>`;
+        // Use the helper to check for Alice badge
+        const user = this.profileData || {};
+        return this.renderAliceInlineBadge(user);
     }
     
     /**
@@ -795,6 +786,44 @@ class ProfileModal {
         if (words.length === 0) return '?';
         if (words.length === 1) return (words[0][0] || '?').toUpperCase();
         return `${(words[0][0] || '').toUpperCase()}${(words[1][0] || '').toUpperCase()}`;
+    }
+    
+    /**
+     * 🏅 Check if user has Alice badge
+     * @param {Object} user - User object
+     * @returns {boolean} True if user has Alice badge
+     */
+    hasAliceBadge(user) {
+        if (!user) return false;
+        
+        // Check localStorage flag
+        const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === '1';
+        if (aliceEverUnlocked) return true;
+        
+        // Check badges and achievements arrays
+        const ids = []
+            .concat(Array.isArray(user.badges) ? user.badges : [])
+            .concat(Array.isArray(user.achievements) ? user.achievements : [])
+            .map(a => {
+                if (typeof a === 'string') return a;
+                if (a?.id === 'alice' || a?.achievementId === 'alice') return 'alice';
+                if (a?.title && a.title.includes('Алиса')) return 'alice';
+                return a?.achievementId || a?.id;
+            })
+            .filter(Boolean);
+        
+        return ids.includes('alice') || ids.includes('alice_badge');
+    }
+    
+    /**
+     * 🎨 Render Alice inline badge as HTML string
+     * @param {Object} user - User object
+     * @returns {string} Badge HTML or empty string
+     */
+    renderAliceInlineBadge(user) {
+        if (!this.hasAliceBadge(user)) return '';
+        
+        return `<span class="badge-inline-stack"><img src="assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--alice" onerror="this.src='/assets/badges/alice.svg'" /></span>`;
     }
     
     /**
