@@ -38,6 +38,7 @@ class ProfileModal {
         this.profileData = null;
         this.followStatus = false;
         this.loading = false;
+        this._aliceUnlocked = false;
         
         // DOM elements
         this.modal = null;
@@ -140,6 +141,16 @@ class ProfileModal {
             this.followStatus = Boolean(presetFollowStatus);
             console.log(`✅ ProfileModal: Using preset follow status: ${this.followStatus} for user ${userId}`);
         }
+        
+        // Fetch Alice progress from Achievements endpoint
+        const initData = window.Telegram?.WebApp?.initData || '';
+        const headers = initData ? { 'X-Telegram-InitData': initData, 'Content-Type': 'application/json' } : {};
+        try {
+            const res = await fetch('/api/reader/gamification/progress/alice', { credentials: 'include', headers });
+            const progress = res.ok ? await res.json() : null;
+            this._aliceUnlocked = !!(progress?.unlocked || progress?.claimed || progress?.unlockStatus);
+            if (this._aliceUnlocked) { try { localStorage.setItem('alice_ever_unlocked', '1'); } catch {} }
+        } catch {}
         
         // Create modal if not exists
         this.createModal();
@@ -796,6 +807,9 @@ class ProfileModal {
     hasAliceBadge(user) {
         if (!user) return false;
         
+        // Check instance flag
+        if (this._aliceUnlocked) return true;
+        
         // Check localStorage flag
         const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === '1';
         if (aliceEverUnlocked) return true;
@@ -823,7 +837,13 @@ class ProfileModal {
     renderAliceInlineBadge(user) {
         if (!this.hasAliceBadge(user)) return '';
         
-        return `<span class="badge-inline-stack"><img src="assets/badges/alice.png" alt="Бейдж «Алиса»" title="Бейдж «Алиса в стране чудес»" class="badge-inline badge-inline--alice" onerror="this.src='/assets/badges/alice.svg'" /></span>`;
+        const src = '/mini-app/assets/badges/alice.png';
+        return `
+            <span class="badge-inline-stack">
+                <img class="badge-inline--alice" src="${src}" alt="Алиса в стране чудес"
+                     onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+            </span>
+        `;
     }
     
     /**

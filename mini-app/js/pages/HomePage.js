@@ -30,6 +30,7 @@ class HomePage {
         this.loading = false;
         this.error = null;
         this.dataLoaded = false;
+        this._aliceUnlocked = false;
         
         // Подписки на изменения состояния
         this.subscriptions = [];
@@ -557,12 +558,25 @@ class HomePage {
             }
             console.log('👤 HomePage: Загружаем профиль для userId:', userId);
             
+            // Fetch Alice progress from Achievements endpoint
+            const initData = window.Telegram?.WebApp?.initData || '';
+            const headers = initData ? { 'X-Telegram-InitData': initData, 'Content-Type': 'application/json' } : {};
+            try {
+                const res = await fetch('/api/reader/gamification/progress/alice', { credentials: 'include', headers });
+                const progress = res.ok ? await res.json() : null;
+                this._aliceUnlocked = !!(progress?.unlocked || progress?.claimed || progress?.unlockStatus);
+                if (this._aliceUnlocked) { try { localStorage.setItem('alice_ever_unlocked', '1'); } catch {} }
+            } catch {}
+            
             // ✅ ИСПРАВЛЕНО: Явно передаем userId в API вызов
             const apiProfile = await this.api.getProfile(userId);
             
             // ✅ FIX: Unpack API response to return flat profile object, not wrapper
             const profile = apiProfile?.user || apiProfile?.result?.user || apiProfile || {};
             if (!profile.id) profile.id = userId;
+            
+            this.updateUserInfoUI(profile);
+            
             return profile;
         } catch (error) {
             console.error('❌ Ошибка загрузки профиля:', error);
@@ -1396,15 +1410,13 @@ class HomePage {
             const nameToShow = computed || currentName;
             
             if (nameToShow.trim()) {
-                // Create a text node for the name to avoid XSS
-                const textNode = document.createTextNode(nameToShow);
-                homeHeaderName.textContent = ''; // Clear existing content
-                homeHeaderName.appendChild(textNode);
+                // Use textContent to avoid XSS
+                homeHeaderName.textContent = nameToShow;
                 
                 // Add badge element if user has Alice badge
-                const badgeElement = this.renderAliceInlineBadge(profile);
-                if (badgeElement) {
-                    homeHeaderName.appendChild(badgeElement);
+                const badgeNode = this.renderAliceInlineBadgeNode(profile);
+                if (badgeNode) {
+                    homeHeaderName.appendChild(badgeNode);
                 }
             }
         }
@@ -1534,6 +1546,9 @@ class HomePage {
     hasAliceBadge(user) {
         if (!user) return false;
         
+        // Check instance flag
+        if (this._aliceUnlocked) return true;
+        
         // Check localStorage flag
         const aliceEverUnlocked = localStorage.getItem('alice_ever_unlocked') === '1';
         if (aliceEverUnlocked) return true;
@@ -1554,29 +1569,23 @@ class HomePage {
     }
     
     /**
-     * 🎨 Render Alice inline badge as DOM element
-     * @param {Object} user - User object
+     * 🎨 Render Alice inline badge as DOM node (safe DOM API)
+     * @param {Object} profile - User profile object
      * @returns {HTMLElement|null} Badge stack element or null
      */
-    renderAliceInlineBadge(user) {
-        if (!this.hasAliceBadge(user)) return null;
+    renderAliceInlineBadgeNode(profile) {
+        if (!this.hasAliceBadge(profile)) return null;
         
-        const stack = document.createElement('span');
-        stack.className = 'badge-inline-stack';
-        
+        const src = '/mini-app/assets/badges/alice.png';
+        const span = document.createElement('span');
+        span.className = 'badge-inline-stack';
         const img = document.createElement('img');
-        img.src = 'assets/badges/alice.png';
-        img.alt = 'Бейдж «Алиса»';
-        img.title = 'Бейдж «Алиса в стране чудес»';
-        img.className = 'badge-inline badge-inline--alice';
-        
-        // Fallback to SVG if PNG fails
-        img.onerror = function() {
-            this.src = '/assets/badges/alice.svg';
-        };
-        
-        stack.appendChild(img);
-        return stack;
+        img.className = 'badge-inline--alice';
+        img.src = src;
+        img.alt = 'Алиса в стране чудес';
+        img.onerror = () => { window.RBImageErrorHandler && window.RBImageErrorHandler(img); };
+        span.appendChild(img);
+        return span;
     }
     
     /**
