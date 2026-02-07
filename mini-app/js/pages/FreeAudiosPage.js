@@ -31,7 +31,8 @@ class FreeAudiosPage {
       const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
       
       this.aliceMeta = {
-        unlockStatus: true,
+        hasAccess: true,
+        claimed: true,
         remainingDays: Math.max(0, daysRemaining),
         expiresAt: event.detail.expiresAt
       };
@@ -157,7 +158,12 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">Получить доступ</div></div>
+            <div class="book-pricing">
+              <div class="book-price">
+                Требуется бейдж
+                <img src="/mini-app/assets/badges/alice.png" alt="Бейдж Алиса" class="footer-badge-icon" onerror="this.src='/assets/badges/alice.svg'" />
+              </div>
+            </div>
             <button class="buy-button" data-action="go-achievements">Получить доступ</button>
           </div>
         </div>
@@ -352,19 +358,18 @@ class FreeAudiosPage {
         if (unlocked) {
           try { localStorage.setItem('alice_ever_unlocked', '1'); } catch {}
         }
-        // Transfer expiry data to meta for rendering
-        if (progress?.expiresAt || progress?.remainingDays != null) {
-          this.aliceMeta = {
-            ...(this.aliceMeta || {}),
-            expiresAt: progress.expiresAt || null,
-            remainingDays: Number(progress.remainingDays || 0),
-          };
-        }
+        // Transfer all relevant data to meta for rendering
+        this.aliceMeta = {
+          hasAccess: progress?.hasAccess || false,
+          claimed: progress?.claimed || false,
+          expiresAt: progress?.expiresAt || null,
+          remainingDays: Number(progress?.remainingDays || 0),
+        };
       } catch (e) {
         console.warn('⚠️ FreeAudiosPage: Alice progress failed', e);
         // Without progress, treat as locked (don't break UI)
         this._aliceUnlocked = false;
-        this.aliceMeta = { ...(this.aliceMeta || {}), remainingDays: 0 };
+        this.aliceMeta = { hasAccess: false, claimed: false, remainingDays: 0 };
       }
       this.aliceLoaded = true;
       

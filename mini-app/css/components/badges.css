@@ -107,6 +107,27 @@
     box-shadow: var(--shadow-sm);
 }
 
+/* === Alice badge for HomePage - larger size (~3x: 132px → 120px for better fit) === */
+.home-header-name .badge-inline--alice {
+    width: 120px;
+    height: 120px;
+    border-radius: 16px;
+    margin-left: var(--spacing-md);
+    /* Position slightly lower - aligns with baseline */
+    vertical-align: baseline;
+    transform: translateY(10px);
+}
+
+/* Responsive: smaller on narrow devices */
+@media (max-width: 480px) {
+    .home-header-name .badge-inline--alice {
+        width: 90px;
+        height: 90px;
+        border-radius: 12px;
+        transform: translateY(8px);
+    }
+}
+
 /* Container to place badge to the right of username */
 .badge-inline-stack {
     display: inline-flex;
@@ -114,6 +135,21 @@
     justify-content: center;
     height: calc(1.2em + 1.2em + 4px); /* name + telegram nick lines */
     margin-left: var(--spacing-sm);
+}
+
+/* ============================================================================
+   🎫 FOOTER BADGE ICON (for locked state cards)
+   ============================================================================ */
+
+.footer-badge-icon {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-left: var(--spacing-xs);
+    box-shadow: var(--shadow-sm);
 }
 
 /* ============================================================================
