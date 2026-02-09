@@ -12,8 +12,7 @@ class AudioCardCompactFeedback {
    * @param {string} options.audioAuthor - Audio author
    * @param {string} options.audioDescription - Audio description
    * @param {string} options.audioCover - Audio cover URL
-   * @param {HTMLElement} options.coverElement - Book cover element for pill
-   * @param {HTMLElement} options.footerElement - Book footer element for actions
+   * @param {HTMLElement} options.infoElement - Book info element for inline rating
    * @param {Function} options.apiService - API service instance
    * @param {Function} options.telegram - Telegram WebApp instance
    */
@@ -24,8 +23,7 @@ class AudioCardCompactFeedback {
     this.audioAuthor = options.audioAuthor || '';
     this.audioDescription = options.audioDescription || '';
     this.audioCover = options.audioCover || '';
-    this.coverElement = options.coverElement;
-    this.footerElement = options.footerElement;
+    this.infoElement = options.infoElement;
     this.api = options.apiService;
     this.telegram = options.telegram;
     
@@ -35,8 +33,7 @@ class AudioCardCompactFeedback {
     };
     
     this.elements = {
-      pill: null,
-      feedbackBtn: null
+      inlineRating: null
     };
     
     this.init();
@@ -48,8 +45,7 @@ class AudioCardCompactFeedback {
   async init() {
     try {
       await this.fetchStats();
-      this.renderPill();
-      this.renderActions();
+      this.renderInlineRating();
     } catch (e) {
       console.error(`AudioCardCompactFeedback init failed for audio ${this.audioId}:`, e);
       // Non-fatal: do not block page rendering
@@ -74,95 +70,57 @@ class AudioCardCompactFeedback {
   }
   
   /**
-   * Render rating pill in cover
+   * Render inline rating row under cover image (inside book-info)
    */
-  renderPill() {
-    if (!this.coverElement) return;
+  renderInlineRating() {
+    if (!this.infoElement) return;
     
     const { avgRating, total } = this.state.stats;
     
-    // Don't show pill if no ratings yet
-    if (!total) return;
+    // Create inline rating row
+    const ratingRow = document.createElement('div');
+    ratingRow.className = 'inline-rating-row';
+    ratingRow.style.cursor = 'pointer';
+    ratingRow.setAttribute('role', 'button');
+    ratingRow.setAttribute('aria-label', total > 0 ? 'Открыть отзывы' : 'Оценить аудиоразбор');
     
-    const pill = document.createElement('div');
-    pill.className = 'rating-pill';
-    pill.textContent = `⭐ ${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
-    pill.style.cursor = 'pointer';
-    pill.setAttribute('role', 'button');
-    pill.setAttribute('aria-label', 'Открыть отзывы');
+    // Set text based on whether there are ratings
+    if (total > 0) {
+      ratingRow.textContent = `⭐ ${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+    } else {
+      ratingRow.textContent = '⭐ Оценить';
+    }
     
-    // Make pill clickable to open modal
-    pill.addEventListener('click', (e) => {
+    // Make row clickable to open modal
+    ratingRow.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.handleFeedbackClick(e);
+      this.handleCommentClick(e);
     });
     
-    this.coverElement.style.position = 'relative';
-    this.coverElement.appendChild(pill);
-    this.elements.pill = pill;
-  }
-  
-  /**
-   * Render actions (compact stats + feedback button) in footer
-   */
-  renderActions() {
-    if (!this.footerElement) return;
+    // Insert after description if present, otherwise after header
+    const description = this.infoElement.querySelector('.book-description');
+    const header = this.infoElement.querySelector('.book-header');
     
-    const { avgRating, total } = this.state.stats;
-    
-    // Create feedback actions container
-    const actionsContainer = document.createElement('div');
-    actionsContainer.className = 'feedback-actions compact';
-    
-    // Create compact stats display (if there are ratings)
-    if (total > 0) {
-      const statsText = document.createElement('span');
-      statsText.className = 'feedback-stats-text';
-      statsText.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
-      statsText.style.cursor = 'pointer';
-      statsText.setAttribute('role', 'button');
-      statsText.setAttribute('aria-label', 'Открыть отзывы');
-      
-      // Make stats text clickable to open modal
-      statsText.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.handleFeedbackClick(e);
-      });
-      
-      actionsContainer.appendChild(statsText);
-    }
-    
-    // Create feedback button
-    const feedbackBtn = document.createElement('button');
-    feedbackBtn.className = 'feedback-btn';
-    feedbackBtn.textContent = total > 0 ? 'Отзыв' : 'Оценить';
-    feedbackBtn.setAttribute('aria-label', total > 0 ? 'Написать отзыв' : 'Оценить аудиоразбор');
-    feedbackBtn.addEventListener('click', (e) => this.handleFeedbackClick(e));
-    this.elements.feedbackBtn = feedbackBtn;
-    
-    actionsContainer.appendChild(feedbackBtn);
-    
-    // Insert feedback actions safely before buy button or prepend to footer
-    const buyButton = this.footerElement.querySelector('.buy-button');
-    if (buyButton && this.footerElement.contains(buyButton)) {
-      // Insert before buy button
-      this.footerElement.insertBefore(actionsContainer, buyButton);
+    if (description) {
+      // Insert after description
+      description.parentNode.insertBefore(ratingRow, description.nextSibling);
+    } else if (header) {
+      // Insert after header
+      header.parentNode.insertBefore(ratingRow, header.nextSibling);
     } else {
-      // Prepend to footer
-      if (typeof this.footerElement.prepend === 'function') {
-        this.footerElement.prepend(actionsContainer);
-      } else {
-        this.footerElement.insertBefore(actionsContainer, this.footerElement.firstChild);
-      }
+      // Fallback: append to info element
+      this.infoElement.appendChild(ratingRow);
     }
+    
+    this.elements.inlineRating = ratingRow;
   }
   
   /**
-   * Handle feedback button click - open modal
+   * Handle comment/rating click - open modal
+   * This is the single entry point for opening the feedback modal
    */
-  handleFeedbackClick(event) {
+  handleCommentClick(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -175,6 +133,8 @@ class AudioCardCompactFeedback {
     
     this.openFeedbackModal();
   }
+  
+
   
   /**
    * Open feedback modal
@@ -196,8 +156,7 @@ class AudioCardCompactFeedback {
       onSubmit: async () => {
         // Refresh stats after submission
         await this.fetchStats();
-        this.updatePill();
-        this.updateActions();
+        this.updateInlineRating();
       }
     });
     
@@ -205,50 +164,21 @@ class AudioCardCompactFeedback {
   }
   
   /**
-   * Update pill with new stats
+   * Update inline rating row with new stats
    */
-  updatePill() {
-    if (!this.elements.pill && this.state.stats.total > 0) {
-      // Create pill if it doesn't exist yet
-      this.renderPill();
-      return;
-    }
-    
-    if (this.elements.pill) {
-      const { avgRating, total } = this.state.stats;
-      this.elements.pill.textContent = `⭐ ${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
-    }
-  }
-  
-  /**
-   * Update actions with new stats
-   */
-  updateActions() {
-    // Find and update the actions container
-    const actionsContainer = this.footerElement?.querySelector('.feedback-actions.compact');
-    if (!actionsContainer) return;
+  updateInlineRating() {
+    if (!this.elements.inlineRating) return;
     
     const { avgRating, total } = this.state.stats;
     
-    // Update or create stats text
-    let statsText = actionsContainer.querySelector('.feedback-stats-text');
     if (total > 0) {
-      if (!statsText) {
-        statsText = document.createElement('span');
-        statsText.className = 'feedback-stats-text';
-        actionsContainer.insertBefore(statsText, actionsContainer.firstChild);
-      }
-      statsText.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
-    } else if (statsText) {
-      statsText.remove();
-    }
-    
-    // Update button text
-    const feedbackBtn = actionsContainer.querySelector('.feedback-btn');
-    if (feedbackBtn) {
-      feedbackBtn.textContent = total > 0 ? 'Отзыв' : 'Оценить';
+      this.elements.inlineRating.textContent = `⭐ ${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+    } else {
+      this.elements.inlineRating.textContent = '⭐ Оценить';
     }
   }
+  
+
   
   /**
    * Get user ID from Telegram WebApp
@@ -283,10 +213,9 @@ class AudioCardCompactFeedback {
    * Cleanup - remove all elements
    */
   destroy() {
-    if (this.elements.pill) {
-      this.elements.pill.remove();
+    if (this.elements.inlineRating) {
+      this.elements.inlineRating.remove();
     }
-    // Feedback button is part of footer, will be removed with card
   }
 }
 

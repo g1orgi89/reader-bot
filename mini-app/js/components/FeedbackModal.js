@@ -398,13 +398,22 @@ class FeedbackModal {
       // Success haptic
       this.triggerHaptic('success');
       
+      // Refresh comments list without closing modal
+      await this.fetchComments();
+      
+      // Reset form
+      this.resetForm();
+      
+      // Update stats for callback
+      this.totalReviews = this.state.comments.length;
+      this.avgRating = this.calculateAvgRating();
+      
       // Call callback
       if (this.onSubmit) {
         this.onSubmit();
       }
       
-      // Close modal
-      this.modal.close();
+      // Do NOT close modal - keep it open to show updated reviews
       
     } catch (error) {
       console.error('Failed to submit feedback:', error);
@@ -430,6 +439,50 @@ class FeedbackModal {
     if (this.modal) {
       this.modal.close();
     }
+  }
+  
+  /**
+   * Reset the form after successful submission
+   */
+  resetForm() {
+    // Reset selected rating
+    this.state.selectedRating = 0;
+    
+    // Reset star buttons
+    this.elements.stars.forEach(star => {
+      star.classList.remove('feedback-modal__star--active');
+    });
+    
+    // Reset rating label
+    if (this.elements.ratingLabel) {
+      this.elements.ratingLabel.textContent = 'Выберите оценку';
+    }
+    
+    // Clear textarea
+    if (this.elements.textarea) {
+      this.elements.textarea.value = '';
+    }
+    
+    // Reset char counter
+    if (this.elements.charCounter) {
+      this.elements.charCounter.textContent = '0';
+    }
+    
+    // Disable submit button
+    if (this.elements.submitBtn) {
+      this.elements.submitBtn.disabled = true;
+      this.elements.submitBtn.textContent = 'Отправить отзыв';
+    }
+  }
+  
+  /**
+   * Calculate average rating from comments
+   */
+  calculateAvgRating() {
+    if (this.state.comments.length === 0) return 0;
+    
+    const sum = this.state.comments.reduce((acc, comment) => acc + (comment.rating || 0), 0);
+    return sum / this.state.comments.length;
   }
   
   /**
