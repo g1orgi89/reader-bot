@@ -76,12 +76,29 @@ class AudioCardCompactFeedback {
     // Don't show pill if no ratings yet
     if (!total) return;
     
+    const ratingText = `${avgRating.toFixed(1)}/5`;
+    const reviewsText = `• ${total} ${this.pluralizeReviews(total)}`;
+    
     const pill = document.createElement('div');
     pill.className = 'rating-pill';
-    pill.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+    pill.textContent = `⭐ ${ratingText} ${reviewsText}`;
     
     this.coverElement.style.position = 'relative';
     this.coverElement.appendChild(pill);
+    
+    // Measure and adjust to multiline if needed
+    requestAnimationFrame(() => {
+      const maxWidth = this.coverElement.clientWidth - 16;
+      if (pill.offsetWidth > maxWidth) {
+        pill.classList.add('multiline');
+        pill.innerHTML = `<span class="pill-rating">⭐ ${ratingText}</span><span class="pill-reviews">${reviewsText}</span>`;
+      }
+    });
+    
+    // Make pill clickable to open modal
+    pill.style.cursor = 'pointer';
+    pill.addEventListener('click', (e) => this.handleCommentClick(e));
+    
     this.elements.pill = pill;
   }
   
@@ -97,29 +114,26 @@ class AudioCardCompactFeedback {
     const actionsContainer = document.createElement('div');
     actionsContainer.className = 'feedback-actions compact';
     
-    // Create compact stats display (if there are ratings)
-    if (total > 0) {
-      const statsText = document.createElement('span');
-      statsText.className = 'feedback-stats-text';
-      statsText.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
-      actionsContainer.appendChild(statsText);
-    }
+    // Create single link/button that shows stats or "Оценить"
+    const statsBtn = document.createElement('button');
+    statsBtn.className = 'feedback-link';
+    statsBtn.type = 'button';
+    statsBtn.textContent = total > 0 
+      ? `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}` 
+      : 'Оценить';
+    statsBtn.setAttribute('aria-label', total > 0 ? 'Открыть отзывы' : 'Оценить аудиоразбор');
+    statsBtn.addEventListener('click', (e) => this.handleCommentClick(e));
     
-    // Create feedback button
-    const feedbackBtn = document.createElement('button');
-    feedbackBtn.className = 'feedback-btn';
-    feedbackBtn.textContent = total > 0 ? 'Отзыв' : 'Оценить';
-    feedbackBtn.setAttribute('aria-label', total > 0 ? 'Написать отзыв' : 'Оценить аудиоразбор');
-    feedbackBtn.addEventListener('click', (e) => this.handleFeedbackClick(e));
-    this.elements.feedbackBtn = feedbackBtn;
+    actionsContainer.appendChild(statsBtn);
     
-    actionsContainer.appendChild(feedbackBtn);
+    // Safe DOM insertion: after .book-pricing, before .buy-button, else prepend
+    const pricing = this.footerElement.querySelector('.book-pricing');
+    const buyBtn = this.footerElement.querySelector('.buy-button');
     
-    // Insert feedback actions safely before buy button or prepend to footer
-    const buyButton = this.footerElement.querySelector('.buy-button');
-    if (buyButton && this.footerElement.contains(buyButton)) {
-      // Insert before buy button
-      this.footerElement.insertBefore(actionsContainer, buyButton);
+    if (pricing && this.footerElement.contains(pricing)) {
+      pricing.insertAdjacentElement('afterend', actionsContainer);
+    } else if (buyBtn && this.footerElement.contains(buyBtn)) {
+      this.footerElement.insertBefore(actionsContainer, buyBtn);
     } else {
       // Prepend to footer
       if (typeof this.footerElement.prepend === 'function') {
@@ -131,9 +145,9 @@ class AudioCardCompactFeedback {
   }
   
   /**
-   * Handle feedback button click - open modal
+   * Handle comment/feedback button click - open modal
    */
-  handleFeedbackClick(event) {
+  handleCommentClick(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -151,21 +165,28 @@ class AudioCardCompactFeedback {
    * Open feedback modal
    */
   openFeedbackModal() {
-    // Create and open FeedbackModal
-    const feedbackModal = new FeedbackModal({
+    // Check if FeedbackModal is available
+    if (!window.FeedbackModal) {
+      console.error('FeedbackModal not loaded');
+      return;
+    }
+    
+    // Create and open FeedbackModal with new API
+    const feedbackModal = new window.FeedbackModal({
       audioId: this.audioId,
-      audioSlug: this.audioSlug,
-      audioTitle: 'аудиоразбор',
-      telegram: this.telegram,
-      onSubmit: async () => {
-        // Refresh stats after submission
-        await this.fetchStats();
-        this.updatePill();
-        this.updateActions();
-      }
+      api: this.api,
+      telegram: this.telegram
     });
     
-    feedbackModal.open();
+    feedbackModal.open().then(() => {
+      // Refresh stats after modal closes
+      this.fetchStats().then(() => {
+        this.updatePill();
+        this.updateActions();
+      });
+    }).catch(error => {
+      console.error('Failed to open feedback modal:', error);
+    });
   }
   
   /**
@@ -180,7 +201,15 @@ class AudioCardCompactFeedback {
     
     if (this.elements.pill) {
       const { avgRating, total } = this.state.stats;
-      this.elements.pill.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+      const ratingText = `${avgRating.toFixed(1)}/5`;
+      const reviewsText = `• ${total} ${this.pluralizeReviews(total)}`;
+      
+      // Check if multiline
+      if (this.elements.pill.classList.contains('multiline')) {
+        this.elements.pill.innerHTML = `<span class="pill-rating">⭐ ${ratingText}</span><span class="pill-reviews">${reviewsText}</span>`;
+      } else {
+        this.elements.pill.textContent = `⭐ ${ratingText} ${reviewsText}`;
+      }
     }
   }
   
@@ -194,23 +223,12 @@ class AudioCardCompactFeedback {
     
     const { avgRating, total } = this.state.stats;
     
-    // Update or create stats text
-    let statsText = actionsContainer.querySelector('.feedback-stats-text');
-    if (total > 0) {
-      if (!statsText) {
-        statsText = document.createElement('span');
-        statsText.className = 'feedback-stats-text';
-        actionsContainer.insertBefore(statsText, actionsContainer.firstChild);
-      }
-      statsText.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
-    } else if (statsText) {
-      statsText.remove();
-    }
-    
-    // Update button text
-    const feedbackBtn = actionsContainer.querySelector('.feedback-btn');
-    if (feedbackBtn) {
-      feedbackBtn.textContent = total > 0 ? 'Отзыв' : 'Оценить';
+    // Update the button text
+    const statsBtn = actionsContainer.querySelector('.feedback-link');
+    if (statsBtn) {
+      statsBtn.textContent = total > 0 
+        ? `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}` 
+        : 'Оценить';
     }
   }
   
