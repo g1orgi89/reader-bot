@@ -3,43 +3,26 @@
  * Компактная интеграция рейтинга/отзывов на карточки аудиоразборов
  */
 
-/* Inline rating row - displayed under the cover image, inside book-info */
-.inline-rating-row {
-  margin-top: 8px;
-  padding: 8px 0;
-  font-size: 13px;
+/* Compact row at the top of footer - aligned left like pricing */
+.feedback-inline {
+  margin: 0 0 6px 0;
+  padding: 0;
+}
+
+.feedback-inline .feedback-inline-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
-  line-height: 1.4;
+  padding: 2px 0;
   cursor: pointer;
-  user-select: none;
-  transition: color 0.2s ease;
+  text-align: left;
+  width: auto;
+  display: inline-block;
   -webkit-tap-highlight-color: transparent;
 }
 
-.inline-rating-row:hover {
-  color: var(--primary-color);
-}
-
-.inline-rating-row:active {
-  transform: scale(0.98);
-}
-
-/* Ensure book-info has static positioning to avoid layout issues */
-.book-info {
-  position: static;
-}
-
-/* Ensure cover image uses object-fit */
-.book-cover-img {
-  object-fit: cover;
-}
-
-/* Responsive adjustments */
-@media (max-width: 480px) {
-  .inline-rating-row {
-    font-size: 12px;
-    margin-top: 6px;
-    padding: 6px 0;
-  }
+.feedback-inline .feedback-inline-link:active {
+  opacity: 0.85;
 }

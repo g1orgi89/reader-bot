@@ -152,7 +152,7 @@ class FeedbackModal {
           ${this.audioDescription ? `<div class="feedback-modal__preview-description">${this.escapeHtml(this.audioDescription)}</div>` : ''}
           ${this.totalReviews > 0 ? `
             <div class="feedback-modal__preview-rating">
-              ⭐ ${this.avgRating.toFixed(1)}/5 • ${this.totalReviews} ${this.pluralizeReviews(this.totalReviews)}
+              ⭐ Рейтинг ${this.avgRating.toFixed(1)} из 5 • ${this.totalReviews} ${this.pluralizeReviews(this.totalReviews)}
             </div>
           ` : ''}
         </div>
