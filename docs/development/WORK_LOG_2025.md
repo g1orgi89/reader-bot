@@ -4304,3 +4304,170 @@ If issues arise:
 
 ---
 
+## 2026-02-09 - Audio Feedback UI Verification and Documentation
+
+**Plan ref:** Audio feedback integration (Month 1, Сбор отзывов - 6ч)  
+**Time:** 2h
+
+### Summary
+
+Verified and documented the audio feedback UI implementation on FreeAudiosPage. The implementation was completed in PR #475 and all owner requirements are met. This verification confirms the code is production-ready.
+
+### Owner Requirements - All Verified ✓
+
+1. **Removed inline star buttons from audio cards**:
+   - ✓ Stars only appear in FeedbackModal, not in audio cards
+   - ✓ Cards show compact stats text + "Отзыв"/"Оценить" button only
+
+2. **Compact rating pill on cover**:
+   - ✓ Shows "X.Y/5 • N отзывов" in top-right corner
+   - ✓ Positioned absolute: top 8px, right 8px
+   - ✓ Only displays when total > 0
+
+3. **Rating pill is readable and only text overlay**:
+   - ✓ CSS: backdrop-filter blur, rgba(0,0,0,0.7) background
+   - ✓ z-index: 2 with border and box-shadow
+   - ✓ No other text overlays cover - book-info is sibling, not child
+
+4. **Clicking feedback opens compact modal**:
+   - ✓ Uses existing Modal.js base class
+   - ✓ handleFeedbackClick properly creates FeedbackModal instance
+   - ✓ Haptic feedback on button click
+
+5. **Modal allows rating (1-5) and review**:
+   - ✓ Star selection (1-5) with visual feedback and labels
+   - ✓ Textarea with 300 char limit and counter
+   - ✓ Submit validation and API integration
+
+### Technical Verification
+
+**AudioCardCompactFeedback.js** (259 lines):
+- Line 40-48: Safe init() with try-catch wrapper
+- Line 71-86: renderPill() correctly appends only when total > 0
+- Line 91-131: renderActions() with safe DOM insertion
+- Line 119-122: Correct insertBefore(actionsContainer, buyButton) - no NotFoundError
+- Line 136-169: openFeedbackModal() properly creates and opens modal
+
+**FeedbackModal.js** (344 lines):
+- Line 40-63: Properly extends Modal.js base class
+- Line 68-105: renderContent() with stars, textarea, submit button
+- Line 110-127: Star rendering (only in modal, not in cards)
+- Line 183-210: handleStarClick() with visual feedback and labels
+- Line 215-291: handleSubmit() posts to /api/reader/feedback
+
+**Script Loading Order** (index.html):
+- Line 295: Modal.js (base class)
+- Line 301: FeedbackModal.js
+- Line 302: AudioCardCompactFeedback.js
+- ✓ Correct dependency order maintained
+
+**CSS Styling** (audio-card-compact-feedback.css):
+- Line 7-27: .rating-pill positioned absolute with proper z-index
+- Line 34-77: Compact feedback actions styled correctly
+- Line 42-47: Stats text styling
+- Line 49-77: Feedback button styling with hover states
+
+**API Endpoints** (server/api/reader.js):
+- Line 5447: POST /api/reader/feedback (rating validation 1-5, text max 300)
+- Line 5572: GET /api/reader/feedback/audio/:audioId/stats
+- Line 5648: GET /api/reader/feedback/audio/:audioId/comments
+- ✓ All endpoints exist and functional
+
+**Integration** (FreeAudiosPage.js):
+- Line 332: initializeFeedbackComponents() called in attachEventListeners()
+- Line 336-340: Checks for window.AudioCardCompactFeedback availability
+- Line 343-366: Initializes feedback for all non-Alice audio cards
+- Line 353-365: Try-catch wrapper for safe initialization
+
+### Files Verified
+
+**Frontend:**
+- `mini-app/js/components/AudioCardCompactFeedback.js` - Component implementation ✓
+- `mini-app/js/components/FeedbackModal.js` - Modal implementation ✓
+- `mini-app/js/pages/FreeAudiosPage.js` - Integration ✓
+- `mini-app/css/components/audio-card-compact-feedback.css` - Styling ✓
+- `mini-app/css/components/feedback-modal.css` - Modal styling ✓
+- `mini-app/index.html` - Script loading order ✓
+
+**Backend:**
+- `server/api/reader.js` - API endpoints ✓
+- `server/models/Feedback.js` - Data model ✓
+
+**Tests:**
+- `tests/feedback.audio.test.js` - API endpoint tests ✓
+
+**Docs:**
+- `docs/development/WORK_LOG_2025.md` - This entry
+
+### Technical Details
+
+**DOM Insertion Safety:**
+```javascript
+// Correct implementation in renderActions() (line 119-130)
+const buyButton = this.footerElement.querySelector('.buy-button');
+if (buyButton && this.footerElement.contains(buyButton)) {
+  this.footerElement.insertBefore(actionsContainer, buyButton);
+} else {
+  // Safe fallback with prepend
+  if (typeof this.footerElement.prepend === 'function') {
+    this.footerElement.prepend(actionsContainer);
+  } else {
+    this.footerElement.insertBefore(actionsContainer, this.footerElement.firstChild);
+  }
+}
+```
+
+**Rating Pill Positioning:**
+```css
+/* audio-card-compact-feedback.css */
+.rating-pill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px) saturate(120%);
+  z-index: 2;
+  /* ...additional styling for readability */
+}
+```
+
+**Modal Integration:**
+```javascript
+// openFeedbackModal() creates FeedbackModal instance
+const feedbackModal = new FeedbackModal({
+  audioId: this.audioId,
+  audioSlug: this.audioSlug,
+  audioTitle: 'аудиоразбор',
+  telegram: this.telegram,
+  onSubmit: async () => {
+    await this.fetchStats();
+    this.updatePill();
+    this.updateActions();
+  }
+});
+feedbackModal.open();
+```
+
+### QA Verification
+
+Verified implementation matches all requirements:
+1. ✅ No NotFoundError - safe DOM insertion with fallbacks
+2. ✅ Modal opens correctly - proper script loading order
+3. ✅ Rating pill readable - backdrop filter and contrast
+4. ✅ No text overlays cover except pill - correct DOM structure
+5. ✅ Stars only in modal - not in card markup
+6. ✅ Compact footer actions - stats + button
+7. ✅ API integration working - POST /api/reader/feedback
+
+### Notes
+
+- Code was already correct from PR #475 merge
+- This verification confirms production readiness
+- No changes needed - documentation only
+- All owner requirements satisfied
+- Ready for deployment
+
+Часы: 2
+
+---
+
