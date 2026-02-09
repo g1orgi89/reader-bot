@@ -10,6 +10,11 @@ class FeedbackModal {
    * @param {string} options.audioId - Audio ID
    * @param {string} options.audioSlug - Audio slug for tags
    * @param {string} options.audioTitle - Audio title for display
+   * @param {string} options.audioAuthor - Audio author for display
+   * @param {string} options.audioDescription - Audio description
+   * @param {string} options.audioCover - Audio cover URL
+   * @param {number} options.avgRating - Average rating
+   * @param {number} options.totalReviews - Total reviews count
    * @param {Function} options.onSubmit - Callback after successful submission
    * @param {Object} options.telegram - Telegram WebApp instance
    */
@@ -17,12 +22,19 @@ class FeedbackModal {
     this.audioId = options.audioId;
     this.audioSlug = options.audioSlug || options.audioId;
     this.audioTitle = options.audioTitle || 'аудиоразбор';
+    this.audioAuthor = options.audioAuthor || '';
+    this.audioDescription = options.audioDescription || '';
+    this.audioCover = options.audioCover || '';
+    this.avgRating = options.avgRating || 0;
+    this.totalReviews = options.totalReviews || 0;
     this.onSubmit = options.onSubmit;
     this.telegram = options.telegram || window.Telegram?.WebApp;
     
     this.state = {
       selectedRating: 0,
-      isSubmitting: false
+      isSubmitting: false,
+      comments: [],
+      isLoadingComments: false
     };
     
     this.modal = null;
@@ -30,14 +42,15 @@ class FeedbackModal {
       stars: [],
       textarea: null,
       charCounter: null,
-      submitBtn: null
+      submitBtn: null,
+      commentsList: null
     };
   }
   
   /**
    * Open the feedback modal
    */
-  open() {
+  async open() {
     // Haptic feedback
     this.triggerHaptic('light');
     
@@ -46,7 +59,7 @@ class FeedbackModal {
     
     // Create modal using base Modal class
     this.modal = new Modal({
-      title: 'Ваш отзыв',
+      title: 'Отзывы',
       content: content,
       size: 'medium',
       position: 'bottom',
@@ -55,11 +68,56 @@ class FeedbackModal {
       closeOnBackdrop: true,
       closeOnEscape: true,
       className: 'feedback-modal',
-      onOpen: () => this.attachEventListeners(),
+      onOpen: async () => {
+        await this.fetchComments();
+        this.attachEventListeners();
+      },
       onClose: () => this.cleanup()
     });
     
     this.modal.open();
+  }
+  
+  /**
+   * Fetch comments from API
+   */
+  async fetchComments() {
+    this.state.isLoadingComments = true;
+    
+    try {
+      const response = await fetch(`/api/reader/feedback/audio/${this.audioId}/comments?limit=50`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch comments');
+      }
+      
+      const result = await response.json();
+      this.state.comments = result.data?.items || [];
+      this.state.isLoadingComments = false;
+      
+      // Update the reviews list in the modal
+      this.updateReviewsList();
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+      this.state.comments = [];
+      this.state.isLoadingComments = false;
+      this.updateReviewsList();
+    }
+  }
+  
+  /**
+   * Update reviews list display
+   */
+  updateReviewsList() {
+    const reviewsList = this.modal?.element?.querySelector('#feedback-reviews-list');
+    if (!reviewsList) return;
+    
+    if (this.state.isLoadingComments) {
+      reviewsList.innerHTML = '<div class="feedback-modal__loading">Загрузка отзывов...</div>';
+    } else if (this.state.comments.length === 0) {
+      reviewsList.innerHTML = '<div class="feedback-modal__empty">Пока нет отзывов. Будьте первым!</div>';
+    } else {
+      reviewsList.innerHTML = this.renderCommentsList();
+    }
   }
   
   /**
@@ -68,9 +126,84 @@ class FeedbackModal {
   renderContent() {
     return `
       <div class="feedback-modal__content">
-        <div class="feedback-modal__subtitle">
-          Оцените ${this.escapeHtml(this.audioTitle)}
+        ${this.renderHeader()}
+        ${this.renderReviews()}
+        ${this.renderAddReviewForm()}
+      </div>
+    `;
+  }
+  
+  /**
+   * Render card preview header
+   */
+  renderHeader() {
+    if (!this.audioTitle) return '';
+    
+    return `
+      <div class="feedback-modal__header-preview">
+        ${this.audioCover ? `
+          <div class="feedback-modal__preview-cover">
+            <img src="${this.escapeHtml(this.audioCover)}" alt="${this.escapeHtml(this.audioTitle)}" />
+          </div>
+        ` : ''}
+        <div class="feedback-modal__preview-info">
+          <h3 class="feedback-modal__preview-title">${this.escapeHtml(this.audioTitle)}</h3>
+          ${this.audioAuthor ? `<div class="feedback-modal__preview-author">${this.escapeHtml(this.audioAuthor)}</div>` : ''}
+          ${this.audioDescription ? `<div class="feedback-modal__preview-description">${this.escapeHtml(this.audioDescription)}</div>` : ''}
+          ${this.totalReviews > 0 ? `
+            <div class="feedback-modal__preview-rating">
+              ⭐ ${this.avgRating.toFixed(1)}/5 • ${this.totalReviews} ${this.pluralizeReviews(this.totalReviews)}
+            </div>
+          ` : ''}
         </div>
+      </div>
+    `;
+  }
+  
+  /**
+   * Render reviews list section
+   */
+  renderReviews() {
+    return `
+      <div class="feedback-modal__reviews-section">
+        <h4 class="feedback-modal__section-title">Отзывы</h4>
+        <div class="feedback-modal__reviews-list" id="feedback-reviews-list">
+          ${this.state.isLoadingComments ? `
+            <div class="feedback-modal__loading">Загрузка отзывов...</div>
+          ` : this.state.comments.length === 0 ? `
+            <div class="feedback-modal__empty">Пока нет отзывов. Будьте первым!</div>
+          ` : this.renderCommentsList()}
+        </div>
+      </div>
+    `;
+  }
+  
+  /**
+   * Render individual comments
+   */
+  renderCommentsList() {
+    return this.state.comments.map(comment => `
+      <div class="feedback-modal__review-item">
+        <div class="feedback-modal__review-header">
+          <div class="feedback-modal__review-rating">
+            ${'⭐'.repeat(comment.rating)}
+          </div>
+          <div class="feedback-modal__review-date">
+            ${this.formatDate(comment.createdAt)}
+          </div>
+        </div>
+        ${comment.text ? `<div class="feedback-modal__review-text">${this.escapeHtml(comment.text)}</div>` : ''}
+      </div>
+    `).join('');
+  }
+  
+  /**
+   * Render add review form section
+   */
+  renderAddReviewForm() {
+    return `
+      <div class="feedback-modal__add-review-section">
+        <h4 class="feedback-modal__section-title">Ваша оценка</h4>
         
         <div class="feedback-modal__rating">
           <div class="feedback-modal__stars">
@@ -337,6 +470,97 @@ class FeedbackModal {
     const div = document.createElement('div');
     div.textContent = String(text || '');
     return div.innerHTML;
+  }
+  
+  /**
+   * Format date for display
+   */
+  formatDate(dateString) {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 7) {
+      return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+    } else if (days > 0) {
+      return `${days} ${this.pluralizeDays(days)} назад`;
+    } else if (hours > 0) {
+      return `${hours} ${this.pluralizeHours(hours)} назад`;
+    } else if (minutes > 0) {
+      return `${minutes} ${this.pluralizeMinutes(minutes)} назад`;
+    } else {
+      return 'только что';
+    }
+  }
+  
+  /**
+   * Pluralize Russian "отзыв"
+   */
+  pluralizeReviews(n) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    
+    if (mod10 === 1 && mod100 !== 11) {
+      return 'отзыв';
+    }
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return 'отзыва';
+    }
+    return 'отзывов';
+  }
+  
+  /**
+   * Pluralize Russian "день"
+   */
+  pluralizeDays(n) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    
+    if (mod10 === 1 && mod100 !== 11) {
+      return 'день';
+    }
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return 'дня';
+    }
+    return 'дней';
+  }
+  
+  /**
+   * Pluralize Russian "час"
+   */
+  pluralizeHours(n) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    
+    if (mod10 === 1 && mod100 !== 11) {
+      return 'час';
+    }
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return 'часа';
+    }
+    return 'часов';
+  }
+  
+  /**
+   * Pluralize Russian "минута"
+   */
+  pluralizeMinutes(n) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    
+    if (mod10 === 1 && mod100 !== 11) {
+      return 'минута';
+    }
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return 'минуты';
+    }
+    return 'минут';
   }
 }
 

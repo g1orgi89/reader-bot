@@ -20,14 +20,19 @@
   -webkit-backdrop-filter: blur(8px) saturate(120%);
   white-space: nowrap;
   z-index: 2;
-  cursor: default;
+  cursor: pointer;
   user-select: none;
-  transition: opacity 0.2s ease;
+  transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .rating-pill:hover {
   opacity: 0.9;
+  transform: scale(1.05);
+}
+
+.rating-pill:active {
+  transform: scale(0.98);
 }
 
 /* Compact feedback actions - размещается в футере карточки */
@@ -44,6 +49,13 @@
   font-weight: 500;
   color: var(--text-secondary);
   line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.feedback-stats-text:hover {
+  color: var(--primary-color);
 }
 
 .feedback-btn {

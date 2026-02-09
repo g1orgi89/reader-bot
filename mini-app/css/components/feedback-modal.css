@@ -6,10 +6,135 @@
 /* Modal-specific overrides */
 .feedback-modal .modal__body {
   padding: 0;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .feedback-modal__content {
   padding: 0;
+}
+
+/* Header Preview Section */
+.feedback-modal__header-preview {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-secondary, #f5f5f5);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.feedback-modal__preview-cover {
+  flex-shrink: 0;
+  width: 60px;
+  height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.feedback-modal__preview-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.feedback-modal__preview-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.feedback-modal__preview-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.feedback-modal__preview-author {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.feedback-modal__preview-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feedback-modal__preview-rating {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+/* Reviews Section */
+.feedback-modal__reviews-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.feedback-modal__section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.feedback-modal__reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.feedback-modal__review-item {
+  padding: 12px;
+  background: var(--bg-secondary, #f5f5f5);
+  border-radius: 8px;
+}
+
+.feedback-modal__review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.feedback-modal__review-rating {
+  font-size: 14px;
+  color: var(--primary-color);
+}
+
+.feedback-modal__review-date {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.feedback-modal__review-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.feedback-modal__loading,
+.feedback-modal__empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Add Review Section */
+.feedback-modal__add-review-section {
+  padding: 16px;
 }
 
 .feedback-modal__subtitle {
@@ -164,5 +289,14 @@
   
   .feedback-modal__subtitle {
     font-size: 13px;
+  }
+  
+  .feedback-modal__preview-cover {
+    width: 50px;
+    height: 67px;
+  }
+  
+  .feedback-modal__preview-title {
+    font-size: 14px;
   }
 }

@@ -8,6 +8,10 @@ class AudioCardCompactFeedback {
    * @param {Object} options - Configuration options
    * @param {string} options.audioId - Audio ID
    * @param {string} options.audioSlug - Audio slug for tags
+   * @param {string} options.audioTitle - Audio title
+   * @param {string} options.audioAuthor - Audio author
+   * @param {string} options.audioDescription - Audio description
+   * @param {string} options.audioCover - Audio cover URL
    * @param {HTMLElement} options.coverElement - Book cover element for pill
    * @param {HTMLElement} options.footerElement - Book footer element for actions
    * @param {Function} options.apiService - API service instance
@@ -16,6 +20,10 @@ class AudioCardCompactFeedback {
   constructor(options) {
     this.audioId = options.audioId;
     this.audioSlug = options.audioSlug || options.audioId;
+    this.audioTitle = options.audioTitle || '';
+    this.audioAuthor = options.audioAuthor || '';
+    this.audioDescription = options.audioDescription || '';
+    this.audioCover = options.audioCover || '';
     this.coverElement = options.coverElement;
     this.footerElement = options.footerElement;
     this.api = options.apiService;
@@ -78,7 +86,17 @@ class AudioCardCompactFeedback {
     
     const pill = document.createElement('div');
     pill.className = 'rating-pill';
-    pill.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+    pill.textContent = `⭐ ${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+    pill.style.cursor = 'pointer';
+    pill.setAttribute('role', 'button');
+    pill.setAttribute('aria-label', 'Открыть отзывы');
+    
+    // Make pill clickable to open modal
+    pill.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handleFeedbackClick(e);
+    });
     
     this.coverElement.style.position = 'relative';
     this.coverElement.appendChild(pill);
@@ -102,6 +120,17 @@ class AudioCardCompactFeedback {
       const statsText = document.createElement('span');
       statsText.className = 'feedback-stats-text';
       statsText.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+      statsText.style.cursor = 'pointer';
+      statsText.setAttribute('role', 'button');
+      statsText.setAttribute('aria-label', 'Открыть отзывы');
+      
+      // Make stats text clickable to open modal
+      statsText.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleFeedbackClick(e);
+      });
+      
       actionsContainer.appendChild(statsText);
     }
     
@@ -151,11 +180,18 @@ class AudioCardCompactFeedback {
    * Open feedback modal
    */
   openFeedbackModal() {
+    const { avgRating, total } = this.state.stats;
+    
     // Create and open FeedbackModal
     const feedbackModal = new FeedbackModal({
       audioId: this.audioId,
       audioSlug: this.audioSlug,
-      audioTitle: 'аудиоразбор',
+      audioTitle: this.audioTitle,
+      audioAuthor: this.audioAuthor,
+      audioDescription: this.audioDescription,
+      audioCover: this.audioCover,
+      avgRating: avgRating || 0,
+      totalReviews: total || 0,
       telegram: this.telegram,
       onSubmit: async () => {
         // Refresh stats after submission
@@ -180,7 +216,7 @@ class AudioCardCompactFeedback {
     
     if (this.elements.pill) {
       const { avgRating, total } = this.state.stats;
-      this.elements.pill.textContent = `${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+      this.elements.pill.textContent = `⭐ ${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
     }
   }
   

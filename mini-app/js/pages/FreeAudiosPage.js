@@ -350,11 +350,26 @@ class FreeAudiosPage {
       
       if (!coverElement || !footerElement) return;
       
+      // Extract audio data from card
+      const titleElement = card.querySelector('.book-title');
+      const authorElement = card.querySelector('.book-author');
+      const descriptionElement = card.querySelector('.book-description');
+      const coverImg = card.querySelector('.book-cover-img');
+      
+      const audioTitle = titleElement?.textContent?.trim() || '';
+      const audioAuthor = authorElement?.textContent?.trim() || '';
+      const audioDescription = descriptionElement?.textContent?.trim() || '';
+      const audioCover = coverImg?.src || '';
+      
       try {
         // Create feedback component instance
         new window.AudioCardCompactFeedback({
           audioId: audioId,
           audioSlug: audioId,
+          audioTitle: audioTitle,
+          audioAuthor: audioAuthor,
+          audioDescription: audioDescription,
+          audioCover: audioCover,
           coverElement: coverElement,
           footerElement: footerElement,
           apiService: this.api,
