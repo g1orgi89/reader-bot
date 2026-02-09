@@ -91,7 +91,7 @@ class AudioCardCompactFeedback {
     if (total > 0) {
       button.textContent = `⭐ ${avgRating.toFixed(1)} * ${total} ${this.pluralizeReviews(total)}`;
     } else {
-      button.textContent = '⭐ 0.0 * 0 отзывов';
+      button.textContent = `⭐ 0.0 * 0 ${this.pluralizeReviews(0)}`;
     }
     
     // Make button clickable to open modal
@@ -180,7 +180,7 @@ class AudioCardCompactFeedback {
     if (total > 0) {
       button.textContent = `⭐ ${avgRating.toFixed(1)} * ${total} ${this.pluralizeReviews(total)}`;
     } else {
-      button.textContent = '⭐ 0.0 * 0 отзывов';
+      button.textContent = `⭐ 0.0 * 0 ${this.pluralizeReviews(0)}`;
     }
   }
   
