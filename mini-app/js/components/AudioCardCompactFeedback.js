@@ -46,7 +46,7 @@ class AudioCardCompactFeedback {
       this.renderPill();
       this.renderActions();
     } catch (e) {
-      console.error('AudioCardCompactFeedback init failed', e);
+      console.error(`AudioCardCompactFeedback init failed for audio ${this.audioId}:`, e);
       // Non-fatal: do not block page
     }
   }
@@ -129,7 +129,7 @@ class AudioCardCompactFeedback {
     
     // Insert feedback actions near the buy button safely
     const existingButton = this.footerElement.querySelector('.buy-button');
-    if (existingButton && this.footerElement.contains(existingButton)) {
+    if (existingButton) {
       // Place actions before the primary CTA
       this.footerElement.insertBefore(actionsContainer, existingButton);
     } else {
