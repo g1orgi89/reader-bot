@@ -327,6 +327,43 @@ class FreeAudiosPage {
         e.stopPropagation();
       }, { capture: true });
     });
+    
+    // Initialize feedback components for each audio card
+    this.initializeFeedbackComponents();
+  }
+  
+  initializeFeedbackComponents() {
+    // Only initialize if AudioCardCompactFeedback is available
+    if (!window.AudioCardCompactFeedback) {
+      console.warn('AudioCardCompactFeedback not loaded');
+      return;
+    }
+    
+    // Initialize for all non-Alice cards
+    const audioCards = document.querySelectorAll('.book-card:not(.alice-card)');
+    audioCards.forEach(card => {
+      const audioId = card.getAttribute('data-id');
+      if (!audioId) return;
+      
+      const coverElement = card.querySelector('.book-cover');
+      const footerElement = card.querySelector('.book-footer');
+      
+      if (!coverElement || !footerElement) return;
+      
+      try {
+        // Create feedback component instance
+        new window.AudioCardCompactFeedback({
+          audioId: audioId,
+          audioSlug: audioId,
+          coverElement: coverElement,
+          footerElement: footerElement,
+          apiService: this.api,
+          telegram: this.telegram
+        });
+      } catch (error) {
+        console.error('Failed to initialize feedback for', audioId, error);
+      }
+    });
   }
 
   parseListResponse(json) {

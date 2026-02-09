@@ -5565,6 +5565,140 @@ router.post('/feedback', async (req, res) => {
 });
 
 /**
+ * @description GET /api/reader/feedback/audio/:audioId/stats - Get aggregated stats for audio feedback
+ * @route GET /api/reader/feedback/audio/:audioId/stats
+ * @access Public
+ */
+router.get('/feedback/audio/:audioId/stats', async (req, res) => {
+  try {
+    const { audioId } = req.params;
+    
+    if (!audioId) {
+      return res.status(400).json({
+        success: false,
+        error: 'audioId is required'
+      });
+    }
+    
+    // Build filter for audio-specific feedback
+    const filter = {
+      source: 'mini_app',
+      context: 'bot',
+      tags: { $in: ['audio', audioId] }
+    };
+    
+    // Aggregate statistics
+    const stats = await Feedback.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          avgRating: { $avg: '$rating' },
+          ratings: { $push: '$rating' }
+        }
+      }
+    ]);
+    
+    if (!stats || stats.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          avgRating: 0,
+          total: 0,
+          distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        }
+      });
+    }
+    
+    const result = stats[0];
+    
+    // Calculate distribution
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    result.ratings.forEach(rating => {
+      distribution[rating] = (distribution[rating] || 0) + 1;
+    });
+    
+    // Format average rating to 1 decimal place
+    const avgRating = Math.round(result.avgRating * 10) / 10;
+    
+    res.json({
+      success: true,
+      data: {
+        avgRating,
+        total: result.total,
+        distribution
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching audio feedback stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch feedback statistics'
+    });
+  }
+});
+
+/**
+ * @description GET /api/reader/feedback/audio/:audioId/comments - Get comments for audio
+ * @route GET /api/reader/feedback/audio/:audioId/comments
+ * @access Public
+ */
+router.get('/feedback/audio/:audioId/comments', async (req, res) => {
+  try {
+    const { audioId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const skip = (page - 1) * limit;
+    
+    if (!audioId) {
+      return res.status(400).json({
+        success: false,
+        error: 'audioId is required'
+      });
+    }
+    
+    // Build filter for audio-specific feedback with text
+    const filter = {
+      source: 'mini_app',
+      context: 'bot',
+      tags: { $in: ['audio', audioId] },
+      text: { $ne: '' }
+    };
+    
+    // Get total count
+    const total = await Feedback.countDocuments(filter);
+    
+    // Get paginated comments
+    const comments = await Feedback.find(filter)
+      .select('telegramId rating text createdAt')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    
+    res.json({
+      success: true,
+      data: {
+        items: comments,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching audio comments:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch comments'
+    });
+  }
+});
+
+/**
  * @description POST /api/reader/errors - Client error logging endpoint
  * @route POST /api/reader/errors
  * @access Public (no auth required - used for error telemetry)
