@@ -3,104 +3,43 @@
  * Компактная интеграция рейтинга/отзывов на карточки аудиоразборов
  */
 
-/* Rating pill overlay - показывается в правом верхнем углу обложки */
-.rating-pill {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 14px;
-  padding: 6px 10px;
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 600;
-  backdrop-filter: blur(8px) saturate(120%);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  white-space: nowrap;
-  z-index: 2;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.rating-pill:hover {
-  opacity: 0.9;
-  transform: scale(1.05);
-}
-
-.rating-pill:active {
-  transform: scale(0.98);
-}
-
-/* Compact feedback actions - размещается в футере карточки */
-.feedback-actions.compact {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.feedback-stats-text {
+/* Inline rating row - displayed under the cover image, inside book-info */
+.inline-rating-row {
+  margin-top: 8px;
+  padding: 8px 0;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
-  line-height: 1;
+  line-height: 1.4;
   cursor: pointer;
-  transition: color 0.2s ease;
   user-select: none;
-}
-
-.feedback-stats-text:hover {
-  color: var(--primary-color);
-}
-
-.feedback-btn {
-  padding: 6px 14px;
-  border: 1px solid var(--border-color);
-  background: transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  transition: all 0.2s ease;
-  white-space: nowrap;
+  transition: color 0.2s ease;
   -webkit-tap-highlight-color: transparent;
-  line-height: 1;
 }
 
-.feedback-btn:hover {
-  border-color: var(--primary-color);
+.inline-rating-row:hover {
   color: var(--primary-color);
-  background: rgba(var(--primary-color-rgb, 115, 103, 240), 0.08);
 }
 
-.feedback-btn:active {
+.inline-rating-row:active {
   transform: scale(0.98);
 }
 
-.feedback-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* Ensure book-info has static positioning to avoid layout issues */
+.book-info {
+  position: static;
+}
+
+/* Ensure cover image uses object-fit */
+.book-cover-img {
+  object-fit: cover;
 }
 
 /* Responsive adjustments */
 @media (max-width: 480px) {
-  .rating-pill {
-    font-size: 11px;
-    padding: 5px 8px;
-  }
-  
-  .feedback-stats-text {
+  .inline-rating-row {
     font-size: 12px;
-  }
-  
-  .feedback-btn {
-    font-size: 12px;
-    padding: 5px 12px;
+    margin-top: 6px;
+    padding: 6px 0;
   }
 }

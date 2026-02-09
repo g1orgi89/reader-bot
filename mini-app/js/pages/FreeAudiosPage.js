@@ -345,10 +345,9 @@ class FreeAudiosPage {
       const audioId = card.getAttribute('data-id');
       if (!audioId) return;
       
-      const coverElement = card.querySelector('.book-cover');
-      const footerElement = card.querySelector('.book-footer');
+      const infoElement = card.querySelector('.book-info');
       
-      if (!coverElement || !footerElement) return;
+      if (!infoElement) return;
       
       // Extract audio data from card
       const titleElement = card.querySelector('.book-title');
@@ -370,8 +369,7 @@ class FreeAudiosPage {
           audioAuthor: audioAuthor,
           audioDescription: audioDescription,
           audioCover: audioCover,
-          coverElement: coverElement,
-          footerElement: footerElement,
+          infoElement: infoElement,
           apiService: this.api,
           telegram: this.telegram
         });
