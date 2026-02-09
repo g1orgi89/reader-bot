@@ -310,4 +310,18 @@ describe('Audio Feedback API', () => {
       expect(saved.tags).toContain(audioId);
     });
   });
+  
+  // Note: UI component tests for AudioCardCompactFeedback and FeedbackModal
+  // would require a browser environment (Puppeteer/Playwright) or JSDOM.
+  // These tests would verify:
+  // - Rating pill renders on cover in top-right position
+  // - Pill switches to multiline layout when cover width is narrow
+  // - Footer shows single "Отзыв/Оценить" button with stats (no separate star buttons)
+  // - Clicking pill or footer button opens modal
+  // - Modal shows card preview header (cover, title, author, description, rating)
+  // - Modal shows reviews list from API
+  // - Modal has inline rating form with 1-5 stars and text input (≤300 chars)
+  // - Submitting feedback updates reviews list without closing modal
+  // - No NotFoundError in DOM insertion
+  // - No text overlapping on card cover
 });
