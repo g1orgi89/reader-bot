@@ -87,11 +87,11 @@ class AudioCardCompactFeedback {
     button.setAttribute('aria-label', total > 0 ? 'Открыть отзывы' : 'Оценить аудиоразбор');
     
     // Set text based on whether there are ratings
-    // Format: "⭐ Рейтинг X.Y из 5 • N отзывов" or "⭐ Рейтинг — Оценить"
+    // Format: "⭐ X.Y * N отзывов" without 'Рейтинг' word and 'из 5'
     if (total > 0) {
-      button.textContent = `⭐ Рейтинг ${avgRating.toFixed(1)} из 5 • ${total} ${this.pluralizeReviews(total)}`;
+      button.textContent = `⭐ ${avgRating.toFixed(1)} * ${total} ${this.pluralizeReviews(total)}`;
     } else {
-      button.textContent = '⭐ Рейтинг — Оценить';
+      button.textContent = '⭐ 0.0 * 0 отзывов';
     }
     
     // Make button clickable to open modal
@@ -178,9 +178,9 @@ class AudioCardCompactFeedback {
     const { avgRating = 0, total = 0 } = this.state.stats || {};
     
     if (total > 0) {
-      button.textContent = `⭐ Рейтинг ${avgRating.toFixed(1)} из 5 • ${total} ${this.pluralizeReviews(total)}`;
+      button.textContent = `⭐ ${avgRating.toFixed(1)} * ${total} ${this.pluralizeReviews(total)}`;
     } else {
-      button.textContent = '⭐ Рейтинг — Оценить';
+      button.textContent = '⭐ 0.0 * 0 отзывов';
     }
   }
   

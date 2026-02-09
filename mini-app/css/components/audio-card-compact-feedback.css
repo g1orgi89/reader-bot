@@ -12,7 +12,7 @@
 .feedback-inline .feedback-inline-link {
   background: none;
   border: none;
-  color: var(--primary-color);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
   padding: 2px 0;
