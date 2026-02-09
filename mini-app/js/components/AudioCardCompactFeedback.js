@@ -12,7 +12,7 @@ class AudioCardCompactFeedback {
    * @param {string} options.audioAuthor - Audio author
    * @param {string} options.audioDescription - Audio description
    * @param {string} options.audioCover - Audio cover URL
-   * @param {HTMLElement} options.infoElement - Book info element for inline rating
+   * @param {HTMLElement} options.footerElement - Book footer element for inline rating
    * @param {Function} options.apiService - API service instance
    * @param {Function} options.telegram - Telegram WebApp instance
    */
@@ -23,7 +23,7 @@ class AudioCardCompactFeedback {
     this.audioAuthor = options.audioAuthor || '';
     this.audioDescription = options.audioDescription || '';
     this.audioCover = options.audioCover || '';
-    this.infoElement = options.infoElement;
+    this.footerElement = options.footerElement;
     this.api = options.apiService;
     this.telegram = options.telegram;
     
@@ -45,7 +45,7 @@ class AudioCardCompactFeedback {
   async init() {
     try {
       await this.fetchStats();
-      this.renderInlineRating();
+      this.renderFooterInline();
     } catch (e) {
       console.error(`AudioCardCompactFeedback init failed for audio ${this.audioId}:`, e);
       // Non-fatal: do not block page rendering
@@ -70,47 +70,44 @@ class AudioCardCompactFeedback {
   }
   
   /**
-   * Render inline rating row under cover image (inside book-info)
+   * Render compact rating row as FIRST element in book-footer
    */
-  renderInlineRating() {
-    if (!this.infoElement) return;
+  renderFooterInline() {
+    if (!this.footerElement) return;
     
-    const { avgRating, total } = this.state.stats;
+    const { avgRating = 0, total = 0 } = this.state.stats || {};
     
-    // Create inline rating row
+    // Create compact inline rating row
     const ratingRow = document.createElement('div');
-    ratingRow.className = 'inline-rating-row';
-    ratingRow.style.cursor = 'pointer';
-    ratingRow.setAttribute('role', 'button');
-    ratingRow.setAttribute('aria-label', total > 0 ? 'Открыть отзывы' : 'Оценить аудиоразбор');
+    ratingRow.className = 'feedback-inline';
+    
+    const button = document.createElement('button');
+    button.className = 'feedback-inline-link';
+    button.type = 'button';
+    button.setAttribute('aria-label', total > 0 ? 'Открыть отзывы' : 'Оценить аудиоразбор');
     
     // Set text based on whether there are ratings
+    // Format: "⭐ Рейтинг X.Y из 5 • N отзывов" or "⭐ Рейтинг — Оценить"
     if (total > 0) {
-      ratingRow.textContent = `⭐ ${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+      button.textContent = `⭐ Рейтинг ${avgRating.toFixed(1)} из 5 • ${total} ${this.pluralizeReviews(total)}`;
     } else {
-      ratingRow.textContent = '⭐ Оценить';
+      button.textContent = '⭐ Рейтинг — Оценить';
     }
     
-    // Make row clickable to open modal
-    ratingRow.addEventListener('click', (e) => {
+    // Make button clickable to open modal
+    button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       this.handleCommentClick(e);
     });
     
-    // Insert after description if present, otherwise after header
-    const description = this.infoElement.querySelector('.book-description');
-    const header = this.infoElement.querySelector('.book-header');
+    ratingRow.appendChild(button);
     
-    if (description) {
-      // Insert after description
-      description.parentNode.insertBefore(ratingRow, description.nextSibling);
-    } else if (header) {
-      // Insert after header
-      header.parentNode.insertBefore(ratingRow, header.nextSibling);
+    // Insert as FIRST element in footer to align left with pricing
+    if (typeof this.footerElement.prepend === 'function') {
+      this.footerElement.prepend(ratingRow);
     } else {
-      // Fallback: append to info element
-      this.infoElement.appendChild(ratingRow);
+      this.footerElement.insertBefore(ratingRow, this.footerElement.firstChild);
     }
     
     this.elements.inlineRating = ratingRow;
@@ -129,6 +126,12 @@ class AudioCardCompactFeedback {
     // Haptic feedback
     if (this.telegram && typeof this.telegram.HapticFeedback === 'object') {
       this.telegram.HapticFeedback.impactOccurred('light');
+    }
+    
+    // Check if FeedbackModal is available
+    if (!window.FeedbackModal) {
+      console.error('FeedbackModal not loaded');
+      return;
     }
     
     this.openFeedbackModal();
@@ -169,12 +172,15 @@ class AudioCardCompactFeedback {
   updateInlineRating() {
     if (!this.elements.inlineRating) return;
     
-    const { avgRating, total } = this.state.stats;
+    const button = this.elements.inlineRating.querySelector('.feedback-inline-link');
+    if (!button) return;
+    
+    const { avgRating = 0, total = 0 } = this.state.stats || {};
     
     if (total > 0) {
-      this.elements.inlineRating.textContent = `⭐ ${avgRating.toFixed(1)}/5 • ${total} ${this.pluralizeReviews(total)}`;
+      button.textContent = `⭐ Рейтинг ${avgRating.toFixed(1)} из 5 • ${total} ${this.pluralizeReviews(total)}`;
     } else {
-      this.elements.inlineRating.textContent = '⭐ Оценить';
+      button.textContent = '⭐ Рейтинг — Оценить';
     }
   }
   

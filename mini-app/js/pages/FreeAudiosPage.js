@@ -345,9 +345,9 @@ class FreeAudiosPage {
       const audioId = card.getAttribute('data-id');
       if (!audioId) return;
       
-      const infoElement = card.querySelector('.book-info');
+      const footerElement = card.querySelector('.book-footer');
       
-      if (!infoElement) return;
+      if (!footerElement) return;
       
       // Extract audio data from card
       const titleElement = card.querySelector('.book-title');
@@ -369,7 +369,7 @@ class FreeAudiosPage {
           audioAuthor: audioAuthor,
           audioDescription: audioDescription,
           audioCover: audioCover,
-          infoElement: infoElement,
+          footerElement: footerElement,
           apiService: this.api,
           telegram: this.telegram
         });
