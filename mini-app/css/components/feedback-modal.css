@@ -1,0 +1,168 @@
+/**
+ * FeedbackModal Component Styles
+ * Compact modal for rating and reviewing audio content
+ */
+
+/* Modal-specific overrides */
+.feedback-modal .modal__body {
+  padding: 0;
+}
+
+.feedback-modal__content {
+  padding: 0;
+}
+
+.feedback-modal__subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Rating Section */
+.feedback-modal__rating {
+  margin-bottom: 24px;
+}
+
+.feedback-modal__stars {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.feedback-modal__star {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--border-color);
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feedback-modal__star:hover {
+  color: var(--primary-color);
+  transform: scale(1.1);
+}
+
+.feedback-modal__star--active {
+  color: var(--primary-color);
+}
+
+.feedback-modal__star-icon {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.feedback-modal__rating-label {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-height: 20px;
+}
+
+/* Review Section */
+.feedback-modal__review {
+  margin-bottom: 20px;
+}
+
+.feedback-modal__label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.feedback-modal__textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease;
+}
+
+.feedback-modal__textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.feedback-modal__textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.feedback-modal__char-counter {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+  margin-top: 6px;
+  transition: color 0.2s ease;
+}
+
+.feedback-modal__char-counter--warning {
+  color: var(--error-color, #ff6b6b);
+}
+
+/* Submit Button */
+.feedback-modal__submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.feedback-modal__submit:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.feedback-modal__submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.feedback-modal__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .feedback-modal__stars {
+    gap: 6px;
+  }
+  
+  .feedback-modal__star {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .feedback-modal__star-icon {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .feedback-modal__subtitle {
+    font-size: 13px;
+  }
+}
