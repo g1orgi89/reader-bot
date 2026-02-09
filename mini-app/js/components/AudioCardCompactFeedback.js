@@ -41,12 +41,14 @@ class AudioCardCompactFeedback {
    * Initialize the component
    */
   async init() {
-    // Fetch initial stats
-    await this.fetchStats();
-    
-    // Render UI elements
-    this.renderPill();
-    this.renderActions();
+    try {
+      await this.fetchStats();
+      this.renderPill();
+      this.renderActions();
+    } catch (e) {
+      console.error(`AudioCardCompactFeedback init failed for audio ${this.audioId}:`, e);
+      // Non-fatal: do not block page
+    }
   }
   
   /**
@@ -125,12 +127,18 @@ class AudioCardCompactFeedback {
     actionsContainer.appendChild(starsContainer);
     actionsContainer.appendChild(commentBtn);
     
-    // Insert before existing buttons in footer
-    const existingButtons = this.footerElement.querySelector('.buy-button');
-    if (existingButtons) {
-      this.footerElement.insertBefore(actionsContainer, existingButtons.parentElement);
+    // Insert feedback actions near the buy button safely
+    const existingButton = this.footerElement.querySelector('.buy-button');
+    if (existingButton) {
+      // Place actions before the primary CTA
+      this.footerElement.insertBefore(actionsContainer, existingButton);
     } else {
-      this.footerElement.appendChild(actionsContainer);
+      // Fallback: add at the top of footer for better visibility
+      if (typeof this.footerElement.prepend === 'function') {
+        this.footerElement.prepend(actionsContainer);
+      } else {
+        this.footerElement.insertBefore(actionsContainer, this.footerElement.firstChild);
+      }
     }
   }
   
