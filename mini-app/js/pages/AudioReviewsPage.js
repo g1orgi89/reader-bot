@@ -43,6 +43,9 @@ class AudioReviewsPage {
       commentsList: null,
       statsHeader: null
     };
+    
+    // Store back button handler for proper cleanup
+    this._backButtonHandler = null;
   }
   
   /**
@@ -317,12 +320,16 @@ class AudioReviewsPage {
     
     // Setup Telegram BackButton
     if (window.Telegram?.WebApp?.BackButton) {
-      window.Telegram.WebApp.BackButton.show();
-      window.Telegram.WebApp.BackButton.onClick(() => {
+      // Store handler reference for proper cleanup in onHide
+      // Telegram API requires passing the same handler to both onClick and offClick
+      this._backButtonHandler = () => {
         if (this.app?.router) {
           this.app.router.back();
         }
-      });
+      };
+      
+      window.Telegram.WebApp.BackButton.show();
+      window.Telegram.WebApp.BackButton.onClick(this._backButtonHandler);
     }
     
     // Fetch stats and comments
@@ -342,10 +349,13 @@ class AudioReviewsPage {
   onHide() {
     console.log('AudioReviewsPage: onHide called');
     
-    // Hide Telegram BackButton
+    // Hide Telegram BackButton and remove handler
     if (window.Telegram?.WebApp?.BackButton) {
       window.Telegram.WebApp.BackButton.hide();
-      window.Telegram.WebApp.BackButton.offClick();
+      if (this._backButtonHandler) {
+        window.Telegram.WebApp.BackButton.offClick(this._backButtonHandler);
+        this._backButtonHandler = null;
+      }
     }
   }
   

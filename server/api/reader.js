@@ -5689,6 +5689,7 @@ router.get('/feedback/audio/:audioId/stats', async (req, res) => {
  * @description GET /api/reader/feedback/audio/:audioId/comments - Get comments for audio with user data
  * @route GET /api/reader/feedback/audio/:audioId/comments
  * @access Public
+ * @note Returns all feedback (with or without text) to support rating-only reviews
  */
 router.get('/feedback/audio/:audioId/comments', async (req, res) => {
   try {
@@ -5705,6 +5706,7 @@ router.get('/feedback/audio/:audioId/comments', async (req, res) => {
     }
     
     // Build filter for audio-specific feedback, excluding non-real users
+    // Note: Includes all feedback, even without text, to support rating-only reviews
     const filter = {
       source: 'mini_app',
       context: 'bot',
@@ -5713,10 +5715,10 @@ router.get('/feedback/audio/:audioId/comments', async (req, res) => {
       telegramId: { $exists: true, $ne: null, $nin: ['demo-user', '0', 'undefined', 'null'] }
     };
     
-    // Get total count (all comments, with or without text)
+    // Get total count (all feedback, with or without text)
     const total = await Feedback.countDocuments(filter);
     
-    // Get paginated comments (include all, even without text for rating-only reviews)
+    // Get paginated feedback (includes rating-only reviews without text)
     const feedbackDocs = await Feedback.find(filter)
       .select('telegramId rating text createdAt')
       .sort({ createdAt: -1 })
