@@ -114,8 +114,8 @@ class AudioCardCompactFeedback {
   }
   
   /**
-   * Handle comment/rating click - open modal
-   * This is the single entry point for opening the feedback modal
+   * Handle comment/rating click - open reviews page or modal fallback
+   * This is the single entry point for opening the feedback UI
    */
   handleCommentClick(event) {
     if (event) {
@@ -128,7 +128,28 @@ class AudioCardCompactFeedback {
       this.telegram.HapticFeedback.impactOccurred('light');
     }
     
-    // Check if FeedbackModal is available
+    // Try to navigate to reviews page via router
+    if (window.App && window.App.router) {
+      try {
+        window.App.router.navigate(`/audios/${this.audioId}/reviews`, {
+          state: {
+            audioId: this.audioId,
+            audioSlug: this.audioSlug,
+            audioTitle: this.audioTitle,
+            audioAuthor: this.audioAuthor,
+            audioDescription: this.audioDescription,
+            audioCover: this.audioCover,
+            avgRating: this.state.stats?.avgRating || 0,
+            totalReviews: this.state.stats?.total || 0
+          }
+        });
+        return;
+      } catch (error) {
+        console.warn('Router navigation failed, falling back to modal:', error);
+      }
+    }
+    
+    // Fallback to modal if router not available or navigation failed
     if (!window.FeedbackModal) {
       console.error('FeedbackModal not loaded');
       return;
@@ -146,6 +167,7 @@ class AudioCardCompactFeedback {
     const { avgRating, total } = this.state.stats;
     
     // Create and open FeedbackModal
+    // eslint-disable-next-line no-undef
     const feedbackModal = new FeedbackModal({
       audioId: this.audioId,
       audioSlug: this.audioSlug,

@@ -1,0 +1,344 @@
+/**
+ * AudioReviewsPage Styles
+ * Dedicated page for viewing and submitting audio reviews
+ */
+
+.audio-reviews-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-primary, #fff);
+}
+
+/* Header */
+.audio-reviews-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-primary, #fff);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.back-button:active {
+  opacity: 0.7;
+}
+
+.back-button svg {
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+/* Audio Preview Section */
+.audio-reviews-preview {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-secondary, #f5f5f5);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.audio-reviews-preview-cover {
+  flex-shrink: 0;
+  width: 60px;
+  height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.audio-reviews-preview-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.audio-reviews-preview-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.audio-reviews-preview-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.audio-reviews-preview-author {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.audio-reviews-preview-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.audio-reviews-preview-rating {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+/* Content Section */
+.audio-reviews-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Reviews List Section */
+.audio-reviews-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.audio-reviews-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.audio-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.audio-reviews-item {
+  padding: 12px;
+  background: var(--bg-secondary, #f5f5f5);
+  border-radius: 8px;
+}
+
+.audio-reviews-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.audio-reviews-item-rating {
+  font-size: 14px;
+  color: var(--primary-color);
+}
+
+.audio-reviews-item-date {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.audio-reviews-item-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.audio-reviews-loading,
+.audio-reviews-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Add Review Section */
+.audio-reviews-add-section {
+  padding: 16px;
+  background: var(--bg-primary, #fff);
+  border-top: 2px solid var(--border-color, #e0e0e0);
+  position: sticky;
+  bottom: 0;
+}
+
+/* Rating Section */
+.audio-reviews-rating {
+  margin-bottom: 16px;
+}
+
+.audio-reviews-stars {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.audio-reviews-star {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--border-color);
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-reviews-star:hover {
+  color: var(--primary-color);
+  transform: scale(1.1);
+}
+
+.audio-reviews-star--active {
+  color: var(--primary-color);
+}
+
+.audio-reviews-star-icon {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+.audio-reviews-rating-label {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-height: 20px;
+}
+
+/* Review Input Section */
+.audio-reviews-review {
+  margin-bottom: 16px;
+}
+
+.audio-reviews-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.audio-reviews-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  background: var(--surface-secondary, #fff);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.audio-reviews-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.audio-reviews-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.audio-reviews-char-counter {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+  margin-top: 6px;
+  transition: color 0.2s ease;
+}
+
+.audio-reviews-char-counter--warning {
+  color: var(--error-color, #ff6b6b);
+}
+
+/* Submit Button */
+.audio-reviews-submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.audio-reviews-submit:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.audio-reviews-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.audio-reviews-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .audio-reviews-stars {
+    gap: 6px;
+  }
+  
+  .audio-reviews-star {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .audio-reviews-star-icon {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .audio-reviews-preview-cover {
+    width: 50px;
+    height: 67px;
+  }
+  
+  .audio-reviews-preview-title {
+    font-size: 14px;
+  }
+}

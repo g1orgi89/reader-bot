@@ -53,6 +53,7 @@ class AppRouter {
         this.routes = new Map();
         this.currentRoute = '';
         this.currentComponent = null;
+        this.currentState = {}; // Store state passed during navigation
         this.history = [];
         this.isInitialized = false;
         this.isNavigating = false;
@@ -248,6 +249,15 @@ class AppRouter {
             requiresAuth: true,
             showBottomNav: false
         });
+        
+        // Audio reviews page (dynamic :id route)
+        this.routes.set('/audios/:id/reviews', {
+            path: '/audios/:id/reviews',
+            component: AudioReviewsPage,
+            title: 'Отзывы',
+            requiresAuth: true,
+            showBottomNav: false
+        });
 
         console.log(`✅ Router: Зарегистрировано ${this.routes.size} маршрутов`);
     }
@@ -383,6 +393,9 @@ class AppRouter {
                 ...options.state,
                 query: query
             };
+            
+            // Store the current state for access by components
+            this.currentState = componentState;
             
             // Создаем объект app с правильной структурой для страниц
             const appObject = {

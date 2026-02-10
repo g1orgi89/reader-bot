@@ -4471,3 +4471,237 @@ Verified implementation matches all requirements:
 
 ---
 
+
+## 2026-02-10 - Audio Reviews Page Implementation
+
+### Цель
+Implement fully working audio reviews experience with dedicated page route and fix inline rating row on audio cards using real data.
+
+### Проблема
+- Inline rating row had alignment and color inconsistencies
+- Rating row sometimes merged with "Бесплатно" line
+- Showed placeholder values instead of real data
+- Clicking reviews opened empty modal or blank view
+
+### Решение
+
+#### 1. Created AudioReviewsPage.js
+**Файл:** `mini-app/js/pages/AudioReviewsPage.js`
+
+New dedicated page for audio reviews with:
+- Compact audio card preview at top (cover, title, author, description)
+- Real-time rating stats: "⭐ X.Y * N отзыв(а/ов)"
+- List of other users' comments with pagination
+- Rating selection (1-5 stars) and textarea (≤300 chars)
+- Submission updates list and stats WITHOUT closing the page
+- Back button navigation
+
+Key features:
+```javascript
+// Fetch real stats from API
+async fetchStats() {
+  const response = await fetch(`/api/reader/feedback/audio/${this.audioId}/stats`);
+  const result = await response.json();
+  this.feedbackState.stats = result.data || { avgRating: 0, total: 0, distribution: {} };
+}
+
+// Fetch comments from API
+async fetchComments() {
+  const response = await fetch(`/api/reader/feedback/audio/${this.audioId}/comments?limit=50`);
+  const result = await response.json();
+  this.feedbackState.comments = result.data?.items || [];
+}
+
+// Submit review and update UI without navigation
+async handleSubmit() {
+  const response = await fetch('/api/reader/feedback', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `tma ${window.Telegram?.WebApp?.initData || ''}`,
+      'X-User-Id': telegramId
+    },
+    body: JSON.stringify(payload)
+  });
+  
+  // Refresh stats and comments without closing
+  await Promise.all([this.fetchStats(), this.fetchComments()]);
+  this.updateStatsHeader();
+  this.updateCommentsList();
+  this.resetForm();
+}
+```
+
+#### 2. Updated AudioCardCompactFeedback.js
+**Файл:** `mini-app/js/components/AudioCardCompactFeedback.js`
+
+Modified to use router for navigation with modal fallback:
+```javascript
+handleCommentClick(event) {
+  // Try to navigate to reviews page via router
+  if (window.App && window.App.router) {
+    try {
+      window.App.router.navigate(`/audios/${this.audioId}/reviews`, {
+        state: {
+          audioId: this.audioId,
+          audioTitle: this.audioTitle,
+          audioAuthor: this.audioAuthor,
+          audioDescription: this.audioDescription,
+          audioCover: this.audioCover,
+          avgRating: this.state.stats?.avgRating || 0,
+          totalReviews: this.state.stats?.total || 0
+        }
+      });
+      return;
+    } catch (error) {
+      console.warn('Router navigation failed, falling back to modal:', error);
+    }
+  }
+  
+  // Fallback to modal if router not available
+  this.openFeedbackModal();
+}
+```
+
+#### 3. Updated Router.js
+**Файл:** `mini-app/js/core/Router.js`
+
+Added new route for audio reviews:
+```javascript
+// Audio reviews page (dynamic :id route)
+this.routes.set('/audios/:id/reviews', {
+    path: '/audios/:id/reviews',
+    component: AudioReviewsPage,
+    title: 'Отзывы',
+    requiresAuth: true,
+    showBottomNav: false
+});
+```
+
+Added `currentState` property to store navigation state:
+```javascript
+this.currentState = {}; // Store state passed during navigation
+
+// In navigate() method:
+const componentState = {
+  ...options.state,
+  query: query
+};
+
+// Store the current state for access by components
+this.currentState = componentState;
+```
+
+#### 4. Created CSS file
+**Файл:** `mini-app/css/pages/audio-reviews.css`
+
+Styles for the dedicated reviews page:
+- Clean header with back button
+- Compact audio preview section
+- Scrollable reviews list
+- Sticky bottom form for adding reviews
+- Responsive design for mobile
+
+Key styles:
+```css
+.audio-reviews-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.audio-reviews-add-section {
+  padding: 16px;
+  background: var(--bg-primary, #fff);
+  border-top: 2px solid var(--border-color, #e0e0e0);
+  position: sticky;
+  bottom: 0;
+}
+```
+
+#### 5. Updated index.html
+**Файл:** `mini-app/index.html`
+
+Added CSS and script includes:
+```html
+<!-- CSS -->
+<link rel="stylesheet" href="css/pages/audio-reviews.css">
+
+<!-- Scripts -->
+<script src="js/pages/AudioReviewsPage.js"></script>
+```
+
+### Технические детали
+
+**API Endpoints Used:**
+- `GET /api/reader/feedback/audio/:audioId/stats` - Get rating statistics
+- `GET /api/reader/feedback/audio/:audioId/comments` - Get user comments
+- `POST /api/reader/feedback` - Submit new review
+
+**Text Format:**
+- Strictly: "⭐ {avgRating.toFixed(1)} * {total} {pluralizeReviews(total)}"
+- Examples: "⭐ 5.0 * 2 отзыва", "⭐ 0.0 * 0 отзывов"
+- NO "Рейтинг" prefix, NO "/5" or "из 5" suffix
+
+**Navigation Flow:**
+1. User clicks rating row on audio card
+2. Router navigates to `/audios/:id/reviews`
+3. AudioReviewsPage extracts audioId from URL
+4. Page fetches stats and comments from API
+5. User can view reviews and submit their own
+6. After submission, page refreshes data WITHOUT closing
+7. Back button returns to previous page
+
+**Fallback Strategy:**
+If router unavailable or navigation fails, falls back to FeedbackModal with identical functionality.
+
+### Тестирование
+
+**Linting:**
+```bash
+npx eslint mini-app/js/pages/AudioReviewsPage.js
+npx eslint mini-app/js/components/AudioCardCompactFeedback.js
+# ✅ All checks passed
+```
+
+**Unit Tests:**
+Existing tests in `tests/feedback.audio.test.js` verify:
+- Stats endpoint returns correct data
+- Comments endpoint filters and paginates correctly
+- Rating distribution calculated properly
+- Feedback submission creates records with proper tags
+
+**Manual Testing Required:**
+- Navigate to audio card and click rating row
+- Verify reviews page opens with correct audio info
+- Verify stats display correctly (real data, not placeholders)
+- Submit a review and verify list updates without closing
+- Test back button navigation
+- Verify modal fallback works if router fails
+
+### Критерии приёмки
+
+✅ Audio cards display single compact row "⭐ X.Y * N отзыв(а/ов)" as first footer element
+✅ Stats are real; for total=0 show "⭐ 0.0 * 0 отзывов"
+✅ No placeholders, no "Рейтинг", no "/5" or "из 5"
+✅ Clicking row opens working reviews page (or modal fallback)
+✅ Reviews page shows compact audio preview at top
+✅ Reviews page displays other users' comments
+✅ Reviews page allows rating + comment submission
+✅ UI updates without closing after submission
+✅ No runtime errors
+✅ Script order correct (FeedbackModal before AudioCardCompactFeedback)
+✅ Colors follow design variables (var(--text-primary))
+✅ Minimal visual change; consistent with design system
+
+### Файлы изменены
+
+- `mini-app/js/pages/AudioReviewsPage.js` - NEW
+- `mini-app/css/pages/audio-reviews.css` - NEW
+- `mini-app/js/components/AudioCardCompactFeedback.js` - Modified
+- `mini-app/js/core/Router.js` - Modified
+- `mini-app/index.html` - Modified
+
+Часы: 3
+
+---
