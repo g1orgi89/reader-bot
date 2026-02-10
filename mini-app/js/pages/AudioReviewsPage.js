@@ -4,6 +4,9 @@
  * Vanilla JS implementation
  */
 
+// Constants
+const RATING_LABELS = ['', 'Плохо', 'Так себе', 'Нормально', 'Хорошо', 'Отлично'];
+
 class AudioReviewsPage {
   /**
    * @param {Object} app - Main app instance
@@ -411,9 +414,8 @@ class AudioReviewsPage {
     });
     
     // Update label
-    const labels = ['', 'Плохо', 'Так себе', 'Нормально', 'Хорошо', 'Отлично'];
     if (this.elements.ratingLabel) {
-      this.elements.ratingLabel.textContent = labels[rating] || '';
+      this.elements.ratingLabel.textContent = RATING_LABELS[rating] || '';
     }
     
     // Enable submit button
@@ -448,11 +450,12 @@ class AudioReviewsPage {
       const rating = this.feedbackState.selectedRating;
       
       // Get user ID
-      const telegramId = this.getUserId();
+      const userId = this.getUserId();
       
       // Prepare payload
+      // Note: API expects 'telegramId' property name, even though value may be a fallback
       const payload = {
-        telegramId,
+        telegramId: userId,
         rating,
         text,
         context: 'bot',
@@ -466,7 +469,7 @@ class AudioReviewsPage {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `tma ${window.Telegram?.WebApp?.initData || ''}`,
-          'X-User-Id': telegramId
+          'X-User-Id': userId
         },
         body: JSON.stringify(payload)
       });
