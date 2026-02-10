@@ -249,9 +249,14 @@ async function isUnlocked(userId, audioId) {
     }
 
     // For premium content, check entitlements
-    // If this is a track from a premium container, check entitlement for the container
+    // If this is a track from a container (format: containerId-NN), always check entitlement for the container
     let checkId = audioId;
-    if (containerForTrack && !containerForTrack.isFree) {
+    const trackMatch = audioId.match(/^(.+)-(\d+)$/);
+    if (trackMatch) {
+      // Extract container ID from track ID pattern
+      checkId = trackMatch[1];
+      logger.info(`🔐 Checking entitlement for container ${checkId} (track: ${audioId})`);
+    } else if (containerForTrack && !containerForTrack.isFree) {
       checkId = containerForTrack.id;
       logger.info(`🔐 Checking entitlement for container ${checkId} (track: ${audioId})`);
     }
