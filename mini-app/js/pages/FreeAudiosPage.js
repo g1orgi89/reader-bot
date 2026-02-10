@@ -144,7 +144,7 @@ class FreeAudiosPage {
         <div class="book-card alice-card locked" data-id="alice_wonderland">
           <div class="book-main">
             <div class="book-cover cover-1">
-              <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice_wonderland.png" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <img class="book-cover-img" src="/mini-app/assets/book-covers/alice_wonderland.png" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
             </div>
             <div class="book-info">
               <div class="book-header">
@@ -172,7 +172,7 @@ class FreeAudiosPage {
         <div class="book-card alice-card" data-id="alice_wonderland">
           <div class="book-main">
             <div class="book-cover cover-1">
-              <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice_wonderland.png" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+              <img class="book-cover-img" src="/mini-app/assets/book-covers/alice_wonderland.png" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
             </div>
             <div class="book-info">
               <div class="book-header">
@@ -199,7 +199,7 @@ class FreeAudiosPage {
       <div class="book-card alice-card expired" data-id="alice_wonderland">
         <div class="book-main">
           <div class="book-cover cover-1">
-            <img class="book-cover-img" src="/mini-app/assets/audio-covers/alice_wonderland.png" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
+            <img class="book-cover-img" src="/mini-app/assets/book-covers/alice_wonderland.png" alt="Алиса в стране чудес" onerror="window.RBImageErrorHandler && window.RBImageErrorHandler(this)">
           </div>
           <div class="book-info">
             <div class="book-header">
