@@ -167,6 +167,7 @@ class AudioCardCompactFeedback {
     const { avgRating, total } = this.state.stats;
     
     // Create and open FeedbackModal
+    // eslint-disable-next-line no-undef
     const feedbackModal = new FeedbackModal({
       audioId: this.audioId,
       audioSlug: this.audioSlug,
