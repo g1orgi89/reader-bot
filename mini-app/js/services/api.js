@@ -275,10 +275,16 @@ class ApiService {
         let baseUrl = this.baseURL;
         let endpointPath = endpoint;
         
-        if (endpoint.startsWith('/audio/')) {
-            baseUrl = '/api/audio';
-            // Remove the /audio prefix since the base is already /api/audio
-            endpointPath = endpoint.slice(6); // Remove '/audio' prefix
+        if (endpoint.startsWith('/audio/') || endpoint.startsWith('/api/audio/')) {
+            // For /api/audio/* endpoints, use them directly without baseUrl
+            if (endpoint.startsWith('/api/audio/')) {
+                baseUrl = '';
+                endpointPath = endpoint;
+            } else {
+                // For legacy /audio/* endpoints, convert to /api/audio
+                baseUrl = '/api/audio';
+                endpointPath = endpoint.slice(6); // Remove '/audio' prefix
+            }
         }
         
         // Add cache-busting for quotes endpoints on GET requests OR if noCache is requested
