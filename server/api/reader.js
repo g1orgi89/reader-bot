@@ -5612,7 +5612,7 @@ router.post('/feedback', async (req, res) => {
  * @route GET /api/reader/feedback/audio/:audioId/stats
  * @access Public
  */
-router.get('/feedback/audio/:audioId/stats', async (req, res) => {
+router.get('/feedback/audio/:audioId/stats', communityLimiter, async (req, res) => {
   try {
     const { audioId } = req.params;
     
@@ -5691,7 +5691,7 @@ router.get('/feedback/audio/:audioId/stats', async (req, res) => {
  * @access Public
  * @note Returns all feedback (with or without text) to support rating-only reviews
  */
-router.get('/feedback/audio/:audioId/comments', async (req, res) => {
+router.get('/feedback/audio/:audioId/comments', communityLimiter, async (req, res) => {
   try {
     const { audioId } = req.params;
     const page = parseInt(req.query.page) || 1;
