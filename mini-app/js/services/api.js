@@ -1793,7 +1793,7 @@ class ApiService {
      */
     async getFreeAudios() {
         console.log('🎧 ApiService: Getting free audios...');
-        return this.request('GET', '/audio/free');
+        return this.request('GET', '/api/audio/free');
     }
 
     /**
@@ -1804,7 +1804,7 @@ class ApiService {
     async getAudioMetadata(audioId) {
         const userId = this.resolveUserId();
         console.log(`🎧 ApiService: Getting metadata for audio ${audioId}...`);
-        return this.request('GET', `/audio/${audioId}?userId=${userId}`);
+        return this.request('GET', `/api/audio/${audioId}?userId=${userId}`);
     }
 
     /**
@@ -1815,7 +1815,7 @@ class ApiService {
     async getAudioStreamUrl(audioId) {
         const userId = this.resolveUserId();
         console.log(`🎧 ApiService: Getting stream URL for audio ${audioId}...`);
-        return this.request('GET', `/audio/${audioId}/stream-url?userId=${userId}`);
+        return this.request('GET', `/api/audio/${audioId}/stream-url?userId=${userId}`);
     }
 
     /**
@@ -1826,7 +1826,7 @@ class ApiService {
     async getAudioProgress(audioId) {
         const userId = this.resolveUserId();
         console.log(`🎧 ApiService: Getting progress for audio ${audioId}...`);
-        return this.request('GET', `/audio/${audioId}/progress?userId=${userId}`);
+        return this.request('GET', `/api/audio/${audioId}/progress?userId=${userId}`);
     }
 
     /**
@@ -1838,7 +1838,7 @@ class ApiService {
     async updateAudioProgress(audioId, positionSec) {
         const userId = this.resolveUserId();
         console.log(`🎧 ApiService: Updating progress for audio ${audioId}: ${positionSec}s`);
-        return this.request('POST', `/audio/${audioId}/progress?userId=${userId}`, {
+        return this.request('POST', `/api/audio/${audioId}/progress?userId=${userId}`, {
             positionSec
         });
     }
@@ -1851,7 +1851,7 @@ class ApiService {
     async getLastTrack(containerId) {
         const userId = this.resolveUserId();
         console.log(`🎧 ApiService: Getting last track for container ${containerId}...`);
-        return this.request('GET', `/audio/${containerId}/last-track?userId=${userId}`);
+        return this.request('GET', `/api/audio/${containerId}/last-track?userId=${userId}`);
     }
     
     // ============================================================================
