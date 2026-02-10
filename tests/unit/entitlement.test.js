@@ -158,6 +158,68 @@ describe('Entitlement Service', () => {
 
       expect(hasAccess).toBe(true);
     });
+
+    it('should normalize track IDs and check container entitlement', async () => {
+      // Grant entitlement to container
+      await entitlementService.grantAudio(testUserId, 'alice_wonderland');
+
+      // Should have access to tracks from that container
+      const hasAccessToTrack01 = await entitlementService.hasAudioAccess(
+        testUserId,
+        'alice_wonderland-01'
+      );
+      const hasAccessToTrack05 = await entitlementService.hasAudioAccess(
+        testUserId,
+        'alice_wonderland-05'
+      );
+
+      expect(hasAccessToTrack01).toBe(true);
+      expect(hasAccessToTrack05).toBe(true);
+    });
+
+    it('should support badge aliases for alice_wonderland', async () => {
+      // Grant 'alice_badge' entitlement (the gamification badge)
+      await entitlementService.grantAudio(testUserId, 'alice_badge');
+
+      // Should have access to alice_wonderland container via alias
+      const hasAccessToContainer = await entitlementService.hasAudioAccess(
+        testUserId,
+        'alice_wonderland'
+      );
+      
+      // Should also have access to tracks via normalization + alias
+      const hasAccessToTrack = await entitlementService.hasAudioAccess(
+        testUserId,
+        'alice_wonderland-01'
+      );
+
+      expect(hasAccessToContainer).toBe(true);
+      expect(hasAccessToTrack).toBe(true);
+    });
+
+    it('should check both direct and alias entitlements', async () => {
+      // User has only alice_badge, not alice_wonderland
+      await entitlementService.grantAudio(testUserId, 'alice_badge');
+
+      // Track access should work through: track -> normalize to container -> check aliases
+      const hasAccess = await entitlementService.hasAudioAccess(
+        testUserId,
+        'alice_wonderland-02'
+      );
+
+      expect(hasAccess).toBe(true);
+    });
+
+    it('should not normalize IDs without track suffix', async () => {
+      await entitlementService.grantAudio(testUserId, 'simple_audio');
+
+      const hasAccess = await entitlementService.hasAudioAccess(
+        testUserId,
+        'simple_audio'
+      );
+
+      expect(hasAccess).toBe(true);
+    });
   });
 
   describe('getRemainingDays', () => {

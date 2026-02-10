@@ -7,25 +7,43 @@ const UserEntitlement = require('../../models/UserEntitlement');
 const logger = require('../../utils/logger');
 
 /**
- * Check if user has access to a specific audio
- * @param {mongoose.Types.ObjectId} userId - User ID
+ * Normalize track IDs by removing track number suffix
+ * @param {string} audioId - Audio identifier (e.g., "container-01")
+ * @returns {string} Base container ID (e.g., "container")
+ */
+function normalizeAudioId(audioId) {
+  const m = String(audioId).match(/^(.+)-(\d+)$/);
+  return m ? m[1] : String(audioId);
+}
+
+// Aliases: allow badges to grant access to containers
+// Key = base container ID; Values = entitlement resource IDs considered valid
+const ENTITLEMENT_ALIASES = {
+  // Alice gated content: badge grants access to the container
+  alice_wonderland: ['alice_wonderland', 'alice_badge']
+};
+
+/**
+ * Check if user has access to a specific audio or its aliases
+ * Accepts container IDs and track IDs; track IDs are normalized to container
+ * @param {mongoose.Types.ObjectId|string} userId - User ID
  * @param {string} audioId - Audio identifier
  * @returns {Promise<boolean>} True if user has access
  */
 async function hasAudioAccess(userId, audioId) {
   try {
-    // Check for direct audio entitlement
-    const hasDirectAccess = await UserEntitlement.hasAccess(userId, 'audio', audioId);
-    
-    if (hasDirectAccess) {
-      logger.info(`✅ User ${userId} has direct access to audio ${audioId}`);
-      return true;
+    const baseId = normalizeAudioId(audioId);
+    const candidates = ENTITLEMENT_ALIASES[baseId] || [baseId];
+
+    for (const id of candidates) {
+      const ok = await UserEntitlement.hasAccess(userId, 'audio', id);
+      if (ok) {
+        logger.info(`✅ User ${userId} has access via entitlement '${id}' (requested='${audioId}', base='${baseId}')`);
+        return true;
+      }
     }
 
-    // In the future, check for package or subscription access
-    // For now, we only check direct audio entitlements
-    
-    logger.info(`❌ User ${userId} does not have access to audio ${audioId}`);
+    logger.info(`❌ User ${userId} does not have access (requested='${audioId}', base='${baseId}', checked=${candidates.join(',')})`);
     return false;
   } catch (error) {
     logger.error(`❌ Error checking audio access for user ${userId}:`, error);
