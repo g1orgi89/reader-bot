@@ -5627,7 +5627,7 @@ router.get('/feedback/audio/:audioId/stats', communityLimiter, async (req, res) 
     const filter = {
       source: 'mini_app',
       context: 'bot',
-      tags: { $in: ['audio', audioId] },
+      tags: { $all: ['audio', audioId] },
       // Exclude non-real users: telegramId must exist and not be a placeholder
       telegramId: { $exists: true, $ne: null, $nin: ['demo-user', '0', 'undefined', 'null'] }
     };
@@ -5710,7 +5710,7 @@ router.get('/feedback/audio/:audioId/comments', communityLimiter, async (req, re
     const filter = {
       source: 'mini_app',
       context: 'bot',
-      tags: { $in: ['audio', audioId] },
+      tags: { $all: ['audio', audioId] },
       // Exclude non-real users: telegramId must exist and not be a placeholder
       telegramId: { $exists: true, $ne: null, $nin: ['demo-user', '0', 'undefined', 'null'] }
     };

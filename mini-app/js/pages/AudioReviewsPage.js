@@ -142,7 +142,7 @@ class AudioReviewsPage {
   renderReviewsList() {
     return `
       <div class="audio-reviews-section">
-        <h4 class="audio-reviews-section-title">Отзывы других пользователей</h4>
+        <h4 class="audio-reviews-section-title">Отзывы пользователей</h4>
         <div class="audio-reviews-list" id="reviews-list">
           ${this.feedbackState.isLoadingComments ? `
             <div class="audio-reviews-loading">Загрузка отзывов...</div>
@@ -254,9 +254,10 @@ class AudioReviewsPage {
     // Back button
     const backBtn = document.getElementById('reviews-back-btn');
     if (backBtn) {
-      backBtn.addEventListener('click', () => {
+      backBtn.addEventListener('click', (e) => {
+        e.preventDefault();
         if (this.app.router) {
-          this.app.router.back();
+          this.app.router.goBack();
         }
       });
     }
@@ -324,7 +325,7 @@ class AudioReviewsPage {
       // Telegram API requires passing the same handler to both onClick and offClick
       this._backButtonHandler = () => {
         if (this.app?.router) {
-          this.app.router.back();
+          this.app.router.goBack();
         }
       };
       
