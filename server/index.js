@@ -761,11 +761,12 @@ app.get('/media/stream/:id', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authentication required' });
     }
 
-    const { resolveUserObjectId } = require('./services/access/resolveUserId');
-    const userId = await resolveUserObjectId(rawUserId);
-    if (!userId) {
+    // Use raw userId directly as MongoDB ObjectId (no resolveUserObjectId)
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(rawUserId)) {
       return res.status(401).json({ success: false, error: 'Invalid user ID' });
     }
+    const userId = new mongoose.Types.ObjectId(rawUserId);
 
     // Normalize track ID: 'alice_wonderland-01' → 'alice_wonderland'
     const trackMatch = id.match(/^(.+)-(\d+)$/);
