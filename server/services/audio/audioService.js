@@ -82,8 +82,8 @@ const FREE_AUDIO_METADATA = {
     title: 'Разбор: «Алиса в стране чудес»',
     author: 'Льюис Кэрролл',
     description: 'Философский анализ классической сказки о поиске себя и познании мира',
-    coverUrl: '/assets/book-covers/alice_wonderland.png',
-    playerCoverUrl: '/assets/audio-covers/alice_wonderland-player.png',
+    coverUrl: '/mini-app/assets/book-covers/alice_wonderland.png',
+    playerCoverUrl: '/mini-app/assets/audio-covers/alice_wonderland-player.png',
     isFree: false,
     requiresEntitlement: true,
     tracks: [
@@ -152,7 +152,8 @@ async function findById(audioId) {
           description: audio.description,
           coverUrl: audio.coverUrl,
           playerCoverUrl: audio.playerCoverUrl,
-          isFree: true,
+          isFree: audio.isFree,
+          requiresEntitlement: audio.requiresEntitlement || false,
           tracks: audio.tracks
         };
       }
@@ -167,7 +168,8 @@ async function findById(audioId) {
         coverUrl: audio.coverUrl,
         playerCoverUrl: audio.playerCoverUrl,
         audioUrl: `/media/free/${audio.audioFile}`,
-        isFree: true
+        isFree: audio.isFree,
+        requiresEntitlement: audio.requiresEntitlement || false
       };
     }
 
@@ -182,17 +184,15 @@ async function findById(audioId) {
             title: track.title,
             author: container.author,
             coverUrl: container.coverUrl,
-            audioUrl: makeMediaUrl(track.file),
-            isFree: true,
+            audioUrl: container.isFree ? makeMediaUrl(track.file) : undefined,
+            isFree: container.isFree,
+            requiresEntitlement: container.requiresEntitlement || false,
             containerId: containerId
           };
         }
       }
     }
 
-    // In the future, check database for premium content
-    // For now, premium content is not implemented
-    
     logger.warn(`⚠️ Audio not found: ${audioId}`);
     return null;
   } catch (error) {
@@ -286,6 +286,12 @@ async function getStreamUrl(userId, audioId) {
 
     // For containers with tracks, return URL of first track
     if (audio.tracks && audio.tracks.length > 0) {
+      const firstTrackId = audio.tracks[0].id;
+      // If premium container, return protected stream URL for first track
+      if (audio.requiresEntitlement) {
+        return { url: `/media/stream/${firstTrackId}` };
+      }
+      // If free container, return direct URL
       return { url: makeMediaUrl(audio.tracks[0].file) };
     }
 

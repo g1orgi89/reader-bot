@@ -48,7 +48,8 @@ router.get('/free', async (req, res) => {
 /**
  * GET /api/audio/alice_wonderland
  * Get Alice audio metadata with unlock status and timer
- * @returns {Object} Alice metadata with unlockStatus and remainingDays
+ * Returns same format as GET /api/audio/:id for consistency
+ * @returns {Object} Alice metadata with success, audio, and tracks
  */
 router.get('/alice_wonderland', async (req, res) => {
   try {
@@ -56,9 +57,20 @@ router.get('/alice_wonderland', async (req, res) => {
     
     logger.info(`📚 Fetching Alice audio metadata for user ${userId}...`);
     
-    // Default to locked state
-    let unlockStatus = false;
-    let remainingDays = 0;
+    // Get full audio metadata from audioService
+    const audio = await audioService.findById('alice_wonderland');
+    
+    if (!audio) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alice audio not found'
+      });
+    }
+    
+    // Check if audio is unlocked for this user
+    let unlocked = false;
+    let remainingDays = null;
+    let expiresAt = null;
     
     if (userId) {
       // Resolve userId to ObjectId
@@ -67,21 +79,48 @@ router.get('/alice_wonderland', async (req, res) => {
       if (userObjectId) {
         // Check entitlement
         const entitlementService = require('../services/access/entitlementService');
-        unlockStatus = await entitlementService.hasAudioAccess(userObjectId, 'alice_wonderland');
+        unlocked = await entitlementService.hasAudioAccess(userObjectId, 'alice_wonderland');
         
-        if (unlockStatus) {
-          remainingDays = await entitlementService.getRemainingDays(userObjectId, 'alice_wonderland');
-          // If remainingDays is -1 (never expires), set to 30 for display
-          if (remainingDays === -1) {
-            remainingDays = 30;
+        if (unlocked) {
+          const UserEntitlement = require('../models/UserEntitlement');
+          
+          // Get entitlement to extract expiresAt
+          const entitlement = await UserEntitlement.findOne({ 
+            userId: userObjectId, 
+            kind: 'audio', 
+            resourceId: 'alice_wonderland' 
+          });
+          
+          if (entitlement) {
+            expiresAt = entitlement.expiresAt;
+            remainingDays = await entitlementService.getRemainingDays(userObjectId, 'alice_wonderland');
+            // If remainingDays is -1 (never expires), keep as -1 for proper handling
           }
         }
       }
     }
     
+    // Prepare response object
+    const audioResponse = {
+      ...audio,
+      unlocked
+    };
+    
+    // Add remainingDays if available (for gated content)
+    if (remainingDays !== null) {
+      audioResponse.remainingDays = remainingDays;
+    }
+    
+    // Add expiresAt if available (for expired detection)
+    if (expiresAt !== null) {
+      audioResponse.expiresAt = expiresAt;
+    }
+    
+    // Return container with tracks
     res.json({
-      unlockStatus,
-      remainingDays
+      success: true,
+      audio: audioResponse,
+      tracks: audio.tracks
     });
   } catch (error) {
     logger.error('❌ Error fetching Alice metadata:', error);

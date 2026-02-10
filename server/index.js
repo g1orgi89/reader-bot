@@ -755,9 +755,9 @@ logger.info('🔒 Registering protected media stream route...');
 app.get('/media/stream/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.query.userId; // In production, get from auth token
+    const rawUserId = req.query.userId; // In production, get from auth token
     
-    if (!userId) {
+    if (!rawUserId) {
       return res.status(401).json({
         success: false,
         error: 'Authentication required'
@@ -765,7 +765,27 @@ app.get('/media/stream/:id', async (req, res) => {
     }
 
     const audioService = require('./services/audio/audioService');
-    logger.info(`🔒 Protected stream request for audio ${id}, user ${userId}...`);
+    const { resolveUserObjectId } = require('./services/access/resolveUserId');
+    
+    logger.info(`🔒 Protected stream request for audio ${id}, user ${rawUserId}...`);
+    
+    // Resolve userId to ObjectId
+    const userId = await resolveUserObjectId(rawUserId);
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid user ID'
+      });
+    }
+    
+    // Extract container ID from track ID (format: containerId-trackNumber)
+    // For direct audio IDs, use the ID as-is
+    let containerIdToCheck = id;
+    const trackMatch = id.match(/^(.+)-(\d+)$/);
+    if (trackMatch) {
+      containerIdToCheck = trackMatch[1];
+    }
     
     // Check access
     const unlocked = await audioService.isUnlocked(userId, id);
@@ -789,14 +809,25 @@ app.get('/media/stream/:id', async (req, res) => {
 
     // For free content, this endpoint shouldn't be called
     // but handle it gracefully
-    if (audio.isFree) {
+    if (audio.isFree && audio.audioUrl) {
       return res.redirect(audio.audioUrl);
     }
 
+    // Map track ID to file path
+    // Format: containerId-trackNumber -> containerId/trackNumber.mp3
+    let filePath;
+    if (trackMatch) {
+      const [, containerId, trackNumber] = trackMatch;
+      filePath = `${containerId}/${trackNumber}.mp3`;
+    } else {
+      // Direct audio file (not a track)
+      filePath = `${id}.mp3`;
+    }
+    
     // For premium content, use X-Accel-Redirect
     // This tells Nginx to serve the file from a protected location
     // The protected location is configured in Nginx config
-    const protectedPath = `/media-protected/${id}.mp3`;
+    const protectedPath = `/media-protected/${filePath}`;
     
     logger.info(`✅ Granting access via X-Accel-Redirect: ${protectedPath}`);
     
