@@ -249,9 +249,19 @@ async function isUnlocked(userId, audioId) {
     }
 
     // For premium content, check entitlements
-    // If this is a track from a premium container, check entitlement for the container
+    // If this is a track from a container (format: containerId-NN), always check entitlement for the container
     let checkId = audioId;
-    if (containerForTrack && !containerForTrack.isFree) {
+    // Pattern uses greedy match (.+) to capture everything before the last hyphen-digit sequence
+    // This correctly handles IDs like 'alice-in-wonderland-01' -> container: 'alice-in-wonderland', track: '01'
+    const trackMatch = audioId.match(/^(.+)-(\d+)$/);
+    if (trackMatch) {
+      // Extract container ID from track ID pattern (e.g., 'alice_wonderland-01' -> 'alice_wonderland')
+      // This takes precedence over FREE_AUDIO_METADATA lookup to ensure entitlement is checked
+      // on the parent container even if the container is not currently in FREE_AUDIO_METADATA
+      checkId = trackMatch[1];
+      logger.info(`🔐 Checking entitlement for container ${checkId} (track: ${audioId})`);
+    } else if (containerForTrack && !containerForTrack.isFree) {
+      // Fallback: Use container from FREE_AUDIO_METADATA if no track pattern matched
       checkId = containerForTrack.id;
       logger.info(`🔐 Checking entitlement for container ${checkId} (track: ${audioId})`);
     }
