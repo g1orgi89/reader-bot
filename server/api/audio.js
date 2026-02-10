@@ -453,6 +453,52 @@ router.get('/:containerId/last-track', async (req, res) => {
 });
 
 /**
+ * GET /api/audio/:id/stream
+ * Stream audio with entitlement check → X-Accel-Redirect
+ */
+router.get('/:id/stream', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rawUserId = req.query.userId;
+    if (!rawUserId) {
+      return res.status(401).json({ success: false, error: 'User ID required' });
+    }
+
+    const entitlementService = require('../services/access/entitlementService');
+
+    // Единая резолюция userId: ObjectId как есть, иначе resolveUserObjectId
+    let userObjectId = null;
+    if (mongoose.Types.ObjectId.isValid(String(rawUserId)) && String(rawUserId).length === 24) {
+      userObjectId = new mongoose.Types.ObjectId(String(rawUserId));
+    } else {
+      userObjectId = await resolveUserObjectId(rawUserId);
+    }
+    if (!userObjectId) {
+      return res.status(401).json({ success: false, error: 'Invalid user ID' });
+    }
+
+    // Проверка доступа (учтены алиасы/бейджи)
+    const hasAccess = await entitlementService.hasAudioAccess(userObjectId, id);
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Формируем путь к защищенному файлу
+    const m = String(id).match(/^(.+)-(\d+)$/);
+    const filePath = m ? `${m[1]}/${m[2]}.mp3` : `${id}.mp3`;
+
+    // Отдаем через X-Accel-Redirect
+    res.setHeader('X-Accel-Redirect', `/media-protected/${filePath}`);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Accept-Ranges', 'bytes');
+    return res.end();
+  } catch (error) {
+    logger.error('❌ Error in /api/audio/:id/stream:', error);
+    return res.status(500).json({ success: false, error: 'Failed to stream audio', details: error.message });
+  }
+});
+
+/**
  * GET /api/audio/_debug/access
  * Диагностика доступа: возвращает всю информацию, которую использует стрим-роут
  * Пример: /api/audio/_debug/access?audioId=alice_wonderland-01&userId=6925e7e64ae91123a887501f

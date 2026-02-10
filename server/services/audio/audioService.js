@@ -300,9 +300,9 @@ async function getStreamUrl(userId, audioId) {
     // For containers with tracks, return URL of first track
     if (audio.tracks && audio.tracks.length > 0) {
       const firstTrackId = audio.tracks[0].id;
-      // If premium container, return protected stream URL for first track
+      // If premium container, return API stream URL for first track
       if (audio.requiresEntitlement) {
-        return { url: `/media/stream/${firstTrackId}?userId=${userId}` };
+        return { url: `/api/audio/${firstTrackId}/stream?userId=${userId}` };
       }
       // If free container, return direct URL
       return { url: makeMediaUrl(audio.tracks[0].file) };
@@ -313,9 +313,9 @@ async function getStreamUrl(userId, audioId) {
       return { url: audio.audioUrl };
     }
 
-    // For premium content, return protected stream URL
+    // For premium content, return API stream URL
     // This will be proxied through Node.js with X-Accel-Redirect
-    return { url: `/media/stream/${audioId}?userId=${userId}` };
+    return { url: `/api/audio/${audioId}/stream?userId=${userId}` };
   } catch (error) {
     logger.error(`❌ Error getting stream URL for audio ${audioId}:`, error);
     throw error;
