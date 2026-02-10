@@ -43,6 +43,9 @@ class AudioReviewsPage {
       commentsList: null,
       statsHeader: null
     };
+    
+    // Store back button handler for proper cleanup
+    this._backButtonHandler = null;
   }
   
   /**
@@ -158,8 +161,20 @@ class AudioReviewsPage {
     return this.feedbackState.comments.map(comment => `
       <div class="audio-reviews-item">
         <div class="audio-reviews-item-header">
-          <div class="audio-reviews-item-rating">
-            ${'⭐'.repeat(comment.rating)}
+          <div class="audio-reviews-item-user">
+            ${comment.avatar ? `
+              <img src="${this.escapeHtml(comment.avatar)}" alt="${this.escapeHtml(comment.displayName)}" class="audio-reviews-item-avatar" />
+            ` : `
+              <div class="audio-reviews-item-avatar audio-reviews-item-avatar--placeholder">
+                ${this.escapeHtml(comment.displayName?.charAt(0) || '?')}
+              </div>
+            `}
+            <div class="audio-reviews-item-info">
+              <div class="audio-reviews-item-name">${this.escapeHtml(comment.displayName || 'Аноним')}</div>
+              <div class="audio-reviews-item-rating">
+                ${'⭐'.repeat(comment.rating)}
+              </div>
+            </div>
           </div>
           <div class="audio-reviews-item-date">
             ${this.formatDate(comment.createdAt)}
@@ -303,6 +318,20 @@ class AudioReviewsPage {
   async onShow() {
     console.log('AudioReviewsPage: onShow called');
     
+    // Setup Telegram BackButton
+    if (window.Telegram?.WebApp?.BackButton) {
+      // Store handler reference for proper cleanup in onHide
+      // Telegram API requires passing the same handler to both onClick and offClick
+      this._backButtonHandler = () => {
+        if (this.app?.router) {
+          this.app.router.back();
+        }
+      };
+      
+      window.Telegram.WebApp.BackButton.show();
+      window.Telegram.WebApp.BackButton.onClick(this._backButtonHandler);
+    }
+    
     // Fetch stats and comments
     await Promise.all([
       this.fetchStats(),
@@ -319,6 +348,15 @@ class AudioReviewsPage {
    */
   onHide() {
     console.log('AudioReviewsPage: onHide called');
+    
+    // Hide Telegram BackButton and remove handler
+    if (window.Telegram?.WebApp?.BackButton) {
+      window.Telegram.WebApp.BackButton.hide();
+      if (this._backButtonHandler) {
+        window.Telegram.WebApp.BackButton.offClick(this._backButtonHandler);
+        this._backButtonHandler = null;
+      }
+    }
   }
   
   /**

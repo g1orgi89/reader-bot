@@ -823,6 +823,40 @@ async function enrichCommentsWithUserData(comments) {
 }
 
 /**
+ * Enrich feedback (audio reviews) with user data including avatar and display name
+ * Similar to enrichCommentsWithUserData but for Feedback documents with telegramId
+ * @param {Array} feedbackDocs - Array of feedback documents
+ * @returns {Promise<Array>} Feedback with user data
+ */
+async function enrichFeedbackWithUserData(feedbackDocs) {
+  if (!feedbackDocs || feedbackDocs.length === 0) return [];
+  
+  // Extract unique telegramIds
+  const telegramIds = [...new Set(feedbackDocs.map(f => f.telegramId).filter(Boolean))];
+  
+  // Fetch user profiles for all telegramIds
+  const users = await UserProfile.find({ userId: { $in: telegramIds } })
+    .select('userId name telegramUsername avatarUrl')
+    .lean();
+  
+  // Create map for quick lookup
+  const userMap = new Map(users.map(u => [u.userId, u]));
+  
+  // Enrich each feedback with user data
+  return feedbackDocs.map(feedback => {
+    const user = userMap.get(feedback.telegramId);
+    
+    return {
+      ...feedback,
+      // Add user info with avatar and display name
+      avatar: user?.avatarUrl || null,
+      displayName: user?.name || user?.telegramUsername || 'Аноним',
+      userName: user?.telegramUsername || null
+    };
+  });
+}
+
+/**
  * @description Health check endpoint
  * @route GET /api/reader/health
  */
@@ -5484,6 +5518,15 @@ router.post('/feedback', async (req, res) => {
       });
     }
     
+    // Exclude non-real users from submitting feedback
+    const nonRealUsers = ['demo-user', '0', 'undefined', 'null'];
+    if (nonRealUsers.includes(telegramId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Invalid user credentials'
+      });
+    }
+    
     // Try to find userId from UserProfile
     try {
       const userProfile = await UserProfile.findOne({ userId: telegramId });
@@ -5569,7 +5612,7 @@ router.post('/feedback', async (req, res) => {
  * @route GET /api/reader/feedback/audio/:audioId/stats
  * @access Public
  */
-router.get('/feedback/audio/:audioId/stats', async (req, res) => {
+router.get('/feedback/audio/:audioId/stats', communityLimiter, async (req, res) => {
   try {
     const { audioId } = req.params;
     
@@ -5580,11 +5623,13 @@ router.get('/feedback/audio/:audioId/stats', async (req, res) => {
       });
     }
     
-    // Build filter for audio-specific feedback
+    // Build filter for audio-specific feedback, excluding non-real users
     const filter = {
       source: 'mini_app',
       context: 'bot',
-      tags: { $in: ['audio', audioId] }
+      tags: { $in: ['audio', audioId] },
+      // Exclude non-real users: telegramId must exist and not be a placeholder
+      telegramId: { $exists: true, $ne: null, $nin: ['demo-user', '0', 'undefined', 'null'] }
     };
     
     // Aggregate statistics
@@ -5641,11 +5686,12 @@ router.get('/feedback/audio/:audioId/stats', async (req, res) => {
 });
 
 /**
- * @description GET /api/reader/feedback/audio/:audioId/comments - Get comments for audio
+ * @description GET /api/reader/feedback/audio/:audioId/comments - Get comments for audio with user data
  * @route GET /api/reader/feedback/audio/:audioId/comments
  * @access Public
+ * @note Returns all feedback (with or without text) to support rating-only reviews
  */
-router.get('/feedback/audio/:audioId/comments', async (req, res) => {
+router.get('/feedback/audio/:audioId/comments', communityLimiter, async (req, res) => {
   try {
     const { audioId } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -5659,29 +5705,34 @@ router.get('/feedback/audio/:audioId/comments', async (req, res) => {
       });
     }
     
-    // Build filter for audio-specific feedback with text
+    // Build filter for audio-specific feedback, excluding non-real users
+    // Note: Includes all feedback, even without text, to support rating-only reviews
     const filter = {
       source: 'mini_app',
       context: 'bot',
       tags: { $in: ['audio', audioId] },
-      text: { $ne: '' }
+      // Exclude non-real users: telegramId must exist and not be a placeholder
+      telegramId: { $exists: true, $ne: null, $nin: ['demo-user', '0', 'undefined', 'null'] }
     };
     
-    // Get total count
+    // Get total count (all feedback, with or without text)
     const total = await Feedback.countDocuments(filter);
     
-    // Get paginated comments
-    const comments = await Feedback.find(filter)
+    // Get paginated feedback (includes rating-only reviews without text)
+    const feedbackDocs = await Feedback.find(filter)
       .select('telegramId rating text createdAt')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
     
+    // Enrich comments with user data (avatar and display name)
+    const enrichedComments = await enrichFeedbackWithUserData(feedbackDocs);
+    
     res.json({
       success: true,
       data: {
-        items: comments,
+        items: enrichedComments,
         total,
         page,
         limit,

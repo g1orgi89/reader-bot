@@ -7,14 +7,15 @@
 .feedback-inline {
   margin: 0 0 6px 0;
   padding: 0;
+  display: block;
 }
 
 .feedback-inline .feedback-inline-link {
   background: none;
   border: none;
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   padding: 2px 0;
   cursor: pointer;
   text-align: left;

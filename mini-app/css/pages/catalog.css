@@ -308,9 +308,16 @@
 
 .book-footer {
     display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: auto; /* Push footer to bottom */
+}
+
+/* Bottom row container for pricing and CTA button */
+.book-footer-row {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: auto; /* Push footer to bottom */
     gap: var(--spacing-xs);
 }
 
