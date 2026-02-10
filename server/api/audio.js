@@ -452,4 +452,62 @@ router.get('/:containerId/last-track', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/audio/_debug/access
+ * Диагностика доступа: возвращает всю информацию, которую использует стрим-роут
+ * Пример: /api/audio/_debug/access?audioId=alice_wonderland-01&userId=6925e7e64ae91123a887501f
+ */
+router.get('/_debug/access', async (req, res) => {
+  try {
+    const { audioId, userId: rawUserId } = req.query;
+    if (!audioId || !rawUserId) {
+      return res.status(400).json({ success: false, error: 'audioId and userId are required' });
+    }
+
+    const UserEntitlement = require('../models/UserEntitlement');
+    const entitlementService = require('../services/access/entitlementService');
+
+    // Единая резолюция userId
+    const resolvedUserId = (mongoose.Types.ObjectId.isValid(String(rawUserId)) && String(rawUserId).length === 24)
+      ? new mongoose.Types.ObjectId(String(rawUserId))
+      : await resolveUserObjectId(rawUserId);
+
+    // Нормализация track → container
+    const m = String(audioId).match(/^(.+)-(\d+)$/);
+    const baseId = m ? m[1] : String(audioId);
+
+    // Прямой findOne в Mongo
+    const ent = resolvedUserId
+      ? await UserEntitlement.findOne({ userId: resolvedUserId, kind: 'audio', resourceId: baseId }).lean()
+      : null;
+
+    const now = new Date();
+    const isValidDirect = !!ent && (!ent.expiresAt || new Date(ent.expiresAt) > now);
+
+    // Проверка через сервис (с алиасами)
+    const hasAccessAlias = resolvedUserId
+      ? await entitlementService.hasAudioAccess(resolvedUserId, audioId)
+      : false;
+
+    // Отладочные сведения
+    res.json({
+      success: true,
+      debug: {
+        audioId,
+        rawUserId,
+        resolvedUserId: resolvedUserId ? String(resolvedUserId) : null,
+        baseId,
+        entitlementFound: !!ent,
+        entitlementId: ent?._id || null,
+        entitlementExpiresAt: ent?.expiresAt || null,
+        now: now.toISOString(),
+        validByDirectFindOne: isValidDirect,
+        validByAliasService: hasAccessAlias
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Debug failed', details: error.message });
+  }
+});
+
 module.exports = router;

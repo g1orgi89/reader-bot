@@ -783,6 +783,8 @@ app.get('/media/stream/:id', async (req, res) => {
     const now = new Date();
     const isValid = !!ent && (!ent.expiresAt || new Date(ent.expiresAt) > now);
 
+    logger.warn(`[STREAM_DEBUG] id=${id} rawUserId=${rawUserId} userId=${String(userId)} baseId=${baseId} entId=${ent?._id||null} expiresAt=${ent?.expiresAt||null} now=${now.toISOString()} valid=${isValid}`);
+
     if (!isValid) {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
