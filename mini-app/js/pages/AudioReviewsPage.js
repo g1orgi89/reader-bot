@@ -158,8 +158,20 @@ class AudioReviewsPage {
     return this.feedbackState.comments.map(comment => `
       <div class="audio-reviews-item">
         <div class="audio-reviews-item-header">
-          <div class="audio-reviews-item-rating">
-            ${'⭐'.repeat(comment.rating)}
+          <div class="audio-reviews-item-user">
+            ${comment.avatar ? `
+              <img src="${this.escapeHtml(comment.avatar)}" alt="${this.escapeHtml(comment.displayName)}" class="audio-reviews-item-avatar" />
+            ` : `
+              <div class="audio-reviews-item-avatar audio-reviews-item-avatar--placeholder">
+                ${this.escapeHtml(comment.displayName?.charAt(0) || '?')}
+              </div>
+            `}
+            <div class="audio-reviews-item-info">
+              <div class="audio-reviews-item-name">${this.escapeHtml(comment.displayName || 'Аноним')}</div>
+              <div class="audio-reviews-item-rating">
+                ${'⭐'.repeat(comment.rating)}
+              </div>
+            </div>
           </div>
           <div class="audio-reviews-item-date">
             ${this.formatDate(comment.createdAt)}
@@ -303,6 +315,16 @@ class AudioReviewsPage {
   async onShow() {
     console.log('AudioReviewsPage: onShow called');
     
+    // Setup Telegram BackButton
+    if (window.Telegram?.WebApp?.BackButton) {
+      window.Telegram.WebApp.BackButton.show();
+      window.Telegram.WebApp.BackButton.onClick(() => {
+        if (this.app?.router) {
+          this.app.router.back();
+        }
+      });
+    }
+    
     // Fetch stats and comments
     await Promise.all([
       this.fetchStats(),
@@ -319,6 +341,12 @@ class AudioReviewsPage {
    */
   onHide() {
     console.log('AudioReviewsPage: onHide called');
+    
+    // Hide Telegram BackButton
+    if (window.Telegram?.WebApp?.BackButton) {
+      window.Telegram.WebApp.BackButton.hide();
+      window.Telegram.WebApp.BackButton.offClick();
+    }
   }
   
   /**

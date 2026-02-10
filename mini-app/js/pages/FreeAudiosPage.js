@@ -185,8 +185,10 @@ class FreeAudiosPage {
             </div>
           </div>
           <div class="book-footer">
-            <div class="book-pricing"><div class="book-price">${label}</div></div>
-            <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
+            <div class="book-footer-row">
+              <div class="book-pricing"><div class="book-price">${label}</div></div>
+              <button class="buy-button" data-id="alice_wonderland">Прослушать</button>
+            </div>
           </div>
         </div>
       `;
@@ -261,8 +263,10 @@ class FreeAudiosPage {
               </div>
             </div>
             <div class="book-footer">
-              <div class="book-pricing"><div class="book-price">Бесплатно</div></div>
-              <button class="buy-button" data-id="${this.escape(x.id)}">Прослушать</button>
+              <div class="book-footer-row">
+                <div class="book-pricing"><div class="book-price">Бесплатно</div></div>
+                <button class="buy-button" data-id="${this.escape(x.id)}">Прослушать</button>
+              </div>
             </div>
           </div>
         `).join('')}
@@ -377,6 +381,39 @@ class FreeAudiosPage {
         console.error('Failed to initialize feedback for', audioId, error);
       }
     });
+    
+    // Initialize for Alice card only if it's unlocked (active state)
+    const aliceCard = document.querySelector('.book-card.alice-card:not(.locked):not(.expired)');
+    if (aliceCard) {
+      const footerElement = aliceCard.querySelector('.book-footer');
+      if (footerElement) {
+        const titleElement = aliceCard.querySelector('.book-title');
+        const authorElement = aliceCard.querySelector('.book-author');
+        const descriptionElement = aliceCard.querySelector('.book-description');
+        const coverImg = aliceCard.querySelector('.book-cover-img');
+        
+        const audioTitle = titleElement?.textContent?.trim() || '';
+        const audioAuthor = authorElement?.textContent?.trim() || '';
+        const audioDescription = descriptionElement?.textContent?.trim() || '';
+        const audioCover = coverImg?.src || '';
+        
+        try {
+          new window.AudioCardCompactFeedback({
+            audioId: 'alice_wonderland',
+            audioSlug: 'alice_wonderland',
+            audioTitle: audioTitle,
+            audioAuthor: audioAuthor,
+            audioDescription: audioDescription,
+            audioCover: audioCover,
+            footerElement: footerElement,
+            apiService: this.api,
+            telegram: this.telegram
+          });
+        } catch (error) {
+          console.error('Failed to initialize feedback for Alice card', error);
+        }
+      }
+    }
   }
 
   parseListResponse(json) {
