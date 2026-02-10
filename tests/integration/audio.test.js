@@ -302,6 +302,69 @@ describe('Audio API Integration Tests', () => {
     });
   });
 
+  describe('GET /api/audio/alice_wonderland', () => {
+    it('should return full metadata with 6 tracks for alice_wonderland', async () => {
+      const response = await request(app)
+        .get('/api/audio/alice_wonderland')
+        .query({ userId: testUserId.toString() })
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.audio).toBeDefined();
+      expect(response.body.audio.id).toBe('alice_wonderland');
+      expect(response.body.audio.title).toBe('Разбор: «Алиса в стране чудес»');
+      expect(response.body.audio.author).toBe('Льюис Кэрролл');
+      expect(response.body.audio.coverUrl).toBe('/mini-app/assets/book-covers/alice_wonderland.png');
+      expect(response.body.audio.playerCoverUrl).toBe('/mini-app/assets/audio-covers/alice_wonderland-player.png');
+      expect(response.body.audio.isFree).toBe(false);
+      expect(response.body.audio.requiresEntitlement).toBe(true);
+      expect(response.body.audio.unlocked).toBe(false);
+      
+      // Should have 6 tracks
+      expect(response.body.tracks).toBeDefined();
+      expect(Array.isArray(response.body.tracks)).toBe(true);
+      expect(response.body.tracks.length).toBe(6);
+      
+      // Verify track IDs
+      expect(response.body.tracks[0].id).toBe('alice_wonderland-01');
+      expect(response.body.tracks[5].id).toBe('alice_wonderland-06');
+    });
+
+    it('should show unlocked=true and remainingDays when user has access', async () => {
+      // Grant access to alice_wonderland
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 25);
+      
+      await UserEntitlement.create({
+        userId: testUserId,
+        kind: 'audio',
+        resourceId: 'alice_wonderland',
+        expiresAt,
+        grantedBy: 'test'
+      });
+
+      const response = await request(app)
+        .get('/api/audio/alice_wonderland')
+        .query({ userId: testUserId.toString() })
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.audio.unlocked).toBe(true);
+      expect(response.body.audio.remainingDays).toBeDefined();
+      expect(response.body.audio.remainingDays).toBeGreaterThan(0);
+    });
+
+    it('should work without userId (shows locked state)', async () => {
+      const response = await request(app)
+        .get('/api/audio/alice_wonderland')
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.audio.unlocked).toBe(false);
+      expect(response.body.audio.remainingDays).toBeUndefined();
+    });
+  });
+
   describe('Telegram userId Resolution', () => {
     let telegramUserId;
     let userObjectId;

@@ -89,7 +89,10 @@ const FREE_AUDIO_METADATA = {
     tracks: [
       { id: 'alice_wonderland-01', title: 'Часть 1', file: 'alice_wonderland/01.mp3' },
       { id: 'alice_wonderland-02', title: 'Часть 2', file: 'alice_wonderland/02.mp3' },
-      { id: 'alice_wonderland-03', title: 'Часть 3', file: 'alice_wonderland/03.mp3' }
+      { id: 'alice_wonderland-03', title: 'Часть 3', file: 'alice_wonderland/03.mp3' },
+      { id: 'alice_wonderland-04', title: 'Часть 4', file: 'alice_wonderland/04.mp3' },
+      { id: 'alice_wonderland-05', title: 'Часть 5', file: 'alice_wonderland/05.mp3' },
+      { id: 'alice_wonderland-06', title: 'Часть 6', file: 'alice_wonderland/06.mp3' }
     ]
   }
   
